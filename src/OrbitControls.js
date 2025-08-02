@@ -278,11 +278,11 @@ export const OrbitControls = function ( object, domElement ) {
 		scope.domElement.removeEventListener( 'contextmenu', onContextMenu );
 
 		scope.domElement.removeEventListener( 'pointerdown', onPointerDown );
-		scope.domElement.removeEventListener( 'wheel', onMouseWheel );
+		scope.domElement.removeEventListener( 'wheel', onMouseWheel, { passive: false } );
 
-		scope.domElement.removeEventListener( 'touchstart', onTouchStart );
+		scope.domElement.removeEventListener( 'touchstart', onTouchStart, { passive: false } );
 		scope.domElement.removeEventListener( 'touchend', onTouchEnd );
-		scope.domElement.removeEventListener( 'touchmove', onTouchMove );
+		scope.domElement.removeEventListener( 'touchmove', onTouchMove, { passive: false } );
 
 		scope.domElement.ownerDocument.removeEventListener( 'pointermove', onPointerMove );
 		scope.domElement.ownerDocument.removeEventListener( 'pointerup', onPointerUp );
@@ -1209,11 +1209,11 @@ export const OrbitControls = function ( object, domElement ) {
 	scope.domElement.addEventListener( 'contextmenu', onContextMenu );
 
 	scope.domElement.addEventListener( 'pointerdown', onPointerDown );
-	scope.domElement.addEventListener( 'wheel', onMouseWheel );
+	scope.domElement.addEventListener( 'wheel', onMouseWheel, { passive: false } );
 
-	scope.domElement.addEventListener( 'touchstart', onTouchStart );
+	scope.domElement.addEventListener( 'touchstart', onTouchStart, { passive: false } );
 	scope.domElement.addEventListener( 'touchend', onTouchEnd );
-	scope.domElement.addEventListener( 'touchmove', onTouchMove );
+	scope.domElement.addEventListener( 'touchmove', onTouchMove, { passive: false } );
 
 	// force an update at start
 

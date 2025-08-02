@@ -1,0 +1,530 @@
+import * as THREE from '../../node_modules/three/build/three.module.js';
+import { DxfViewer } from '../../src/index.js';
+
+// Global variables
+let viewer = null;
+const statusEl = document.getElementById('status');
+const loadingEl = document.getElementById('loading');
+const dropZone = document.getElementById('dropZone');
+const viewerEl = document.getElementById('viewer');
+const fileInfoEl = document.getElementById('fileInfo');
+const fileNameEl = document.getElementById('fileName');
+const fileSizeEl = document.getElementById('fileSize');
+const headerEl = document.querySelector('.header');
+const sidePanelEl = document.getElementById('sidePanel');
+const togglePanelBtn = document.getElementById('togglePanelBtn');
+const panelToggleIcon = document.getElementById('panelToggleIcon');
+const layerTableEl = document.getElementById('layerTable');
+
+// Detect macOS and adjust header padding
+if (navigator.platform.toLowerCase().includes('mac')) {
+    headerEl.classList.add('mac');
+}
+
+// UI Helper functions
+function showStatus(message, type = 'info') {
+    statusEl.textContent = message;
+    statusEl.className = 'status';
+    if (type === 'error') statusEl.classList.add('error');
+    if (type === 'success') statusEl.classList.add('success');
+    if (type === 'warning') statusEl.classList.add('warning');
+    console.log(`[${type.toUpperCase()}] ${message}`);
+}
+
+function showLoading(show = true) {
+    if (show) {
+        loadingEl.classList.add('show');
+    } else {
+        loadingEl.classList.remove('show');
+    }
+}
+
+function hideDropZone() {
+    dropZone.classList.add('hidden');
+}
+
+function showDropZone() {
+    dropZone.classList.remove('hidden');
+}
+
+function showFileInfo(fileName, fileSize) {
+    fileNameEl.textContent = fileName;
+    fileSizeEl.textContent = formatFileSize(fileSize);
+    fileInfoEl.classList.remove('hidden');
+}
+
+function hideFileInfo() {
+    fileInfoEl.classList.add('hidden');
+}
+
+function formatFileSize(bytes) {
+    if (bytes === 0) return '0 B';
+    const k = 1024;
+    const sizes = ['B', 'kB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+}
+
+// Panel management functions
+function toggleSidePanel() {
+    const isCollapsed = sidePanelEl.classList.contains('collapsed');
+    if (isCollapsed) {
+        sidePanelEl.classList.remove('collapsed');
+        panelToggleIcon.textContent = '◀';
+    } else {
+        sidePanelEl.classList.add('collapsed');
+        panelToggleIcon.textContent = '▶';
+    }
+}
+
+// Layer management functions
+function populateLayerTable(layers) {
+    console.log('populateLayerTable called with:', layers);
+    
+    if (!layers || layers.length === 0) {
+        layerTableEl.innerHTML = '<div class="no-file">No layers found in DXF</div>';
+        return;
+    }
+
+    layerTableEl.innerHTML = '';
+    
+    layers.forEach((layer, index) => {
+        console.log('Processing layer:', layer);
+        
+        const layerRow = document.createElement('div');
+        layerRow.className = 'layer-row';
+        
+        const layerName = layer.name || `Layer ${index}`;
+        const displayName = layer.displayName || layerName;
+        const color = layer.color || 0xffffff; // Default to white if no color
+        const objectCount = getLayerObjectCount(layerName);
+        
+        layerRow.innerHTML = `
+            <input type="checkbox" 
+                   class="layer-checkbox" 
+                   id="layer-${index}" 
+                   checked 
+                   data-layer-name="${layerName}">
+            <div class="layer-color" style="background-color: ${rgbToHex(color)}"></div>
+            <div class="layer-info">
+                <div class="layer-name">${displayName}</div>
+                <div class="layer-details">Layer: ${layerName}</div>
+            </div>
+            <div class="layer-count">${objectCount} objects</div>
+        `;
+        
+        layerTableEl.appendChild(layerRow);
+        
+        // Add event listener for checkbox
+        const checkbox = layerRow.querySelector('.layer-checkbox');
+        checkbox.addEventListener('change', (e) => {
+            const layerName = e.target.dataset.layerName;
+            const isVisible = e.target.checked;
+            toggleLayerVisibility(layerName, isVisible);
+        });
+    });
+}
+
+function rgbToHex(color) {
+    // Convert numeric color to hex
+    const hex = color.toString(16).padStart(6, '0');
+    return `#${hex}`;
+}
+
+function getLayerObjectCount(layerName) {
+    // First try the viewer's layer system
+    if (viewer && viewer.layers.has(layerName)) {
+        const layer = viewer.layers.get(layerName);
+        return layer ? layer.objects.length : 0;
+    }
+    
+    // Fallback: count from our extracted layer data
+    if (window.extractedLayerData && window.extractedLayerData.has(layerName)) {
+        return window.extractedLayerData.get(layerName).entities.length;
+    }
+    
+    return 0;
+}
+
+function toggleLayerVisibility(layerName, isVisible) {
+    if (!viewer) return;
+    
+    // Try the standard layer visibility first
+    if (viewer.layers.has(layerName)) {
+        viewer.ShowLayer(layerName, isVisible);
+        showStatus(`Layer "${layerName}" ${isVisible ? 'shown' : 'hidden'}`);
+        return;
+    }
+    
+    // For extracted layers, we need a different approach
+    // Since the DXF viewer doesn't know about these layers, we'll implement a workaround
+    if (window.extractedLayerData && window.extractedLayerData.has(layerName)) {
+        console.log(`Toggling extracted layer: ${layerName} to ${isVisible ? 'visible' : 'hidden'}`);
+        
+        // Store layer visibility state
+        if (!window.layerVisibility) {
+            window.layerVisibility = new Map();
+        }
+        window.layerVisibility.set(layerName, isVisible);
+        
+        // For now, we'll show a message that this layer's visibility was toggled
+        // In a full implementation, we'd need to modify the viewer's rendering
+        showStatus(`Layer "${layerName}" ${isVisible ? 'shown' : 'hidden'} (Note: Layer filtering needs viewer enhancement)`);
+        
+        // TODO: Implement actual geometry filtering in the viewer
+        // This would require modifying the DXF viewer to support entity-level layer filtering
+    } else {
+        showStatus(`Layer "${layerName}" not found`);
+    }
+}
+
+// DXF Viewer functions
+async function initViewer() {
+    try {
+        if (viewer) {
+            viewer.Clear();
+        } else {
+            viewer = new DxfViewer(viewerEl, {
+                clearColor: new THREE.Color(0xf8f9fa),
+                autoResize: true,
+                antialias: true,
+                retainParsedDxf: true  // Keep the parsed DXF data for layer extraction
+            });
+        }
+        
+        return true;
+        
+    } catch (error) {
+        showStatus('Failed to initialize DXF viewer: ' + error.message, 'error');
+        console.error('DXF viewer initialization error:', error);
+        return false;
+    }
+}
+
+async function loadDxfContent(filename, dxfData) {
+    if (!viewer) {
+        if (!await initViewer()) return;
+    }
+    
+    try {
+        showLoading(true);
+        hideDropZone();
+        showStatus('Loading DXF file...');
+        
+        // Create blob URL for the DXF data
+        const blob = new Blob([dxfData], { type: 'text/plain' });
+        const blobUrl = URL.createObjectURL(blob);
+        
+        // Show file info
+        showFileInfo(filename, blob.size);
+        
+        showStatus('Parsing and rendering DXF...');
+        
+        try {
+            await viewer.Load({ url: blobUrl });
+            URL.revokeObjectURL(blobUrl);
+            
+            // Debug the parsed DXF data
+            console.log('Raw DXF data:', viewer.parsedDxf);
+            console.log('DXF tables:', viewer.parsedDxf?.tables);
+            console.log('DXF header:', viewer.parsedDxf?.header);
+            console.log('DXF entities sample:', viewer.parsedDxf?.entities?.slice(0, 5));
+            
+            if (viewer.parsedDxf?.tables?.layer?.layers) {
+                console.log('DXF layer table:', viewer.parsedDxf.tables.layer.layers);
+            } else {
+                console.log('No layer table found, checking alternative structures...');
+                if (viewer.parsedDxf?.tables) {
+                    console.log('Available table keys:', Object.keys(viewer.parsedDxf.tables));
+                    if (viewer.parsedDxf.tables.layer) {
+                        console.log('Layer table structure:', viewer.parsedDxf.tables.layer);
+                    }
+                }
+            }
+            
+            // Debug the viewer's internal layer system
+            console.log('Viewer layers map:', viewer.layers);
+            console.log('Viewer default layer:', viewer.defaultLayer);
+            console.log('Viewer layers size:', viewer.layers.size);
+            
+            // Try to get layers from the internal layers map
+            const layersFromMap = [];
+            viewer.layers.forEach((layer, name) => {
+                console.log('Layer from map:', name, layer);
+                layersFromMap.push({
+                    name: name,
+                    displayName: layer.displayName || name,
+                    color: layer.color !== undefined ? layer.color : 0xffffff
+                });
+            });
+            
+            // Also add default layer if it exists and has objects
+            if (viewer.defaultLayer && viewer.defaultLayer.objects.length > 0) {
+                console.log('Adding default layer:', viewer.defaultLayer);
+                layersFromMap.push({
+                    name: viewer.defaultLayer.name,
+                    displayName: viewer.defaultLayer.displayName || viewer.defaultLayer.name,
+                    color: viewer.defaultLayer.color !== undefined ? viewer.defaultLayer.color : 0xffffff
+                });
+            }
+            
+            // Populate layer table - get ALL layers, including empty ones
+            const layers = viewer.GetLayers(false); // Get all layers
+            console.log('Found layers via GetLayers():', layers);
+            console.log('Found layers via internal map:', layersFromMap);
+            
+            // Try to extract layers from raw DXF data if viewer layers are empty
+            let dxfLayers = [];
+            
+            // First try the standard layer table structure
+            if (viewer.parsedDxf?.tables?.layer?.layers) {
+                console.log('Extracting layers from DXF layer table...');
+                Object.keys(viewer.parsedDxf.tables.layer.layers).forEach(layerName => {
+                    const dxfLayer = viewer.parsedDxf.tables.layer.layers[layerName];
+                    console.log('DXF Layer:', layerName, dxfLayer);
+                    dxfLayers.push({
+                        name: layerName,
+                        displayName: layerName,
+                        color: dxfLayer.color || 0xffffff
+                    });
+                });
+            } else if (viewer.parsedDxf?.tables?.layer) {
+                // Try alternative layer table structure
+                console.log('Trying alternative layer table structure...');
+                const layerTable = viewer.parsedDxf.tables.layer;
+                if (Array.isArray(layerTable)) {
+                    layerTable.forEach(layer => {
+                        console.log('Layer from array:', layer);
+                        if (layer.name) {
+                            dxfLayers.push({
+                                name: layer.name,
+                                displayName: layer.name,
+                                color: layer.color || 0xffffff
+                            });
+                        }
+                    });
+                } else if (typeof layerTable === 'object') {
+                    Object.keys(layerTable).forEach(key => {
+                        if (typeof layerTable[key] === 'object' && layerTable[key].name) {
+                            console.log('Layer from object:', key, layerTable[key]);
+                            dxfLayers.push({
+                                name: layerTable[key].name,
+                                displayName: layerTable[key].name,
+                                color: layerTable[key].color || 0xffffff
+                            });
+                        }
+                    });
+                }
+            } else {
+                // Last resort: extract unique layer names and colors from entities
+                console.log('Extracting unique layer names and colors from entities...');
+                const layerData = new Map();
+                
+                viewer.parsedDxf?.entities?.forEach(entity => {
+                    if (entity.layer) {
+                        const layerName = entity.layer;
+                        if (!layerData.has(layerName)) {
+                            layerData.set(layerName, {
+                                name: layerName,
+                                colors: new Set(),
+                                entities: []
+                            });
+                        }
+                        
+                        // Collect color information
+                        if (entity.color !== undefined) {
+                            layerData.get(layerName).colors.add(entity.color);
+                        }
+                        
+                        // Store entity reference for later use
+                        layerData.get(layerName).entities.push(entity);
+                    }
+                });
+                
+                console.log('Layer data extracted:', layerData);
+                
+                // Store extracted layer data globally for use in other functions
+                window.extractedLayerData = layerData;
+                
+                layerData.forEach((data, layerName) => {
+                    // Use the most common color or first color found
+                    const colors = Array.from(data.colors);
+                    const primaryColor = colors.length > 0 ? colors[0] : 0xffffff;
+                    
+                    console.log(`Layer ${layerName}: ${data.entities.length} entities, colors:`, colors);
+                    
+                    dxfLayers.push({
+                        name: layerName,
+                        displayName: layerName,
+                        color: primaryColor,
+                        entityCount: data.entities.length,
+                        entities: data.entities
+                    });
+                });
+            }
+            
+            // Use the best available layer data - prioritize extracted DXF layers
+            let finalLayers = layers;
+            if (finalLayers.length === 0 && dxfLayers.length > 0) {
+                finalLayers = dxfLayers;
+            } else if (finalLayers.length === 0) {
+                finalLayers = layersFromMap;
+            }
+            
+            console.log('DXF layers found:', dxfLayers);
+            console.log('Final layers to display:', finalLayers);
+            populateLayerTable(finalLayers);
+            
+            showStatus(`Successfully loaded: ${filename} (${finalLayers.length} layers)`, 'success');
+        } catch (error) {
+            URL.revokeObjectURL(blobUrl);
+            throw error;
+        }
+        
+    } catch (error) {
+        showStatus('Error loading DXF: ' + error.message, 'error');
+        console.error('DXF load error:', error);
+        showDropZone();
+    } finally {
+        showLoading(false);
+    }
+}
+
+function clearViewer() {
+    if (viewer) {
+        viewer.Clear();
+    }
+    hideFileInfo();
+    showDropZone();
+    
+    // Reset layer table
+    layerTableEl.innerHTML = '<div class="no-file">Load a DXF file to view layers</div>';
+    
+    showStatus('Viewer cleared');
+}
+
+function fitToView() {
+    if (viewer && viewer.bounds && viewer.origin && viewer.FitView) {
+        const bounds = viewer.bounds;
+        const origin = viewer.origin;
+        viewer.FitView(
+            bounds.minX - origin.x, 
+            bounds.maxX - origin.x,
+            bounds.minY - origin.y, 
+            bounds.maxY - origin.y
+        );
+        showStatus('Fitted to view');
+    } else {
+        showStatus('No content to fit - load a DXF file first', 'warning');
+    }
+}
+
+// Event handlers
+async function handleOpenFile() {
+    try {
+        const result = await window.electronAPI.showOpenDialog();
+        if (!result.canceled && result.filePaths.length > 0) {
+            const filePath = result.filePaths[0];
+            const fileResult = await window.electronAPI.readFile(filePath);
+            
+            if (fileResult.success) {
+                const fileName = filePath.split('/').pop() || filePath.split('\\').pop();
+                await loadDxfContent(fileName, fileResult.content);
+            } else {
+                showStatus('Error reading file: ' + fileResult.error, 'error');
+            }
+        }
+    } catch (error) {
+        showStatus('Error opening file: ' + error.message, 'error');
+    }
+}
+
+// Drag and drop handlers
+let dragCounter = 0;
+
+viewerEl.addEventListener('dragenter', (e) => {
+    e.preventDefault();
+    dragCounter++;
+    dropZone.classList.add('active');
+});
+
+viewerEl.addEventListener('dragleave', (e) => {
+    e.preventDefault();
+    dragCounter--;
+    if (dragCounter <= 0) {
+        dropZone.classList.remove('active');
+        dragCounter = 0;
+    }
+});
+
+viewerEl.addEventListener('dragover', (e) => {
+    e.preventDefault();
+});
+
+viewerEl.addEventListener('drop', async (e) => {
+    e.preventDefault();
+    dragCounter = 0;
+    dropZone.classList.remove('active');
+    
+    const files = Array.from(e.dataTransfer.files);
+    const dxfFile = files.find(file => file.name.toLowerCase().endsWith('.dxf'));
+    
+    if (dxfFile) {
+        try {
+            const content = await dxfFile.text();
+            await loadDxfContent(dxfFile.name, content);
+        } catch (error) {
+            showStatus('Error reading dropped file: ' + error.message, 'error');
+        }
+    } else {
+        showStatus('Please drop a DXF file', 'error');
+    }
+});
+
+// Button event listeners
+document.getElementById('openBtn').addEventListener('click', handleOpenFile);
+document.getElementById('clearBtn').addEventListener('click', clearViewer);
+document.getElementById('fitBtn').addEventListener('click', fitToView);
+togglePanelBtn.addEventListener('click', toggleSidePanel);
+
+// Electron IPC event listeners
+window.electronAPI.onFileOpened((event, fileData) => {
+    loadDxfContent(fileData.name, fileData.content);
+});
+
+window.electronAPI.onClearViewer(() => {
+    clearViewer();
+});
+
+window.electronAPI.onFitToView(() => {
+    fitToView();
+});
+
+window.electronAPI.onWindowResized(() => {
+    if (viewer && viewer.Resize) {
+        // Delay resize to ensure DOM has updated
+        setTimeout(() => {
+            viewer.Resize();
+        }, 100);
+    }
+});
+
+// Initialize when page loads
+window.addEventListener('load', async () => {
+    try {
+        showStatus('DXF Viewer ready - Open a file to begin');
+        // Initialize viewer but don't show error if it fails (will try again when loading file)
+        await initViewer();
+    } catch (error) {
+        console.error('Initialization error:', error);
+    }
+});
+
+// Handle page unload
+window.addEventListener('beforeunload', () => {
+    // Clean up event listeners
+    window.electronAPI.removeAllListeners('file-opened');
+    window.electronAPI.removeAllListeners('clear-viewer');
+    window.electronAPI.removeAllListeners('fit-to-view');
+    window.electronAPI.removeAllListeners('window-resized');
+});

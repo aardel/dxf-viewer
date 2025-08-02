@@ -196,6 +196,47 @@ export class DxfViewer {
         }
         this.defaultLayer = this.layers.get("0") ?? new Layer("0", "0", 0)
 
+        // If no layers were found in scene.layers, create them from batch keys
+        if (this.layers.size === 0) {
+            console.log('No layers found in scene.layers, creating from batches...');
+            const layerData = new Map(); // Store layer name -> {color, lineweights} mapping
+            
+            for (const batch of scene.batches) {
+                if (batch.key.layerName && batch.key.layerName !== "0") {
+                    if (!layerData.has(batch.key.layerName)) {
+                        layerData.set(batch.key.layerName, {
+                            color: batch.key.color,
+                            lineweights: new Set()
+                        });
+                    }
+                    // Add lineweight if it exists in batch data
+                    if (batch.lineweight !== undefined) {
+                        layerData.get(batch.key.layerName).lineweights.add(batch.lineweight);
+                    }
+                }
+            }
+            
+            // Create layers from batch data with actual colors and lineweights
+            for (const [layerName, data] of layerData) {
+                const layer = new Layer(layerName, layerName, data.color);
+                layer.lineweights = Array.from(data.lineweights);
+                this.layers.set(layerName, layer);
+                console.log('Created layer from batch:', layerName, 'with color:', data.color, 'lineweights:', layer.lineweights);
+            }
+            
+            // Only create default layer if there are entities on layer "0"
+            const hasLayer0Entities = scene.batches.some(batch => batch.key.layerName === "0");
+            if (hasLayer0Entities) {
+                this.defaultLayer = new Layer("0", "0", 0);
+                this.layers.set("0", this.defaultLayer);
+            } else {
+                // Use first available layer as default, or create empty default
+                this.defaultLayer = this.layers.values().next().value ?? new Layer("0", "0", 0);
+            }
+            
+            console.log('Final layers created:', Array.from(this.layers.keys()));
+        }
+
         /* Load all blocks on the first pass. */
         for (const batch of scene.batches) {
             if (batch.key.blockName !== null &&
@@ -480,12 +521,38 @@ export class DxfViewer {
             /* Block definition. */
             return
         }
-        const objects = new Batch(this, scene, batch).CreateObjects()
-
+        // Debug: log batch key details
+        console.log('Loading batch with key:', {
+            layerName: batch.key.layerName,
+            blockName: batch.key.blockName,
+            geometryType: batch.key.geometryType,
+            color: batch.key.color
+        });
+        console.log('Available layers in viewer:', Array.from(this.layers.keys()));
+        
+        // Find the correct Layer instance by batch.key.layerName
+        let layer = null;
+        if (batch.key.layerName && this.layers.has(batch.key.layerName)) {
+            layer = this.layers.get(batch.key.layerName);
+            console.log('Found matching layer:', layer.name);
+        } else if (batch.key.layerName === "0" && this.layers.has("0")) {
+            layer = this.layers.get("0");
+            console.log('Using layer 0');
+        } else {
+            layer = this.defaultLayer;
+            console.log('Using default layer, batch layerName was:', batch.key.layerName);
+        }
+        
+        const objects = new Batch(this, scene, batch).CreateObjects();
         for (const obj of objects) {
-            this.scene.add(obj)
-            const layer = obj._dxfViewerLayer ?? this.defaultLayer
-            layer.PushObject(obj)
+            this.scene.add(obj);
+            // Ensure layer info is available for toggling
+            obj.userData = obj.userData || {};
+            obj.userData.layer = layer?.name;
+            // Push to Layer.objects for toggling
+            if (layer && Array.isArray(layer.objects)) {
+                layer.objects.push(obj);
+            }
         }
     }
 
@@ -876,6 +943,13 @@ class Batch {
             obj.frustumCulled = false
             obj.matrixAutoUpdate = false
             obj._dxfViewerLayer = layer
+            // Ensure layer info is available for toggling
+            obj.userData = obj.userData || {}
+            obj.userData.layer = layer?.name
+            // Push to Layer.objects for toggling
+            if (layer && Array.isArray(layer.objects)) {
+                layer.objects.push(obj)
+            }
             return obj
         }
 

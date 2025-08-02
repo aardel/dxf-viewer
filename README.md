@@ -16,6 +16,68 @@ Deployed demo: https://vagran.github.io/dxf-viewer-example/
 npm install dxf-viewer
 ```
 
+## Usage (Custom Viewers)
+
+This project includes two custom DXF viewer implementations:
+
+### 1. Full-Featured Viewer (`full-viewer.html`)
+- **Complete DXF parsing** with all geometry types, layers, colors, text, etc.
+- **Requires local server** due to ES modules and CORS restrictions
+- **Best for**: Complex DXF files with all features
+
+**To run:**
+```bash
+# Start local server
+python3 -m http.server 8001
+
+# Or using Node.js
+npx http-server -p 8001
+
+# Then open: http://localhost:8001/full-viewer.html
+```
+
+**Features:**
+- Drag & drop DXF files
+- Pan/zoom with mouse
+- "Clear" and "Fit to View" buttons
+- Full DXF specification support
+- Professional UI
+
+### 2. Standalone Viewer (`standalone.html`)
+- **Basic DXF parsing** (LINE entities only)
+- **No server required** - works independently
+- **Best for**: Simple DXF files or offline use
+
+**To run:**
+```bash
+# Just open the file directly in your browser
+open standalone.html
+# Or double-click the file
+```
+
+**Features:**
+- Drag & drop DXF files
+- Basic mouse pan/zoom
+- Works offline
+- No dependencies
+
+## Electron Integration
+
+**For Electron projects, you have two options:**
+
+### Option 1: Use Standalone Version
+- Copy `standalone.html` to your Electron app
+- No server needed - works directly in Electron's renderer process
+- Limited to basic DXF parsing
+
+### Option 2: Use Full Version with Local Server
+- Bundle the full viewer with your Electron app
+- Start local server in Electron's main process
+- Load viewer in renderer process via localhost URL
+- Full DXF feature support
+
+**Electron does NOT require an external server** - you can use either approach depending on your DXF complexity needs.
+
 ## Features
 
  * File fetching, parsing and preparation for rendering is separated in such a way that it can be

@@ -1,0 +1,14 @@
+{
+  "id": "profile_1754098413463",
+  "name": "6o3zzk1n_import_filter",
+  "description": "Auto-generated import filter for 6o3zzk1n.dxf",
+  "created": "2025-08-02T01:33:33.463Z",
+  "rules": [
+    {
+      "id": 1,
+      "layerName": "0",
+      "color": "rgb(128,128,128)",
+      "lineTypeId": ""
+    }
+  ]
+}
