@@ -1,149 +1,106 @@
-# DXF viewer [![npm](https://img.shields.io/npm/v/dxf-viewer)](https://www.npmjs.com/package/dxf-viewer)
+# Lasercomb DXF Studio
 
-*If you just need to view your DXF, [click here](https://vagran.github.io/dxf-viewer-example/).*
-
-This package provides DXF 2D viewer component written in JavaScript. It renders drawings using WebGL
-(via [three.js](https://threejs.org) library). It was carefully crafted with performance in mind,
-intended for drawing huge real-world files without performance problems.
-
-The usage example is available here: https://github.com/vagran/dxf-viewer-example-src
-
-Deployed demo: https://vagran.github.io/dxf-viewer-example/
-
-## Install
-
-```bash
-npm install dxf-viewer
-```
-
-## Usage (Custom Viewers)
-
-This project includes two custom DXF viewer implementations:
-
-### 1. Full-Featured Viewer (`full-viewer.html`)
-- **Complete DXF parsing** with all geometry types, layers, colors, text, etc.
-- **Requires local server** due to ES modules and CORS restrictions
-- **Best for**: Complex DXF files with all features
-
-**To run:**
-```bash
-# Start local server
-python3 -m http.server 8001
-
-# Or using Node.js
-npx http-server -p 8001
-
-# Then open: http://localhost:8001/full-viewer.html
-```
-
-**Features:**
-- Drag & drop DXF files
-- Pan/zoom with mouse
-- "Clear" and "Fit to View" buttons
-- Full DXF specification support
-- Professional UI
-
-### 2. Standalone Viewer (`standalone.html`)
-- **Basic DXF parsing** (LINE entities only)
-- **No server required** - works independently
-- **Best for**: Simple DXF files or offline use
-
-**To run:**
-```bash
-# Just open the file directly in your browser
-open standalone.html
-# Or double-click the file
-```
-
-**Features:**
-- Drag & drop DXF files
-- Basic mouse pan/zoom
-- Works offline
-- No dependencies
-
-## Electron Integration
-
-**For Electron projects, you have two options:**
-
-### Option 1: Use Standalone Version
-- Copy `standalone.html` to your Electron app
-- No server needed - works directly in Electron's renderer process
-- Limited to basic DXF parsing
-
-### Option 2: Use Full Version with Local Server
-- Bundle the full viewer with your Electron app
-- Start local server in Electron's main process
-- Load viewer in renderer process via localhost URL
-- Full DXF feature support
-
-**Electron does NOT require an external server** - you can use either approach depending on your DXF complexity needs.
+Professional CAD drawing viewer and analysis tool built with Electron and Three.js WebGL rendering.
 
 ## Features
 
- * File fetching, parsing and preparation for rendering is separated in such a way that it can be
-   easily off-loaded to web-worker using provided helpers. So the most heavy-weight processing part
-   does not affect UI responsiveness. The example above demonstrates this technique.
- * Geometry batching - minimal number of rendering batches is created during file processing, thus
-   minimizing total required number of draw calls.
- * Instanced rendering - features which are rendered multiple times with different transforms (e.g.
-   DXF block instances) are rendered by a single draw call using instanced rendering WebGL feature.
- * Multiple fonts support. List of fonts can be specified for text rendering. Raw TTF files are
-   supported. Fonts are lazy-loaded, once a character encountered which glyph is not yet available
-   through already loaded fonts, next font is fetched and checked for the necessary glyph.
- * Layers - layers are taken into account when creating rendering batches so that they can be easily
-   hidden/shown.
+- **Professional DXF Support**: Complete parsing of DXF files with layers, colors, text, hatching, and geometric entities
+- **Advanced Scaling System**: Dropdown scaling options with custom input validation
+- **Enhanced Dimension Display**: Shows both original and scaled dimensions
+- **Multi-Color Layer Support**: Visual layer management with color coding
+- **3D Rendering**: WebGL-based rendering via Three.js for smooth performance
+- **Layer Management**: Show/hide layers with visual feedback
+- **Import Filters**: Map DXF properties to internal line types
+- **Line Type Management**: Configure internal line type systems
+- **Canvas Size Validation**: 3m × 3m size limits with warnings
+- **Professional UI**: Clean, modern interface designed for CAD workflows
 
-## Incomplete features
+## Installation
 
-There are still many incomplete features. I will try to implement some of them when I have some
-time. Most significant reason for missing implementation is lack of corresponding sample files.
+### Prerequisites
+- Node.js 16+ 
+- npm or yarn
 
- * Stream parsing for input file. Currently, mostly relying on dxf-parser package which is not
-   stream parser and thus buffers whole the file before parsing. This prevents from supporting big
-   DXF file (above gigabyte) due to string size limit in JS engine (also making unnecessary memory
-   waste for the buffer).
- * Text styling. Currently, text rendering is using just the specified fonts in the specified order.
-   DXF style and font attributes are ignored. Text glyphs are always rendered infilled.
- * Advanced formatting support for MTEXT (fonts, coloring, stacking).
- * Line patterns - all lines are rendered in continuous style for now. I am going to use 1-D texture
-   generated on preparation stage, texture coordinates (which should account pattern continuity flag
-   in DXF vertices attributes), and a dedicated shader to implement this feature.
- * Line patterns with shapes (e.g. with circles).
- * Wide lines. Currently, all lines are rendered as thin lines. Physical width is not implemented.
- * Variable width lines (i.e. with start and end width specified).
- * Smoothed polyline (curve-fit/spline-fit addition vertices).
- * Some features in hatching implementation: outer hatching style, solid/gradient infill, MPolygon
-   support, double lines, boundaries defined by external entities.
- * Block instancing in a grid. Grid attributes are ignored now.
- * Dimensions-specific features and styles (various pre-defined arrowhead blocks, text positioning
-   tuning, limits and tolerances). Dimensions types other than linear ones.
- * Leaders
- * Non-UTF-8 file encoding support. Currently, such files are displayed incorrectly. `$DWGCODEPAGE`
-   parameter is ignored.
- * Full OCS support. Currently, it is assumed that entity extrusion direction is either +Z or -Z
-   (which is commonly used for features mirroring in CAD). Arbitrary directions is not properly
-   processed.
- * Paper space, layouts (sheets), viewports.
- * Many less commonly used DXF features.
+### Setup
+```bash
+# Clone the repository
+git clone https://github.com/aardel/dxf-viewer.git
+cd dxf-viewer
 
-![samples](https://user-images.githubusercontent.com/6065976/143092164-cced2f5f-1af3-42a4-9a71-5dba68df06e7.png)
+# Install dependencies
+npm install
 
-## Contributing
+# Run in development mode
+npm run dev
 
-Please refer to the [contribution guidelines](CONTRIBUTING.md) for details on how to make pull
-requests (PRs). The project also requires various example files for testing purposes. If you
-encounter any issues with DXF rendering, it would be greatly appreciated if you could provide an
-example file that demonstrates the problem by attaching it to a created issue. Creating minimal
-examples in CAD software can also be very helpful. Additionally, creating examples in various
-proprietary CAD software to which I do not have access would be highly valuable. Since the entrance
-level to start coding in this project is quite high, it is often more useful to receive a detailed
-issue report with sample files rather than a pull request.
+# Or run normally
+npm start
+```
+
+## Building
+
+```bash
+# Build for all platforms
+npm run build
+
+# Build for specific platforms
+npm run build:win    # Windows
+npm run build:mac    # macOS  
+npm run build:linux  # Linux
+
+# Create distribution packages
+npm run dist
+```
+
+## Usage
+
+1. **Launch Application**: Run `npm start` or `npm run dev`
+2. **Open DXF File**: Click "Open DXF File" or drag & drop a DXF file
+3. **Scale & Units**: Use the Settings tab to configure scaling and units
+4. **Layer Management**: Toggle layer visibility in the Import tab
+5. **View Controls**: 
+   - Mouse wheel: Zoom
+   - Left drag: Pan
+   - "Fit to View": Auto-zoom to drawing bounds
+
+## Application Structure
+
+```
+lasercomb-dxf-studio/
+├── electron/              # Desktop application
+│   ├── main/             # Electron main process
+│   │   ├── main.cjs      # App startup & window management  
+│   │   └── preload.cjs   # Secure API bridge
+│   └── renderer/         # Desktop UI (where we work)
+│       ├── index.html    # Main application window
+│       ├── renderer.js   # UI logic & DXF integration
+│       ├── styles.css    # Professional styling
+│       └── *.html/.js/.css # Additional UI components
+├── src/                  # Core DXF parsing engine
+│   ├── DxfViewer.js     # Main viewer class
+│   ├── DxfParser.js     # DXF file parser
+│   └── parser/entities/ # Individual entity parsers
+├── assets/              # Application icons & resources
+├── CONFIG/              # User configuration storage
+│   ├── LineTypes/       # Line type definitions
+│   └── import-filters/  # DXF import mapping profiles
+└── Sample files/        # Test DXF files
+```
+
+## Development
+
+The application consists of:
+- **Core Library** (`src/`): DXF parsing and Three.js rendering
+- **Desktop App** (`electron/`): Electron wrapper with enhanced UI
+- **Configuration** (`CONFIG/`): User settings and profiles
+
+All UI enhancements and professional features are developed in the `electron/renderer/` directory.
 
 ## License
 
-This project is licensed under the terms of the
-[Mozilla Public License 2.0](https://choosealicense.com/licenses/mpl-2.0/).
+Mozilla Public License 2.0
 
-## Donations
+## Credits
 
-Want to say thanks to the project maintainer? Here is the link: [![Donate](https://img.shields.io/static/v1?label=Donate&message=PayPal&color=orange&logo=paypal)](https://www.paypal.com/donate?business=artyom.lebedev@gmail.com&no_recurring=0&item_name=To+support+`dxf-viewer`+project+maintenance.+Thank+you!&currency_code=EUR)
+Built on the open-source dxf-viewer library by Artyom Lebedev.
+Enhanced for professional CAD workflows by Lasercomb GmbH.

@@ -12,6 +12,7 @@ function createWindow() {
         height: 800,
         minWidth: 800,
         minHeight: 600,
+        title: 'Lasercomb DXF Studio',
         webPreferences: {
             nodeIntegration: false,
             contextIsolation: true,
