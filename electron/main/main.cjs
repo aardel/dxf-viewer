@@ -2975,24 +2975,49 @@ function parseToolsFromProfile(profileContent) {
 
 function parseLineTypeMappingsFromProfile(profileContent) {
     try {
-        // Parse LineTypeToTool mappings from the existing XML structure
-        const mappingMatches = profileContent.match(/<LineTypeMapping LineType="([^"]*)" Tool="([^"]*)"\/>/g);
-        if (!mappingMatches) return getDefaultLineTypeMappings();
+        // Parse LineTypeToTool mappings from the new XML structure
+        const parser = new DOMParser();
+        const xmlDoc = parser.parseFromString(profileContent, 'text/xml');
         
-        return mappingMatches.map(match => {
-            const lineTypeMatch = match.match(/LineType="([^"]*)"/);
-            const toolMatch = match.match(/Tool="([^"]*)"/);
+        const mappingWorkflow = xmlDoc.getElementsByTagName('MappingWorkflow')[0];
+        if (!mappingWorkflow) {
+            console.log('No MappingWorkflow found in profile');
+            return getDefaultLineTypeMappings();
+        }
+        
+        const lineTypeToTool = mappingWorkflow.getElementsByTagName('LineTypeToTool')[0];
+        if (!lineTypeToTool) {
+            console.log('No LineTypeToTool found in MappingWorkflow');
+            return getDefaultLineTypeMappings();
+        }
+        
+        const mappings = [];
+        const lineTypeMappings = lineTypeToTool.getElementsByTagName('LineTypeMapping');
+        
+        for (let i = 0; i < lineTypeMappings.length; i++) {
+            const mapping = lineTypeMappings[i];
+            const lineTypeElement = mapping.getElementsByTagName('LineType')[0];
+            const toolElement = mapping.getElementsByTagName('Tool')[0];
             
-            const lineType = lineTypeMatch ? lineTypeMatch[1] : 'unknown';
-            const toolId = toolMatch ? toolMatch[1] : 'T1';
-            
-            return {
-                lineTypeId: getLineTypeIdFromName(lineType),
-                lineTypeName: lineType,
-                toolId: toolId,
-                description: `${lineType} mapped to ${toolId}`
-            };
-        });
+            if (lineTypeElement && toolElement) {
+                const lineType = lineTypeElement.textContent.trim();
+                const toolId = toolElement.textContent.trim();
+                
+                // Only include mappings that have actual data
+                if (lineType && toolId && lineType !== '' && toolId !== '') {
+                    mappings.push({
+                        lineTypeId: getLineTypeIdFromName(lineType),
+                        lineTypeName: lineType,
+                        toolId: toolId,
+                        description: `${lineType} mapped to ${toolId}`
+                    });
+                }
+            }
+        }
+        
+        console.log('Parsed mappings from profile:', mappings);
+        return mappings.length > 0 ? mappings : getDefaultLineTypeMappings();
+        
     } catch (error) {
         console.error('Error parsing line type mappings from profile:', error);
         return getDefaultLineTypeMappings();

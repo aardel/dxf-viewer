@@ -171,15 +171,12 @@
                 <Command>G90
                 
                 
-                
                 </Command>
                 <Command>G60 X0
                 
                 
-                
                 </Command>
                 <Command>G0 X0 Y0
-                
                 
                 
                 </Command>
@@ -199,99 +196,59 @@
             <Priority>
                 <Mode>tool
                 </Mode>
-            </Priority>
-            <Priority>
-                <Mode>tool
-                </Mode>
                 <PriorityItem>
-                    <ID>T33
-                    </ID>
-                    <Name>Nozzle Engraving
-                    </Name>
-                    <Description>Nozzle Engraving
-                    </Description>
-                    <Order>1
-                    </Order>
+                    <ID>T33</ID>
+                    <Name>Nozzle Engraving</Name>
+                    <Description>Nozzle Engraving</Description>
+                    <Order>1</Order>
                 </PriorityItem>
                 <PriorityItem>
-                    <ID>T2
-                    </ID>
-                    <Name>2-Pt CW
-                    </Name>
-                    <Description>2-Pt CW
-                    </Description>
-                    <Order>2
-                    </Order>
+                    <ID>T2</ID>
+                    <Name>2-Pt CW</Name>
+                    <Description>2-Pt CW</Description>
+                    <Order>2</Order>
                 </PriorityItem>
                 <PriorityItem>
-                    <ID>T3
-                    </ID>
-                    <Name>3-Pt CW
-                    </Name>
-                    <Description>3-Pt CW
-                    </Description>
-                    <Order>3
-                    </Order>
+                    <ID>T3</ID>
+                    <Name>3-Pt CW</Name>
+                    <Description>3-Pt CW</Description>
+                    <Order>3</Order>
                 </PriorityItem>
                 <PriorityItem>
-                    <ID>T4
-                    </ID>
-                    <Name>4-Pt CW
-                    </Name>
-                    <Description>4-Pt CW
-                    </Description>
-                    <Order>4
-                    </Order>
+                    <ID>T4</ID>
+                    <Name>4-Pt CW</Name>
+                    <Description>4-Pt CW</Description>
+                    <Order>4</Order>
                 </PriorityItem>
                 <PriorityItem>
-                    <ID>T12
-                    </ID>
-                    <Name>2-Pt Puls
-                    </Name>
-                    <Description>2-Pt Puls
-                    </Description>
-                    <Order>5
-                    </Order>
+                    <ID>T12</ID>
+                    <Name>2-Pt Puls</Name>
+                    <Description>2-Pt Puls</Description>
+                    <Order>5</Order>
                 </PriorityItem>
                 <PriorityItem>
-                    <ID>T13
-                    </ID>
-                    <Name>3-Pt Puls
-                    </Name>
-                    <Description>3-Pt Puls
-                    </Description>
-                    <Order>6
-                    </Order>
+                    <ID>T13</ID>
+                    <Name>3-Pt Puls</Name>
+                    <Description>3-Pt Puls</Description>
+                    <Order>6</Order>
                 </PriorityItem>
                 <PriorityItem>
-                    <ID>T14
-                    </ID>
-                    <Name>4-Pt Puls
-                    </Name>
-                    <Description>4-Pt Puls
-                    </Description>
-                    <Order>7
-                    </Order>
+                    <ID>T14</ID>
+                    <Name>4-Pt Puls</Name>
+                    <Description>4-Pt Puls</Description>
+                    <Order>7</Order>
                 </PriorityItem>
                 <PriorityItem>
-                    <ID>T22
-                    </ID>
-                    <Name>FineCut
-                    </Name>
-                    <Description>FineCut
-                    </Description>
-                    <Order>8
-                    </Order>
+                    <ID>T22</ID>
+                    <Name>FineCut</Name>
+                    <Description>FineCut</Description>
+                    <Order>8</Order>
                 </PriorityItem>
                 <PriorityItem>
-                    <ID>BREAK
-                    </ID>
-                    <Name>Break
-                    </Name>
-                    <Description>Manual Break
-                    </Description>
-                    <Order>9
-                    </Order>
+                    <ID>BREAK</ID>
+                    <Name>Break</Name>
+                    <Description>Manual Break</Description>
+                    <Order>9</Order>
                 </PriorityItem>
             </Priority>
         </Optimization>
@@ -337,15 +294,7 @@
             <Format>N{number}
             </Format>
         </LineNumbers>
-        <OutputSettings>
-            <DefaultSavePath>/Volumes/Public-1
-            </DefaultSavePath>
-            <FilenameFormat>{original_name}.din
-            </FilenameFormat>
-            <AutoSaveEnabled>true
-            </AutoSaveEnabled>
-        </OutputSettings>
-       <MappingWorkflow>
+        <MappingWorkflow>
             <LineTypeToTool>
                 <LineTypeMapping>
                     <LineType>1pt CW</LineType>
