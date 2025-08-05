@@ -1528,29 +1528,7 @@ function generateXMLProfile(config) {
         root.appendChild(mappingWorkflow);
     }
     
-    // Add Priority section to Optimization
-    if (config.optimization && config.optimization.priority) {
-        const priority = xmlDoc.createElement('Priority');
-        addTextElement(xmlDoc, priority, 'Mode', config.optimization.priority.mode || 'tool');
-        
-        // Add PriorityItem elements
-        if (config.optimization.priority.items) {
-            config.optimization.priority.items.forEach(item => {
-                const priorityItem = xmlDoc.createElement('PriorityItem');
-                addTextElement(xmlDoc, priorityItem, 'ID', item.id || item.ID);
-                addTextElement(xmlDoc, priorityItem, 'Name', item.name || item.Name);
-                addTextElement(xmlDoc, priorityItem, 'Description', item.description || item.Description);
-                addTextElement(xmlDoc, priorityItem, 'Order', (item.order || item.Order || 0).toString());
-                priority.appendChild(priorityItem);
-            });
-        }
-        
-        // Find the existing Optimization element and add Priority to it
-        const existingOptimization = root.getElementsByTagName('Optimization')[0];
-        if (existingOptimization) {
-            existingOptimization.appendChild(priority);
-        }
-    }
+
     
     // Generate formatted XML with proper indentation
     const xmlString = serializer.serializeToString(xmlDoc);
