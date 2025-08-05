@@ -1175,426 +1175,13 @@ async function loadDxfContent(filename, dxfData, filePath = null) {
             console.log('Found layers via GetLayers():', layers);
             console.log('Found layers via internal map:', layersFromMap);
             
-            // Initialize dxfLayers array at the top to avoid hoisting issues
-            let dxfLayers = [];
-            
-            // TEST: Simple log to verify code execution
-            console.log('=== COLOR VARIANT DETECTION START ===');
-            console.log('TEST: This should appear in console');
-            console.log('TEST: Viewer exists:', !!viewer);
-            console.log('TEST: Viewer type:', typeof viewer);
-            
-            // Check if we need to create color variants from the viewer's batches
-            console.log('Checking viewer batches for color variants...');
-            console.log('Viewer object:', viewer);
-            console.log('Viewer batches:', viewer.batches);
-            console.log('Viewer batches length:', viewer.batches ? viewer.batches.length : 'undefined');
-            console.log('Viewer scene:', viewer.scene);
-            console.log('Viewer scene batches:', viewer.scene ? viewer.scene.batches : 'no scene');
-            console.log('Viewer scene batches length:', viewer.scene && viewer.scene.batches ? viewer.scene.batches.length : 'no scene batches');
-            
-            // Try to access batches from the scene's geometry
-            console.log('Checking scene geometry for batches...');
-            if (viewer.scene && viewer.scene.children) {
-                console.log('Scene children:', viewer.scene.children.length);
-                
-                // Extract color information from scene children (LineSegments)
-                const colorVariants = new Map(); // layerName -> Set of colors
-                
-                viewer.scene.children.forEach((child, index) => {
-                    console.log(`Scene child ${index}:`, child);
-                    
-                    // Check if this is a LineSegments object with material
-                    if (child.type === 'LineSegments' && child.material) {
-                        console.log(`Scene child ${index} material:`, child.material);
-                        console.log(`Scene child ${index} material type:`, child.material.type);
-                        console.log(`Scene child ${index} material keys:`, Object.keys(child.material));
-                        
-                        // For RawShaderMaterial, check uniforms and other properties
-                        if (child.material.type === 'RawShaderMaterial') {
-                            console.log(`Scene child ${index} material uniforms:`, child.material.uniforms);
-                            console.log(`Scene child ${index} material defines:`, child.material.defines);
-                            console.log(`Scene child ${index} material userData:`, child.material.userData);
-                            
-                            // Try to extract color from uniforms
-                            if (child.material.uniforms) {
-                                Object.keys(child.material.uniforms).forEach(uniformKey => {
-                                    const uniform = child.material.uniforms[uniformKey];
-                                    console.log(`Scene child ${index} uniform ${uniformKey}:`, uniform);
-                                    
-                                    // Check if this uniform contains color information
-                                    if (uniform && uniform.value) {
-                                        if (Array.isArray(uniform.value) && uniform.value.length >= 3) {
-                                            console.log(`Scene child ${index} potential color array:`, uniform.value);
-                                            const [r, g, b] = uniform.value;
-                                            const colorInt = (r * 255) << 16 | (g * 255) << 8 | (b * 255);
-                                            console.log(`Scene child ${index} colorInt from uniform:`, colorInt);
-                                        }
-                                    }
-                                });
-                            }
-                        } else {
-                            // Try to extract color from standard material
-                            if (child.material.color) {
-                                const color = child.material.color;
-                                console.log(`Scene child ${index} color:`, color);
-                                
-                                // Convert color to integer (ACI color)
-                                const colorInt = (color.r * 255) << 16 | (color.g * 255) << 8 | (color.b * 255);
-                                console.log(`Scene child ${index} colorInt:`, colorInt);
-                            }
-                        }
-                        
-                        // Try to get layer name from userData or other properties
-                        let layerName = 'Unknown';
-                        if (child.userData && child.userData.layerName) {
-                            layerName = child.userData.layerName;
-                        } else if (child.name) {
-                            layerName = child.name;
-                        }
-                        
-                        console.log(`Scene child ${index} layerName:`, layerName);
-                        
-                        // For now, let's try to extract color from the material's properties
-                        // We'll need to analyze the uniforms to find the color
-                        if (child.material.type === 'RawShaderMaterial' && child.material.uniforms) {
-                            // Look for color-related uniforms
-                            const colorUniforms = ['color', 'diffuse', 'baseColor', 'albedo'];
-                            for (const uniformName of colorUniforms) {
-                                if (child.material.uniforms[uniformName]) {
-                                    const uniform = child.material.uniforms[uniformName];
-                                    console.log(`Scene child ${index} found color uniform ${uniformName}:`, uniform);
-                                    
-                                    if (uniform.value) {
-                                        let colorInt = 0;
-                                        
-                                        // Check if it's a Three.js Color object
-                                        if (uniform.value.isColor) {
-                                            console.log(`Scene child ${index} color object:`, uniform.value);
-                                            console.log(`Scene child ${index} color r:`, uniform.value.r);
-                                            console.log(`Scene child ${index} color g:`, uniform.value.g);
-                                            console.log(`Scene child ${index} color b:`, uniform.value.b);
-                                            
-                                            // Convert RGB values (0-1) to integer (0-255)
-                                            const r = Math.round(uniform.value.r * 255);
-                                            const g = Math.round(uniform.value.g * 255);
-                                            const b = Math.round(uniform.value.b * 255);
-                                            
-                                            colorInt = (r << 16) | (g << 8) | b;
-                                            console.log(`Scene child ${index} extracted colorInt from Color object:`, colorInt);
-                                            
-                                        } else if (Array.isArray(uniform.value) && uniform.value.length >= 3) {
-                                            const [r, g, b] = uniform.value;
-                                            colorInt = (r * 255) << 16 | (g * 255) << 8 | (b * 255);
-                                        } else if (typeof uniform.value === 'number') {
-                                            colorInt = uniform.value;
-                                        }
-                                        
-                                        if (colorInt > 0) {
-                                            console.log(`Scene child ${index} final extracted colorInt:`, colorInt);
-                                            
-                                            // Store color variant
-                                            if (!colorVariants.has(layerName)) {
-                                                colorVariants.set(layerName, new Set());
-                                            }
-                                            colorVariants.get(layerName).add(colorInt);
-                                            break;
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                });
-                
-                console.log('Color variants found:', colorVariants);
-                
-                // Now create color variant layers
-                colorVariants.forEach((colors, layerName) => {
-                    if (colors.size > 1) {
-                        console.log(`Layer ${layerName} has ${colors.size} color variants:`, Array.from(colors));
-                        
-                        // Replace "Unknown" with actual layer names from viewer
-                        let actualLayerName = layerName;
-                        if (layerName === 'Unknown') {
-                            // Use the first layer name from viewer (should be BEFGRIP)
-                            const viewerLayerNames = Array.from(viewer.layers.keys());
-                            if (viewerLayerNames.length > 0) {
-                                actualLayerName = viewerLayerNames[0]; // Should be "BEFGRIP"
-                                console.log(`Replacing "Unknown" with actual layer name: ${actualLayerName}`);
-                            }
-                        }
-                        
-                        colors.forEach(colorInt => {
-                            const colorHex = '#' + colorInt.toString(16).padStart(6, '0').toUpperCase();
-                            const variantName = `${actualLayerName}_${colorHex}`;
-                            
-                            console.log(`Creating color variant: ${variantName}`);
-                            
-                            // Create a new layer object for this color variant
-                            const colorVariantLayer = {
-                                name: variantName,
-                                displayName: variantName,
-                                color: colorInt,
-                                objects: [], // We'll need to populate this
-                                lineweights: []
-                            };
-                            
-                            dxfLayers.push(colorVariantLayer);
-                        });
-                    } else {
-                        // Single color layer
-                        const colorInt = Array.from(colors)[0];
-                        const colorHex = '#' + colorInt.toString(16).padStart(6, '0').toUpperCase();
-                        
-                        // Replace "Unknown" with actual layer names from viewer
-                        let actualLayerName = layerName;
-                        if (layerName === 'Unknown') {
-                            // Use the first layer name from viewer (should be BEFGRIP)
-                            const viewerLayerNames = Array.from(viewer.layers.keys());
-                            if (viewerLayerNames.length > 0) {
-                                actualLayerName = viewerLayerNames[0]; // Should be "BEFGRIP"
-                                console.log(`Replacing "Unknown" with actual layer name: ${actualLayerName}`);
-                            }
-                        }
-                        
-                        const variantName = `${actualLayerName}_${colorHex}`;
-                        console.log(`Creating single color layer: ${variantName}`);
-                        
-                        const colorVariantLayer = {
-                            name: variantName,
-                            displayName: variantName,
-                            color: colorInt,
-                            objects: [],
-                            lineweights: []
-                        };
-                        
-                        dxfLayers.push(colorVariantLayer);
-                    }
-                });
-            }
-            
-            if (viewer.batches && viewer.batches.length > 0) {
-                console.log(`Found ${viewer.batches.length} batches in viewer`);
-                
-                // Group batches by layer name to detect color variants
-                const layerBatches = {};
-                viewer.batches.forEach(batch => {
-                    console.log('Processing batch:', batch);
-                    console.log('Batch key:', batch.key);
-                    console.log('Batch key layerName:', batch.key.layerName);
-                    console.log('Available viewer layers:', Array.from(viewer.layers.keys()));
-                    
-                    const layerName = batch.key.layerName;
-                    if (!layerBatches[layerName]) {
-                        layerBatches[layerName] = [];
-                    }
-                    layerBatches[layerName].push(batch);
-                });
-                
-                console.log('Layer batches:', Object.keys(layerBatches).map(name => `${name}: ${layerBatches[name].length} batches`));
-                
-                // Check for layers with multiple color batches
-                Object.entries(layerBatches).forEach(([layerName, batches]) => {
-                    if (batches.length > 1) {
-                        console.log(`Layer "${layerName}" has ${batches.length} color batches:`, batches.map(b => b.key.color));
-                        
-                        // Create color variants for this layer
-                        batches.forEach(batch => {
-                            const colorInt = batch.key.color;
-                            const colorHex = colorInt.toString(16).padStart(6, '0').toUpperCase();
-                            const colorVariantName = `${layerName}_${colorHex}`;
-                            
-                            console.log(`Creating color variant: ${colorVariantName} (color: ${colorInt})`);
-                            
-                            // Add to layersFromMap if not already present
-                            const existingLayer = layersFromMap.find(l => l.name === colorVariantName);
-                            if (!existingLayer) {
-                                layersFromMap.push({
-                                    name: colorVariantName,
-                                    displayName: `${layerName} (#${colorHex})`,
-                                    color: colorInt,
-                                    originalLayerName: layerName,
-                                    isColorVariant: true,
-                                    parentLayer: layerName
-                                });
-                            }
-                        });
-                        
-                        // Remove the original consolidated layer
-                        const originalLayerIndex = layersFromMap.findIndex(l => l.name === layerName);
-                        if (originalLayerIndex !== -1) {
-                            console.log(`Removing original consolidated layer: ${layerName}`);
-                            layersFromMap.splice(originalLayerIndex, 1);
-                        }
-                    }
-                });
-            } else {
-                console.log('No batches found in viewer, trying alternative approach...');
-                
-                // Try to access batches from viewer's internal structure
-                console.log('Checking viewer internal structure...');
-                console.log('Viewer keys:', Object.keys(viewer));
-                if (viewer._scene) {
-                    console.log('Viewer _scene:', viewer._scene);
-                }
-                if (viewer._batches) {
-                    console.log('Viewer _batches:', viewer._batches);
-                }
-                
-                // Alternative approach: check if we can access batches through scene
-                if (viewer.scene && viewer.scene.batches) {
-                    console.log('Found batches in viewer.scene:', viewer.scene.batches);
-                    console.log('Scene batches length:', viewer.scene.batches.length);
-                    
-                    if (viewer.scene.batches.length > 0) {
-                        // Group batches by layer name to detect color variants
-                        const layerBatches = {};
-                        viewer.scene.batches.forEach(batch => {
-                            console.log('Processing scene batch:', batch);
-                            const layerName = batch.key.layerName;
-                            if (!layerBatches[layerName]) {
-                                layerBatches[layerName] = [];
-                            }
-                            layerBatches[layerName].push(batch);
-                        });
-                        
-                        console.log('Scene layer batches:', Object.keys(layerBatches).map(name => `${name}: ${layerBatches[name].length} batches`));
-                        
-                        // Check for layers with multiple color batches
-                        Object.entries(layerBatches).forEach(([layerName, batches]) => {
-                            if (batches.length > 1) {
-                                console.log(`Layer "${layerName}" has ${batches.length} color batches:`, batches.map(b => b.key.color));
-                                
-                                // Create color variants for this layer
-                                batches.forEach(batch => {
-                                    const colorInt = batch.key.color;
-                                    const colorHex = colorInt.toString(16).padStart(6, '0').toUpperCase();
-                                    const colorVariantName = `${layerName}_${colorHex}`;
-                                    
-                                    console.log(`Creating color variant: ${colorVariantName} (color: ${colorInt})`);
-                                    
-                                    // Add to layersFromMap if not already present
-                                    const existingLayer = layersFromMap.find(l => l.name === colorVariantName);
-                                    if (!existingLayer) {
-                                        layersFromMap.push({
-                                            name: colorVariantName,
-                                            displayName: `${layerName} (#${colorHex})`,
-                                            color: colorInt,
-                                            originalLayerName: layerName,
-                                            isColorVariant: true,
-                                            parentLayer: layerName
-                                        });
-                                    }
-                                });
-                                
-                                // Remove the original consolidated layer
-                                const originalLayerIndex = layersFromMap.findIndex(l => l.name === layerName);
-                                if (originalLayerIndex !== -1) {
-                                    console.log(`Removing original consolidated layer: ${layerName}`);
-                                    layersFromMap.splice(originalLayerIndex, 1);
-                                }
-                            }
-                        });
-                    }
-                } else {
-                    console.log('No batches found in viewer.scene either');
-                }
-            }
-            
 
             
-            // Use layersFromMap if it contains color variants, otherwise use standard processing
+            // Try to extract layers from raw DXF data if viewer layers are empty
+            let dxfLayers = [];
             
-            // Check if we have color variants in layersFromMap
-            const hasColorVariants = layersFromMap.some(layer => layer.isColorVariant);
-            
-            if (hasColorVariants) {
-                console.log('Using color variants from viewer batches');
-                dxfLayers = layersFromMap.map(layer => ({
-                    name: layer.name,
-                    displayName: layer.displayName,
-                    color: layer.color,
-                    originalLayerName: layer.originalLayerName,
-                    isColorVariant: layer.isColorVariant,
-                    parentLayer: layer.parentLayer,
-                    objectCount: layer.objectCount || 0,
-                    entityCount: layer.entityCount || 0
-                }));
-            } else {
-                // Try to create color variants from viewer batches if available
-                if (viewer.batches && viewer.batches.length > 0) {
-                    console.log('Creating color variants from viewer batches');
-                    
-                    // Group batches by layer name to detect color variants
-                    const layerBatches = {};
-                    viewer.batches.forEach(batch => {
-                        const layerName = batch.key.layerName;
-                        if (!layerBatches[layerName]) {
-                            layerBatches[layerName] = [];
-                        }
-                        layerBatches[layerName].push(batch);
-                    });
-                    
-                    console.log('Layer batches:', Object.keys(layerBatches).map(name => `${name}: ${layerBatches[name].length} batches`));
-                    
-                    // Check for layers with multiple color batches
-                    Object.entries(layerBatches).forEach(([layerName, batches]) => {
-                        if (batches.length > 1) {
-                            console.log(`Layer "${layerName}" has ${batches.length} color batches:`, batches.map(b => b.key.color));
-                            
-                            // Create color variants for this layer
-                            batches.forEach(batch => {
-                                const colorInt = batch.key.color;
-                                const colorHex = colorInt.toString(16).padStart(6, '0').toUpperCase();
-                                const colorVariantName = `${layerName}_${colorHex}`;
-                                
-                                console.log(`Creating color variant: ${colorVariantName} (color: ${colorInt})`);
-                                
-                                // Create a new layer object for this color variant
-                                const colorVariantLayer = {
-                                    name: colorVariantName,
-                                    displayName: `${layerName} (#${colorHex})`,
-                                    color: colorInt,
-                                    originalLayerName: layerName,
-                                    isColorVariant: true,
-                                    parentLayer: layerName,
-                                    objectCount: 1, // Each batch represents at least one object
-                                    entityCount: 1
-                                };
-                                
-                                dxfLayers.push(colorVariantLayer);
-                            });
-                            
-                            // Remove the original consolidated layer if it exists
-                            const originalLayerIndex = dxfLayers.findIndex(l => l.name === layerName);
-                            if (originalLayerIndex !== -1) {
-                                console.log(`Removing original consolidated layer: ${layerName}`);
-                                dxfLayers.splice(originalLayerIndex, 1);
-                            }
-                        } else {
-                            // Single color layer - keep as is
-                            const batch = batches[0];
-                            const colorInt = batch.key.color;
-                            const colorHex = colorInt.toString(16).padStart(6, '0').toUpperCase();
-                            
-                            // Check if this layer already exists in dxfLayers
-                            const existingLayerIndex = dxfLayers.findIndex(l => l.name === layerName);
-                            if (existingLayerIndex === -1) {
-                                // Add the layer if it doesn't exist
-                                dxfLayers.push({
-                                    name: layerName,
-                                    displayName: layerName,
-                                    color: colorInt,
-                                    objectCount: 1,
-                                    entityCount: 1
-                                });
-                            }
-                        }
-                    });
-                } else {
-                // First try the standard layer table structure
-                if (viewer.parsedDxf?.tables?.layer?.layers) {
+            // First try the standard layer table structure
+            if (viewer.parsedDxf?.tables?.layer?.layers) {
                 console.log('Extracting layers from DXF layer table...');
                 for (const [layerName, dxfLayer] of Object.entries(viewer.parsedDxf.tables.layer.layers)) {
                     console.log('DXF Layer:', layerName, dxfLayer);
@@ -1625,54 +1212,16 @@ async function loadDxfContent(filename, dxfData, filePath = null) {
                                     const entityType = entity.type || 'UNKNOWN';
                             entityTypes.set(entityType, (entityTypes.get(entityType) || 0) + 1);
                             
-                            // Extract color information - check multiple possible color properties
-                            let entityColor = null;
-                            let colorSource = 'none';
-                            
-                            // Check different possible color properties
+                            // Extract color information
                             if (entity.color !== undefined && entity.color !== null) {
-                                entityColor = entity.color;
-                                colorSource = 'entity.color';
-                            } else if (entity.colorIndex !== undefined && entity.colorIndex !== null) {
-                                entityColor = entity.colorIndex;
-                                colorSource = 'entity.colorIndex';
-                            } else if (entity.trueColor !== undefined && entity.trueColor !== null) {
-                                entityColor = entity.trueColor;
-                                colorSource = 'entity.trueColor';
-                            }
-                            
-                            if (entityColor !== null) {
-                                // Convert to hex format
-                                let colorHex;
-                                if (typeof entityColor === 'number') {
-                                    // If it's a number, convert to hex
-                                    colorHex = entityColor.toString(16).padStart(6, '0');
-                                } else if (typeof entityColor === 'string') {
-                                    // If it's already a hex string, use it
-                                    colorHex = entityColor.replace('#', '').padStart(6, '0');
-                                } else {
-                                    // Fallback
-                                    colorHex = entityColor.toString(16).padStart(6, '0');
-                                }
-                                
+                                // Convert ACI color index to hex
+                                const colorHex = entity.color.toString(16).padStart(6, '0');
                                 if (!layerEntityColors.includes(colorHex)) {
                                     layerEntityColors.push(colorHex);
                                 }
-                                console.log(`Entity ${entityType} on layer ${layerName} has color: ${entityColor} (hex: ${colorHex}) from ${colorSource}`);
+                                console.log(`Entity ${entityType} on layer ${layerName} has color: ${entity.color} (hex: ${colorHex})`);
                             } else {
-                                console.log(`Entity ${entityType} on layer ${layerName} has NO color information - checking layer color...`);
-                                
-                                // Try to get color from layer definition
-                                if (viewer.layers.has(layerName)) {
-                                    const layer = viewer.layers.get(layerName);
-                                    if (layer && layer.color !== undefined && layer.color !== null) {
-                                        const layerColorHex = layer.color.toString(16).padStart(6, '0');
-                                        if (!layerEntityColors.includes(layerColorHex)) {
-                                            layerEntityColors.push(layerColorHex);
-                                        }
-                                        console.log(`Using layer color for ${entityType}: ${layer.color} (hex: ${layerColorHex})`);
-                                    }
-                                }
+                                console.log(`Entity ${entityType} on layer ${layerName} has NO color information`);
                             }
                         });
                             
@@ -1695,44 +1244,13 @@ async function loadDxfContent(filename, dxfData, filePath = null) {
                             const colorInt = parseInt(colorHex, 16);
                             const colorVariantName = `${layerName}_${colorHex.toUpperCase()}`;
                             
-                            // Count entities with this specific color - check multiple color properties
-                            const colorEntities = viewer.parsedDxf.entities.filter(e => {
-                                if (e.layer !== layerName) return false;
-                                
-                                // Check different possible color properties
-                                let entityColor = null;
-                                if (e.color !== undefined && e.color !== null) {
-                                    entityColor = e.color;
-                                } else if (e.colorIndex !== undefined && e.colorIndex !== null) {
-                                    entityColor = e.colorIndex;
-                                } else if (e.trueColor !== undefined && e.trueColor !== null) {
-                                    entityColor = e.trueColor;
-                                }
-                                
-                                if (entityColor === null) {
-                                    // Try layer color as fallback
-                                    if (viewer.layers.has(layerName)) {
-                                        const layer = viewer.layers.get(layerName);
-                                        if (layer && layer.color !== undefined && layer.color !== null) {
-                                            entityColor = layer.color;
-                                        }
-                                    }
-                                }
-                                
-                                if (entityColor !== null) {
-                                    let entityColorHex;
-                                    if (typeof entityColor === 'number') {
-                                        entityColorHex = entityColor.toString(16).padStart(6, '0');
-                                    } else if (typeof entityColor === 'string') {
-                                        entityColorHex = entityColor.replace('#', '').padStart(6, '0');
-                                    } else {
-                                        entityColorHex = entityColor.toString(16).padStart(6, '0');
-                                    }
-                                    return entityColorHex === colorHex;
-                                }
-                                
-                                return false;
-                            });
+                            // Count entities with this specific color
+                            const colorEntities = viewer.parsedDxf.entities.filter(e => 
+                                e.layer === layerName && 
+                                e.color !== undefined && 
+                                e.color !== null && 
+                                e.color.toString(16).padStart(6, '0') === colorHex
+                            );
                         
                         dxfLayers.push({
                                 name: colorVariantName,
@@ -1784,7 +1302,6 @@ async function loadDxfContent(filename, dxfData, filePath = null) {
                     }
                 }
             }
-            }
             
             // Prioritize dxfLayers (multi-color variants) over layersFromMap for finalLayers
             console.log('Layer prioritization - dxfLayers:', dxfLayers.length, 'layers:', layersFromMap.length);
@@ -1801,10 +1318,6 @@ async function loadDxfContent(filename, dxfData, filePath = null) {
                 console.log('dxfLayers after deduplication:', dxfLayers.map(l => l.name + '_' + l.color));
             }
             // Use dxfLayers if available, otherwise fall back to layersFromMap
-            console.log('DEBUG: dxfLayers length:', dxfLayers.length);
-            console.log('DEBUG: layersFromMap length:', layersFromMap.length);
-            console.log('DEBUG: dxfLayers content:', dxfLayers);
-            console.log('DEBUG: layersFromMap content:', layersFromMap);
             let finalLayers = dxfLayers.length > 0 ? dxfLayers : layersFromMap;
             
             // Ensure we always have some layers to display
@@ -1823,7 +1336,7 @@ async function loadDxfContent(filename, dxfData, filePath = null) {
             
             console.log('DXF layers found:', finalLayers);
             console.log('Final layers to display:', finalLayers);
-            console.log('Final layers names:', finalLayers.map(l => l.name));
+            console.log('Final layers names:', finalLayers.map(l => l.name + '_' + l.color));
             
             // Store layers globally for other functions to access
             window.currentDxfLayers = finalLayers;
@@ -1833,7 +1346,7 @@ async function loadDxfContent(filename, dxfData, filePath = null) {
             // Apply global import filter to the layers
             try {
                 console.log('Applying global import filter to layers...');
-                console.log('Layers being sent to filter:', finalLayers.map(l => l.name));
+                console.log('Layers being sent to filter:', finalLayers.map(l => l.name + '_' + l.color));
                 const filterResult = await window.electronAPI.applyGlobalImportFilter(finalLayers);
                 
                 if (filterResult.success) {
@@ -1878,6 +1391,11 @@ async function loadDxfContent(filename, dxfData, filePath = null) {
             fitToView();
             
             showStatus(`Successfully loaded: ${filename} (${finalLayers.length} layers)`, 'success');
+            
+        } catch (error) {
+            console.error('Error loading DXF:', error);
+            showStatus('Error loading DXF: ' + error.message, 'error');
+        }
         
     } catch (error) {
         console.error('Error in loadDxfContent:', error);
@@ -2352,7 +1870,7 @@ togglePanelBtn.addEventListener('click', toggleSidePanel);
     document.getElementById('validateConfigBtn').addEventListener('click', async () => {
         showStatus('Validating configuration...', 'info');
         await validateConfiguration();
-    });
+});
 
 // Tab switching functionality
 document.querySelectorAll('.tab-button').forEach(button => {
@@ -5500,7 +5018,7 @@ function updateLineTypeToolMapping(lineTypeName, toolId) {
 
 // Remove line type mapping
 function removeLineTypeMapping(lineType, cardElement) {
-    // Remove from configuration
+        // Remove from configuration
     if (currentPostprocessorConfig?.mappingWorkflow?.lineTypeToTool) {
         currentPostprocessorConfig.mappingWorkflow.lineTypeToTool = 
             currentPostprocessorConfig.mappingWorkflow.lineTypeToTool.filter(m => m.lineType !== lineType);
@@ -5513,8 +5031,8 @@ function removeLineTypeMapping(lineType, cardElement) {
             toolDropdown.value = '';
         }
     }
-    
-    showStatus(`Removed mapping for ${lineType}`, 'success');
+        
+        showStatus(`Removed mapping for ${lineType}`, 'success');
 }
 
 // Show modal to add new line type mapping
@@ -6339,9 +5857,9 @@ G0 X0 Y0</textarea>
                         </div>
                         <div style="font-size: 0.8rem; color: #888; margin-top: 0.5rem;">
                             Variables: {number} - will be replaced with actual line number
-                        </div>
                     </div>
-                    
+                </div>
+                
                     <!-- G-Code Commands -->
                     <div class="setting-group">
                         <h5>G-Code Commands</h5>
@@ -6367,7 +5885,7 @@ G0 X0 Y0</textarea>
                     <div style="margin-bottom: 2rem;">
                         <h5 style="color: #4a90e2; margin-bottom: 0.5rem;">Header Preview:</h5>
                         <div id="modalHeaderPreview" class="header-preview" style="height: 200px; max-height: none;">
-                            Loading...
+                        Loading...
                         </div>
                     </div>
                     
@@ -6453,7 +5971,7 @@ G0 X0 Y0</textarea>
         console.log('Initial preview update triggered');
         // Force a DOM update before calling preview
         modal.offsetHeight; // Force reflow
-        updateModalHeaderPreview();
+    updateModalHeaderPreview();
     }, 200);
 }
 
@@ -7298,7 +6816,7 @@ function updateModalHeaderPreview() {
             
             allLines.forEach(line => {
                 if (line.startsWith('{') || line.startsWith('G253')) {
-                    commentLines++;
+            commentLines++;
                 } else {
                     commandLines++;
                 }
@@ -7312,9 +6830,9 @@ function updateModalHeaderPreview() {
             if (footerPreviewEl) {
                 footerPreviewEl.innerHTML = footerLines.join('\n');
             }
-            
-            // Update statistics
-            if (statsEl) {
+        
+        // Update statistics
+        if (statsEl) {
                 statsEl.innerHTML = `
                     <div>Total Lines: <span id="modalStatsLines">${allLines.length}</span></div>
                     <div>Comment Lines: <span id="modalStatsComments">${commentLines}</span></div>
@@ -7331,7 +6849,7 @@ function updateModalHeaderPreview() {
     } catch (error) {
         console.error('Error updating modal header preview:', error);
         if (previewEl) {
-            previewEl.innerHTML = '<span style="color: #ff6b6b;">Error generating preview</span>';
+        previewEl.innerHTML = '<span style="color: #ff6b6b;">Error generating preview</span>';
         }
     }
 }
