@@ -6421,7 +6421,7 @@ function updateModalHeaderPreview() {
         };
 
         // Import and use the actual DIN generator
-        import('../src/DinGenerator.js').then(({ DinGenerator }) => {
+        import('../../src/DinGenerator.js').then(({ DinGenerator }) => {
             const dinGenerator = new DinGenerator();
             
             // Set the configuration
