@@ -3020,30 +3020,40 @@ function loadFileOutputSettings() {
     }
 }
 
-// Save file output settings to current profile
-function saveFileOutputSettings() {
-    if (!currentPostprocessorConfig) return;
-    
+// Save file output settings to current profile (SAFE UPDATE - no data loss)
+async function saveFileOutputSettings() {
     const defaultSavePathInput = document.getElementById('defaultSavePath');
     const filenameFormatInput = document.getElementById('filenameFormat');
     const autoSaveEnabledCheckbox = document.getElementById('autoSaveEnabled');
     
-    // Initialize output settings if not exists
-    if (!currentPostprocessorConfig.outputSettings) {
-        currentPostprocessorConfig.outputSettings = {};
+    // Prepare output settings object
+    const outputSettings = {
+        defaultSavePath: defaultSavePathInput?.value || '',
+        filenameFormat: filenameFormatInput?.value || '{original_name}.din',
+        autoSaveEnabled: autoSaveEnabledCheckbox?.checked !== false
+    };
+    
+    // Update local configuration (for immediate use)
+    if (currentPostprocessorConfig) {
+        if (!currentPostprocessorConfig.outputSettings) {
+            currentPostprocessorConfig.outputSettings = {};
+        }
+        currentPostprocessorConfig.outputSettings = { ...outputSettings };
     }
     
-    // Save to configuration
-    currentPostprocessorConfig.outputSettings.defaultSavePath = defaultSavePathInput?.value || '';
-    currentPostprocessorConfig.outputSettings.filenameFormat = filenameFormatInput?.value || '{original_name}.din';
-    currentPostprocessorConfig.outputSettings.autoSaveEnabled = autoSaveEnabledCheckbox?.checked !== false;
-    
-    // Save to XML profile
+    // SAFE UPDATE: Only update OutputSettings section in XML, don't touch other data
     const currentProfile = getCurrentProfileFilename();
     if (currentProfile) {
-        saveXmlProfileConfiguration(currentProfile).catch(error => {
+        try {
+            const result = await window.electronAPI.updateOutputSettingsOnly(outputSettings, currentProfile);
+            if (result.success) {
+                console.log('OutputSettings updated safely');
+            } else {
+                console.error('Failed to update OutputSettings:', result.error);
+            }
+        } catch (error) {
             console.error('Error saving file output settings:', error);
-        });
+        }
     }
 }
 

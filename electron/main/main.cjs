@@ -2747,6 +2747,28 @@ ipcMain.handle('get-line-type-mappings-from-profile', async (event, profileName 
         }
     });
 
+// Update only OutputSettings in profile (safe update)
+ipcMain.handle('update-output-settings-only', async (event, outputSettings, profileName = 'mtl.xml') => {
+    try {
+        console.log('Updating OutputSettings only in profile:', profileName);
+        const profilePath = path.join(__dirname, '..', '..', 'CONFIG', 'profiles', profileName);
+        
+        if (!fs.existsSync(profilePath)) {
+            console.log('Profile not found, cannot update OutputSettings');
+            return { success: false, error: 'Profile not found' };
+        }
+        
+        const profileContent = fs.readFileSync(profilePath, 'utf8');
+        const updatedContent = updateOutputSettingsOnly(profileContent, outputSettings);
+        fs.writeFileSync(profilePath, updatedContent, 'utf8');
+        
+        return { success: true };
+    } catch (error) {
+        console.error('Error updating OutputSettings:', error);
+        return { success: false, error: error.message };
+    }
+});
+
     // Machine Tool Import API
     ipcMain.handle('save-machine-tools', async (event, tools, importMode = 'add_missing') => {
         try {
@@ -3050,6 +3072,35 @@ function updateProfileWithMappings(profileContent, mappings) {
         return updatedContent;
     } catch (error) {
         console.error('Error updating profile with mappings:', error);
+        return profileContent;
+    }
+}
+
+function updateOutputSettingsOnly(profileContent, outputSettings) {
+    try {
+        let updatedContent = profileContent;
+        
+        // Remove existing OutputSettings section completely (including whitespace)
+        const outputSettingsRegex = /<OutputSettings>[\s\S]*?<\/OutputSettings>/g;
+        updatedContent = updatedContent.replace(outputSettingsRegex, '');
+        
+        // Create new OutputSettings section with proper formatting
+        const newOutputSettings = `
+        <OutputSettings>
+            <DefaultSavePath>${outputSettings.defaultSavePath || ''}
+            </DefaultSavePath>
+            <FilenameFormat>${outputSettings.filenameFormat || '{original_name}.din'}
+            </FilenameFormat>
+            <AutoSaveEnabled>${outputSettings.autoSaveEnabled ? 'true' : 'false'}
+            </AutoSaveEnabled>
+        </OutputSettings>`;
+        
+        // Add before closing PostprocessorProfile tag
+        updatedContent = updatedContent.replace('</PostprocessorProfile>', `${newOutputSettings}\n    </PostprocessorProfile>`);
+        
+        return updatedContent;
+    } catch (error) {
+        console.error('Error updating OutputSettings only:', error);
         return profileContent;
     }
 }

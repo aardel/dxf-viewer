@@ -169,13 +169,10 @@
             </ProgramStart>
             <SetupCommands>
                 <Command>G90
-                
                 </Command>
                 <Command>G60 X0
-                
                 </Command>
                 <Command>G0 X0 Y0
-                
                 </Command>
             </SetupCommands>
         </Header>
@@ -197,6 +194,96 @@
             <Priority>
                 <Mode>tool
                 </Mode>
+                <PriorityItem>
+                    <ID>T33
+                    </ID>
+                    <Name>Nozzle Engraving
+                    </Name>
+                    <Description>Nozzle Engraving
+                    </Description>
+                    <Order>1
+                    </Order>
+                </PriorityItem>
+                <PriorityItem>
+                    <ID>T2
+                    </ID>
+                    <Name>2-Pt CW
+                    </Name>
+                    <Description>2-Pt CW
+                    </Description>
+                    <Order>2
+                    </Order>
+                </PriorityItem>
+                <PriorityItem>
+                    <ID>T3
+                    </ID>
+                    <Name>3-Pt CW
+                    </Name>
+                    <Description>3-Pt CW
+                    </Description>
+                    <Order>3
+                    </Order>
+                </PriorityItem>
+                <PriorityItem>
+                    <ID>T4
+                    </ID>
+                    <Name>4-Pt CW
+                    </Name>
+                    <Description>4-Pt CW
+                    </Description>
+                    <Order>4
+                    </Order>
+                </PriorityItem>
+                <PriorityItem>
+                    <ID>T12
+                    </ID>
+                    <Name>2-Pt Puls
+                    </Name>
+                    <Description>2-Pt Puls
+                    </Description>
+                    <Order>5
+                    </Order>
+                </PriorityItem>
+                <PriorityItem>
+                    <ID>T13
+                    </ID>
+                    <Name>3-Pt Puls
+                    </Name>
+                    <Description>3-Pt Puls
+                    </Description>
+                    <Order>6
+                    </Order>
+                </PriorityItem>
+                <PriorityItem>
+                    <ID>T14
+                    </ID>
+                    <Name>4-Pt Puls
+                    </Name>
+                    <Description>4-Pt Puls
+                    </Description>
+                    <Order>7
+                    </Order>
+                </PriorityItem>
+                <PriorityItem>
+                    <ID>T22
+                    </ID>
+                    <Name>FineCut
+                    </Name>
+                    <Description>FineCut
+                    </Description>
+                    <Order>8
+                    </Order>
+                </PriorityItem>
+                <PriorityItem>
+                    <ID>BREAK
+                    </ID>
+                    <Name>Break
+                    </Name>
+                    <Description>Manual Break
+                    </Description>
+                    <Order>9
+                    </Order>
+                </PriorityItem>
             </Priority>
         </Optimization>
         <GCode>
@@ -246,130 +333,130 @@
             </DefaultSavePath>
             <FilenameFormat>{original_name}.din
             </FilenameFormat>
-            <AutoSaveEnabled>false
+            <AutoSaveEnabled>true
             </AutoSaveEnabled>
         </OutputSettings>
-        <MappingWorkflow>
+       <MappingWorkflow>
             <LineTypeToTool>
                 <LineTypeMapping>
-                    <LineType/>
-                    <Tool/>
+                    <LineType>1pt CW</LineType>
+                    <Tool>T1</Tool>
                 </LineTypeMapping>
                 <LineTypeMapping>
-                    <LineType/>
-                    <Tool/>
+                    <LineType>2pt CW</LineType>
+                    <Tool>T2</Tool>
                 </LineTypeMapping>
                 <LineTypeMapping>
-                    <LineType/>
-                    <Tool/>
+                    <LineType>3pt CW</LineType>
+                    <Tool>T3</Tool>
                 </LineTypeMapping>
                 <LineTypeMapping>
-                    <LineType/>
-                    <Tool/>
+                    <LineType>4pt CW</LineType>
+                    <Tool>T4</Tool>
                 </LineTypeMapping>
                 <LineTypeMapping>
-                    <LineType/>
-                    <Tool/>
+                    <LineType>2pt Puls</LineType>
+                    <Tool>T12</Tool>
                 </LineTypeMapping>
                 <LineTypeMapping>
-                    <LineType/>
-                    <Tool/>
+                    <LineType>3pt Puls</LineType>
+                    <Tool>T13</Tool>
                 </LineTypeMapping>
                 <LineTypeMapping>
-                    <LineType/>
-                    <Tool/>
+                    <LineType>4pt Puls</LineType>
+                    <Tool>T14</Tool>
                 </LineTypeMapping>
                 <LineTypeMapping>
-                    <LineType/>
-                    <Tool/>
+                    <LineType>1.5pt CW</LineType>
+                    <Tool>T8</Tool>
                 </LineTypeMapping>
                 <LineTypeMapping>
-                    <LineType/>
-                    <Tool/>
+                    <LineType>1pt Puls</LineType>
+                    <Tool>T9</Tool>
                 </LineTypeMapping>
                 <LineTypeMapping>
-                    <LineType/>
-                    <Tool/>
+                    <LineType>1.5pt Puls</LineType>
+                    <Tool>T10</Tool>
                 </LineTypeMapping>
                 <LineTypeMapping>
-                    <LineType/>
-                    <Tool/>
+                    <LineType>Fast Engrave</LineType>
+                    <Tool>T11</Tool>
                 </LineTypeMapping>
                 <LineTypeMapping>
-                    <LineType/>
-                    <Tool/>
+                    <LineType>Fine Cut Pulse</LineType>
+                    <Tool>T12</Tool>
                 </LineTypeMapping>
                 <LineTypeMapping>
-                    <LineType/>
-                    <Tool/>
+                    <LineType>Fine Cut CW</LineType>
+                    <Tool>T13</Tool>
                 </LineTypeMapping>
                 <LineTypeMapping>
-                    <LineType/>
-                    <Tool/>
+                    <LineType>2pt Bridge</LineType>
+                    <Tool>T14</Tool>
                 </LineTypeMapping>
                 <LineTypeMapping>
-                    <LineType/>
-                    <Tool/>
+                    <LineType>3pt Bridge</LineType>
+                    <Tool>T15</Tool>
                 </LineTypeMapping>
                 <LineTypeMapping>
-                    <LineType/>
-                    <Tool/>
+                    <LineType>4pt Bridge</LineType>
+                    <Tool>T16</Tool>
                 </LineTypeMapping>
                 <LineTypeMapping>
-                    <LineType/>
-                    <Tool/>
+                    <LineType>Nozzle Engrave</LineType>
+                    <Tool>T33</Tool>
                 </LineTypeMapping>
                 <LineTypeMapping>
-                    <LineType/>
-                    <Tool/>
+                    <LineType>Groove</LineType>
+                    <Tool>T18</Tool>
                 </LineTypeMapping>
                 <LineTypeMapping>
-                    <LineType/>
-                    <Tool/>
+                    <LineType>Cut CW</LineType>
+                    <Tool>T19</Tool>
                 </LineTypeMapping>
                 <LineTypeMapping>
-                    <LineType/>
-                    <Tool/>
+                    <LineType>Pulse_1</LineType>
+                    <Tool>T20</Tool>
                 </LineTypeMapping>
                 <LineTypeMapping>
-                    <LineType/>
-                    <Tool/>
+                    <LineType>Pulse_2</LineType>
+                    <Tool>T21</Tool>
                 </LineTypeMapping>
                 <LineTypeMapping>
-                    <LineType/>
-                    <Tool/>
+                    <LineType>Engrave</LineType>
+                    <Tool>T22</Tool>
                 </LineTypeMapping>
                 <LineTypeMapping>
-                    <LineType/>
-                    <Tool/>
+                    <LineType>Milling 1</LineType>
+                    <Tool>T23</Tool>
                 </LineTypeMapping>
                 <LineTypeMapping>
-                    <LineType/>
-                    <Tool/>
+                    <LineType>Milling 2</LineType>
+                    <Tool>T24</Tool>
                 </LineTypeMapping>
                 <LineTypeMapping>
-                    <LineType/>
-                    <Tool/>
+                    <LineType>Milling 3</LineType>
+                    <Tool>T25</Tool>
                 </LineTypeMapping>
                 <LineTypeMapping>
-                    <LineType/>
-                    <Tool/>
+                    <LineType>Milling 4</LineType>
+                    <Tool>T26</Tool>
                 </LineTypeMapping>
                 <LineTypeMapping>
-                    <LineType/>
-                    <Tool/>
+                    <LineType>Milling 5</LineType>
+                    <Tool>T27</Tool>
                 </LineTypeMapping>
                 <LineTypeMapping>
-                    <LineType/>
-                    <Tool/>
+                    <LineType>Milling 6</LineType>
+                    <Tool>T28</Tool>
                 </LineTypeMapping>
                 <LineTypeMapping>
-                    <LineType/>
-                    <Tool/>
+                    <LineType>Milling 7</LineType>
+                    <Tool>T29</Tool>
                 </LineTypeMapping>
                 <LineTypeMapping>
-                    <LineType/>
-                    <Tool/>
+                    <LineType>Milling 8</LineType>
+                    <Tool>T30</Tool>
                 </LineTypeMapping>
             </LineTypeToTool>
         </MappingWorkflow>

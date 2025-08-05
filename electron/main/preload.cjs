@@ -61,6 +61,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     getToolsFromProfile: (profileName) => ipcRenderer.invoke('get-tools-from-profile', profileName),
     getLineTypeMappingsFromProfile: (profileName) => ipcRenderer.invoke('get-line-type-mappings-from-profile', profileName),
     saveLineTypeMappingsToProfile: (mappings, profileName) => ipcRenderer.invoke('save-line-type-mappings-to-profile', mappings, profileName),
+    updateOutputSettingsOnly: (outputSettings, profileName) => ipcRenderer.invoke('update-output-settings-only', outputSettings, profileName),
     
     // Machine Tool Import API
     saveMachineTools: (tools, importMode) => ipcRenderer.invoke('save-machine-tools', tools, importMode),
