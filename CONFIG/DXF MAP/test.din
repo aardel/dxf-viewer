@@ -1,8 +1,8 @@
-{test.dxf / - size: 6.1 x 3.9 / 05.08.25 13:11:45}
+{test.dxf / - size: 6.1 x 3.9 / 05.08.25 13:14:51}
 %1
 { Bounds: X0.0 Y0.0 to X6.1 Y3.9 }
 {Number of Sets: 82}
-G253 F="test.dxf / - size: 6.1 x 3.9 / 05.08.25 13:11:45"
+G253 F="test.dxf / - size: 6.1 x 3.9 / 05.08.25 13:14:51"
 :P2027=25.4/P674
 G75 X=P2027 Y=P2027
 { Metric scaling for inch machine }
