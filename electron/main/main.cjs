@@ -1156,7 +1156,7 @@ function parseXMLProfile(xmlContent) {
         const priority = optimization.getElementsByTagName('Priority')[0];
         if (priority) {
             config.optimization.priority = {
-                mode: getTextContent(priority, 'Mode') || 'tool',
+                mode: priority.getAttribute('mode') || getTextContent(priority, 'Mode') || 'tool',
                 items: []
             };
             
@@ -1164,16 +1164,15 @@ function parseXMLProfile(xmlContent) {
             const priorityItems = priority.getElementsByTagName('PriorityItem');
             for (let i = 0; i < priorityItems.length; i++) {
                 const item = priorityItems[i];
-                const id = getTextContent(item, 'ID');
-                const name = getTextContent(item, 'Name');
-                const description = getTextContent(item, 'Description');
-                const order = parseInt(getTextContent(item, 'Order')) || 0;
+                const order = parseInt(item.getAttribute('order')) || 0;
+                const value = item.getAttribute('value') || '';
                 
                 config.optimization.priority.items.push({
-                    id: id,
-                    name: name,
-                    description: description,
-                    order: order
+                    id: value,
+                    name: value,
+                    description: value,
+                    order: order,
+                    value: value
                 });
             }
             
@@ -1431,24 +1430,19 @@ function generateXMLProfile(config) {
         // Add Priority settings
         if (config.optimization.priority) {
             const priority = xmlDoc.createElement('Priority');
+            priority.setAttribute('mode', config.optimization.priority.mode);
+            
+            // Add Mode element for compatibility
             addTextElement(xmlDoc, priority, 'Mode', config.optimization.priority.mode);
             
-            // Add LineTypeOrder
-            if (config.optimization.priority.lineTypeOrder && config.optimization.priority.lineTypeOrder.length > 0) {
-                const lineTypeOrder = xmlDoc.createElement('LineTypeOrder');
-                config.optimization.priority.lineTypeOrder.forEach(item => {
-                    addTextElement(xmlDoc, lineTypeOrder, 'Item', item);
+            // Add PriorityItem elements
+            if (config.optimization.priority.items && config.optimization.priority.items.length > 0) {
+                config.optimization.priority.items.forEach(item => {
+                    const priorityItem = xmlDoc.createElement('PriorityItem');
+                    priorityItem.setAttribute('order', item.order.toString());
+                    priorityItem.setAttribute('value', item.value || item.id || item.name);
+                    priority.appendChild(priorityItem);
                 });
-                priority.appendChild(lineTypeOrder);
-            }
-            
-            // Add ToolOrder
-            if (config.optimization.priority.toolOrder && config.optimization.priority.toolOrder.length > 0) {
-                const toolOrder = xmlDoc.createElement('ToolOrder');
-                config.optimization.priority.toolOrder.forEach(item => {
-                    addTextElement(xmlDoc, toolOrder, 'Item', item);
-                });
-                priority.appendChild(toolOrder);
             }
             
             optimization.appendChild(priority);
