@@ -44,7 +44,7 @@
                 </HCode>
             </Tool>
             <Tool ID="T22">
-                <Name>Fine Cut CW
+                <Name>FineCut
                 </Name>
                 <Description>Cutting
                 </Description>
@@ -104,7 +104,7 @@
                 </HCode>
             </Tool>
             <Tool ID="T13">
-                <Name>Fine Cut CW
+                <Name>3-Pt Puls
                 </Name>
                 <Description>Cutting
                 </Description>
@@ -169,10 +169,16 @@
             </ProgramStart>
             <SetupCommands>
                 <Command>G90
+                
+                
                 </Command>
                 <Command>G60 X0
+                
+                
                 </Command>
                 <Command>G0 X0 Y0
+                
+                
                 </Command>
             </SetupCommands>
         </Header>
@@ -190,114 +196,20 @@
         <Priority mode="tool">
             <Mode>tool
                 </Mode>
-            <PriorityItem order="1" value="T1"/>
-            <PriorityItem order="2" value="T22"/>
-            <PriorityItem order="3" value="T2"/>
-            <PriorityItem order="4" value="__LINE_BREAK__"/>
-            <PriorityItem order="5" value="T3"/>
-            <PriorityItem order="6" value="T4"/>
-            <PriorityItem order="7" value="T21"/>
-            <PriorityItem order="8" value="T12"/>
-            <PriorityItem order="9" value="T13"/>
-            <PriorityItem order="10" value="T14"/>
-            <PriorityItem order="11" value="T20"/>
-            <PriorityItem order="12" value="T33"/>
-            <PriorityItem order="13" value="T40"/>
+            <PriorityItem order="1" value="T33"/>
+            <PriorityItem order="2" value="T40"/>
+            <PriorityItem order="3" value="T20"/>
+            <PriorityItem order="4" value="T1"/>
+            <PriorityItem order="5" value="T22"/>
+            <PriorityItem order="6" value="__LINE_BREAK__"/>
+            <PriorityItem order="7" value="T2"/>
+            <PriorityItem order="8" value="T3"/>
+            <PriorityItem order="9" value="T4"/>
+            <PriorityItem order="10" value="T21"/>
+            <PriorityItem order="11" value="T12"/>
+            <PriorityItem order="12" value="T13"/>
+            <PriorityItem order="13" value="T14"/>
         </Priority>
-            <Priority>
-                <Mode>tool
-                </Mode>
-                <PriorityItem>
-                    <ID>T33
-                    </ID>
-                    <Name>Nozzle Engraving
-                    </Name>
-                    <Description>Nozzle Engraving
-                    </Description>
-                    <Order>1
-                    </Order>
-                </PriorityItem>
-                <PriorityItem>
-                    <ID>T2
-                    </ID>
-                    <Name>2-Pt CW
-                    </Name>
-                    <Description>2-Pt CW
-                    </Description>
-                    <Order>2
-                    </Order>
-                </PriorityItem>
-                <PriorityItem>
-                    <ID>T3
-                    </ID>
-                    <Name>3-Pt CW
-                    </Name>
-                    <Description>3-Pt CW
-                    </Description>
-                    <Order>3
-                    </Order>
-                </PriorityItem>
-                <PriorityItem>
-                    <ID>T4
-                    </ID>
-                    <Name>4-Pt CW
-                    </Name>
-                    <Description>4-Pt CW
-                    </Description>
-                    <Order>4
-                    </Order>
-                </PriorityItem>
-                <PriorityItem>
-                    <ID>T12
-                    </ID>
-                    <Name>2-Pt Puls
-                    </Name>
-                    <Description>2-Pt Puls
-                    </Description>
-                    <Order>5
-                    </Order>
-                </PriorityItem>
-                <PriorityItem>
-                    <ID>T13
-                    </ID>
-                    <Name>3-Pt Puls
-                    </Name>
-                    <Description>3-Pt Puls
-                    </Description>
-                    <Order>6
-                    </Order>
-                </PriorityItem>
-                <PriorityItem>
-                    <ID>T14
-                    </ID>
-                    <Name>4-Pt Puls
-                    </Name>
-                    <Description>4-Pt Puls
-                    </Description>
-                    <Order>7
-                    </Order>
-                </PriorityItem>
-                <PriorityItem>
-                    <ID>T22
-                    </ID>
-                    <Name>FineCut
-                    </Name>
-                    <Description>FineCut
-                    </Description>
-                    <Order>8
-                    </Order>
-                </PriorityItem>
-                <PriorityItem>
-                    <ID>BREAK
-                    </ID>
-                    <Name>Break
-                    </Name>
-                    <Description>Manual Break
-                    </Description>
-                    <Order>9
-                    </Order>
-                </PriorityItem>
-            </Priority>
         </Optimization>
         <GCode>
             <RapidMove>G0
@@ -334,15 +246,14 @@
         <LineNumbers>
             <Enabled>true
             </Enabled>
-            <StartNumber>1
+            <StartNumber>10
             </StartNumber>
-            <Increment>1
+            <Increment>10
             </Increment>
             <Format>N{number}
             </Format>
         </LineNumbers>
-        
-       <MappingWorkflow>
+        <MappingWorkflow>
             <LineTypeToTool>
                 <LineTypeMapping>
                     <LineType>1pt CW</LineType>
@@ -466,12 +377,4 @@
                 </LineTypeMapping>
             </LineTypeToTool>
         </MappingWorkflow>
-        <OutputSettings>
-            <DefaultSavePath>/Volumes/Public-1/Lasercomb
-            </DefaultSavePath>
-            <FilenameFormat>{original_name}.din
-            </FilenameFormat>
-            <AutoSaveEnabled>true
-            </AutoSaveEnabled>
-        </OutputSettings>
     </PostprocessorProfile>

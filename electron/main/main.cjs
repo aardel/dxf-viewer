@@ -1181,9 +1181,23 @@ function parseXMLProfile(xmlContent) {
             linearMove: getTextContent(gcode, 'LinearMove'),
             cwArc: getTextContent(gcode, 'CwArc'),
             ccwArc: getTextContent(gcode, 'CcwArc'),
-            homeCommand: getTextContent(gcode, 'HomeCommand'),
-            programEnd: getTextContent(gcode, 'ProgramEnd')
+            homeCommand: getTextContent(gcode, 'HomeCommand')
         };
+        
+        // Handle multiple ProgramEnd elements
+        const programEndElements = gcode.getElementsByTagName('ProgramEnd');
+        if (programEndElements.length > 0) {
+            const programEndCommands = [];
+            for (let i = 0; i < programEndElements.length; i++) {
+                const command = programEndElements[i].textContent.trim();
+                if (command) {
+                    programEndCommands.push(command);
+                }
+            }
+            config.gcode.programEnd = programEndCommands;
+        } else {
+            config.gcode.programEnd = ['M30']; // Default
+        }
     }
     
     // Parse Laser
@@ -1442,7 +1456,15 @@ function generateXMLProfile(config) {
         addTextElement(xmlDoc, gcode, 'CwArc', config.gcode.cwArc);
         addTextElement(xmlDoc, gcode, 'CcwArc', config.gcode.ccwArc);
         addTextElement(xmlDoc, gcode, 'HomeCommand', config.gcode.homeCommand);
-        addTextElement(xmlDoc, gcode, 'ProgramEnd', config.gcode.programEnd);
+        
+        // Handle ProgramEnd as array or string
+        if (Array.isArray(config.gcode.programEnd)) {
+            config.gcode.programEnd.forEach(command => {
+                addTextElement(xmlDoc, gcode, 'ProgramEnd', command);
+            });
+        } else {
+            addTextElement(xmlDoc, gcode, 'ProgramEnd', config.gcode.programEnd);
+        }
         root.appendChild(gcode);
     }
     
