@@ -6388,105 +6388,86 @@ function updateModalHeaderPreview() {
         const includeProgramStart = includeProgramStartEl ? includeProgramStartEl.checked : true;
         const setupCommands = setupCommandsEl.value || 'G90\nG60 X0\nG0 X0 Y0';
         
-        // Generate preview header
-        const headerLines = [];
-        let commentLines = 0;
-        let commandLines = 0;
-        
-        // Program start
-        if (includeProgramStart) {
-            headerLines.push('%1');
-            commandLines++;
-        }
-        
-        // File info
-        if (includeFileInfo) {
-            const template = headerTemplate
-                .replace('{filename}', 'sample.dxf')
-                .replace('{width}', '100.0')
-                .replace('{height}', '75.0')
-                .replace('{timestamp}', new Date().toLocaleString());
-            headerLines.push(`{ ${template}`);
-            commentLines++;
-        }
-        
-        // Bounds
-        if (includeBounds) {
-            headerLines.push('{ BOUNDS: X0.0 Y0.0 to X100.0 Y75.0');
-            commentLines++;
-        }
-        
-        // Set count
-        if (includeSetCount) {
-            headerLines.push('{ OPERATIONS: 25');
-            commentLines++;
-        }
-        
-        // Scaling for inch machines
-        if (machineType === 'inch_with_scaling' && enableScaling) {
-            headerLines.push(scalingParameter);
-            headerLines.push(scaleCommand);
-            headerLines.push('{ Metric scaling for inch machine');
-            commandLines += 2;
-            commentLines++;
-        }
-        
-        // Setup commands
-        if (setupCommands.trim()) {
-            const commands = setupCommands.split('\n').filter(cmd => cmd.trim());
-            headerLines.push(...commands);
-            commandLines += commands.length;
-        }
-        
-        // Display preview
-        const previewContent = `<strong>Header Preview:</strong><br><pre style="color: #ddd; margin-top: 0.5rem;">${headerLines.join('\n')}</pre>`;
-        console.log('Preview content:', previewContent);
-        previewEl.innerHTML = previewContent;
-        
-        // Update statistics
-        if (statsEl) {
-            const totalLines = headerLines.length;
-            const estimatedSize = headerLines.join('\n').length;
+        // Create a mock configuration object for the DIN generator
+        const mockConfig = {
+            header: {
+                includeFileInfo: includeFileInfo,
+                includeBounds: includeBounds,
+                includeSetCount: includeSetCount,
+                includeProgramStart: includeProgramStart,
+                template: headerTemplate,
+                setupCommands: setupCommands.split('\n').filter(cmd => cmd.trim())
+            },
+            units: {
+                feedInchMachine: machineType === 'inch_with_scaling',
+                scalingHeader: {
+                    enabled: enableScaling,
+                    parameter: scalingParameter,
+                    scaleCommand: scaleCommand,
+                    comment: 'Bei Bedarf nach inch skalieren'
+                }
+            },
+            lineNumbers: {
+                startNumber: 1
+            }
+        };
+
+        // Create mock metadata
+        const mockMetadata = {
+            filename: 'sample.dxf',
+            width: 100.0,
+            height: 75.0,
+            entityCount: 25
+        };
+
+        // Import and use the actual DIN generator
+        import('../src/DinGenerator.js').then(({ DinGenerator }) => {
+            const dinGenerator = new DinGenerator();
             
-            const statsLinesEl = modal.querySelector('#modalStatsLines');
-            const statsCommentsEl = modal.querySelector('#modalStatsComments');
-            const statsCommandsEl = modal.querySelector('#modalStatsCommands');
-            const statsSizeEl = modal.querySelector('#modalStatsSize');
+            // Set the configuration
+            dinGenerator.config = mockConfig;
             
-            if (statsLinesEl) statsLinesEl.textContent = totalLines;
-            if (statsCommentsEl) statsCommentsEl.textContent = commentLines;
-            if (statsCommandsEl) statsCommandsEl.textContent = commandLines;
-            if (statsSizeEl) statsSizeEl.textContent = estimatedSize;
-        }
+            // Generate header using the actual DIN generator
+            const headerLines = dinGenerator.generateHeader(mockMetadata);
+            const setupLines = dinGenerator.generateSetupCommands();
+            
+            // Combine header and setup commands
+            const allLines = [...headerLines, ...setupLines];
+            
+            // Count statistics
+            let commentLines = 0;
+            let commandLines = 0;
+            
+            allLines.forEach(line => {
+                if (line.startsWith('{') || line.startsWith('G253')) {
+                    commentLines++;
+                } else {
+                    commandLines++;
+                }
+            });
+            
+            // Update preview
+            previewEl.innerHTML = allLines.join('\n');
+            
+            // Update statistics
+            if (statsEl) {
+                statsEl.innerHTML = `
+                    <div>Total Lines: <span id="modalStatsLines">${allLines.length}</span></div>
+                    <div>Comment Lines: <span id="modalStatsComments">${commentLines}</span></div>
+                    <div>Command Lines: <span id="modalStatsCommands">${commandLines}</span></div>
+                    <div>Estimated Size: <span id="modalStatsSize">${allLines.join('\n').length}</span> bytes</div>
+                `;
+            }
+        }).catch(error => {
+            console.error('Error loading DIN generator:', error);
+            previewEl.innerHTML = '<span style="color: #ff6b6b;">Error: Could not load DIN generator</span>';
+        });
         
+        return; // Exit early since we're using async import
     } catch (error) {
         console.error('Error updating modal header preview:', error);
-        previewEl.innerHTML = '<span style="color: #ff6b6b;">Error generating preview</span>';
-    }
-    
-    // Fallback: if preview is still "Loading...", force update with basic content
-    if (previewEl.innerHTML.includes('Loading...')) {
-        console.log('Forcing fallback preview update');
-        const fallbackContent = `<strong>Header Preview:</strong><br><pre style="color: #ddd; margin-top: 0.5rem;">%1
-{ sample.dxf / - size: 100.0 x 75.0 / ${new Date().toLocaleString()}
-{ BOUNDS: X0.0 Y0.0 to X100.0 Y75.0
-{ OPERATIONS: 25
-G90
-G60 X0
-G0 X0 Y0</pre>`;
-        previewEl.innerHTML = fallbackContent;
-        
-        // Update statistics
-        if (statsEl) {
-            const statsLinesEl = modal.querySelector('#modalStatsLines');
-            const statsCommentsEl = modal.querySelector('#modalStatsComments');
-            const statsCommandsEl = modal.querySelector('#modalStatsCommands');
-            const statsSizeEl = modal.querySelector('#modalStatsSize');
-            
-            if (statsLinesEl) statsLinesEl.textContent = '6';
-            if (statsCommentsEl) statsCommentsEl.textContent = '3';
-            if (statsCommandsEl) statsCommandsEl.textContent = '3';
-            if (statsSizeEl) statsSizeEl.textContent = '120';
+        if (previewEl) {
+            previewEl.innerHTML = '<span style="color: #ff6b6b;">Error generating preview</span>';
         }
     }
 }
