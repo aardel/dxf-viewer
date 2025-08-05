@@ -40,10 +40,10 @@ export class DinGenerator {
         // Generate DIN content
         const dinLines = [];
         
-        // Add header
+        // Add header (includes steps 1-5)
         dinLines.push(...this.generateHeader(metadata));
         
-        // Add setup commands
+        // Add setup commands (step 6)
         dinLines.push(...this.generateSetupCommands());
         
         // Process entities
@@ -62,28 +62,28 @@ export class DinGenerator {
 
     /**
      * Generate DIN header based on configuration
+     * Follows the exact DIN format order:
+     * 1. File information (with G253 F= format)
+     * 2. Program start marker (%1)
+     * 3. Operation count (Number of Sets)
+     * 4. File information again (with G253 F= format for machine)
+     * 5. Scaling parameters (if INCH machine selected)
+     * 6. Initial setup commands
      */
     generateHeader(metadata) {
         const lines = [];
         const config = this.config;
-
-        // Always include basic file information
         const filename = metadata.filename || 'unknown.dxf';
-        const timestamp = new Date().toLocaleString();
-        lines.push(`{ File: ${filename} - Generated: ${timestamp} }`);
+        const timestamp = new Date().toLocaleString('de-DE', {
+            day: '2-digit',
+            month: '2-digit',
+            year: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit'
+        }).replace(',', '');
 
-        // Bounds information if available
-        if (metadata.bounds) {
-            const bounds = metadata.bounds;
-            lines.push(`{ Bounds: X${bounds.minX.toFixed(1)} Y${bounds.minY.toFixed(1)} to X${bounds.maxX.toFixed(1)} Y${bounds.maxY.toFixed(1)} }`);
-        }
-
-        // Operation count if available
-        if (metadata.entityCount) {
-            lines.push(`{ Operations: ${metadata.entityCount} }`);
-        }
-
-        // Custom header from configuration if available
+        // 1. File information (with G253 F= format)
         if (config.header?.includeFileInfo && config.header?.template) {
             const template = config.header.template
                 .replace('{filename}', filename)
@@ -91,35 +91,57 @@ export class DinGenerator {
                 .replace('{height}', metadata.height?.toFixed(1) || '0.0')
                 .replace('{timestamp}', timestamp);
             
-            lines.push(`{ ${template} }`);
+            lines.push(`{${template}}`);
+        } else {
+            // Fallback file information
+            const width = metadata.width?.toFixed(1) || '0.0';
+            const height = metadata.height?.toFixed(1) || '0.0';
+            lines.push(`{${filename} / - Size: ${width} X ${height} / ${timestamp}}`);
         }
 
-        // Custom fields from configuration
-        if (config.header?.customFields) {
-            Object.entries(config.header.customFields).forEach(([key, value]) => {
-                if (value && !value.startsWith('{')) { // Skip template variables
-                    lines.push(`{ ${key.toUpperCase()}: ${value} }`);
-                }
-            });
+        // 2. Program start marker (%1)
+        if (config.header?.includeProgramStart !== false) {
+            const programStart = config.header?.programStart || '%1';
+            lines.push(programStart);
         }
 
-        // Scaling header for inch machines
-        if (config.units?.feedInchMachine && config.units?.scalingHeader?.enabled) {
-            lines.push(config.units.scalingHeader.parameter);
-            lines.push(config.units.scalingHeader.scaleCommand);
+        // 3. Operation count (Number of Sets)
+        if (metadata.entityCount) {
+            lines.push(`{Number of Sets: ${metadata.entityCount}}`);
+        }
+
+        // 4. File information again (with G253 F= format for machine)
+        if (config.header?.includeFileInfo && config.header?.template) {
+            const template = config.header.template
+                .replace('{filename}', filename)
+                .replace('{width}', metadata.width?.toFixed(1) || '0.0')
+                .replace('{height}', metadata.height?.toFixed(1) || '0.0')
+                .replace('{timestamp}', timestamp);
             
+            // Use German format for machine
+            const germanTemplate = template
+                .replace('Size:', 'GROESSE:')
+                .replace('X', 'X');
+            
+            lines.push(`G253 F="${germanTemplate}"`);
+        } else {
+            // Fallback G253 format
+            const width = metadata.width?.toFixed(1) || '0.0';
+            const height = metadata.height?.toFixed(1) || '0.0';
+            lines.push(`G253 F="${filename} / - GROESSE: ${width} X ${height} / ${timestamp}"`);
+        }
+
+        // 5. Scaling parameters (if INCH machine selected)
+        if (config.units?.feedInchMachine && config.units?.scalingHeader?.enabled) {
+            if (config.units.scalingHeader.parameter) {
+                lines.push(config.units.scalingHeader.parameter);
+            }
+            if (config.units.scalingHeader.scaleCommand) {
+                lines.push(config.units.scalingHeader.scaleCommand);
+            }
             if (config.units.scalingHeader.comment) {
                 lines.push(`{ ${config.units.scalingHeader.comment} }`);
             }
-        }
-
-        // Program start marker - comes AFTER comments
-
-        
-        if (config.header?.includeProgramStart !== false) { // Default to true if not specified
-            const programStart = config.header?.programStart || '%1';
-
-            lines.push(programStart);
         }
 
         return lines;
