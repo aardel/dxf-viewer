@@ -1004,12 +1004,20 @@ function parseXMLProfile(xmlContent) {
             const mappings = lineTypeToTool.getElementsByTagName('LineTypeMapping');
             for (let i = 0; i < mappings.length; i++) {
                 const mapping = mappings[i];
-                const lineType = mapping.getAttribute('LineType');
-                const tool = mapping.getAttribute('Tool');
-                config.mappingWorkflow.lineTypeToTool.push({
-                    lineType: lineType,
-                    tool: tool
-                });
+                const lineTypeElement = mapping.getElementsByTagName('LineType')[0];
+                const toolElement = mapping.getElementsByTagName('Tool')[0];
+                
+                if (lineTypeElement && toolElement) {
+                    const lineType = lineTypeElement.textContent.trim();
+                    const tool = toolElement.textContent.trim();
+                    
+                    if (lineType && tool) {
+                        config.mappingWorkflow.lineTypeToTool.push({
+                            lineType: lineType,
+                            tool: tool
+                        });
+                    }
+                }
             }
         }
     }
