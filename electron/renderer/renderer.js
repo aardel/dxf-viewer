@@ -5582,9 +5582,9 @@ function openHeaderConfigurationWindow() {
                     <!-- Scaling Parameters -->
                     <div class="setting-group" id="modalScalingSettings" style="display: none;">
                         <h5>Scaling Parameters</h5>
-                        <div class="checkbox-item" style="display: flex; align-items: center; padding: 8px 0; margin-bottom: 15px; border-bottom: 1px solid #444;">
-                            <input type="checkbox" id="modalEnableScaling" checked style="margin-right: 10px; transform: scale(1.2);">
-                            <label for="modalEnableScaling" style="margin: 0; cursor: pointer; color: #ccc;">Include scaling header for inch machine</label>
+                        <div class="checkbox-item" style="display: flex; align-items: center; padding: 8px 0; margin-bottom: 15px; border-bottom: 1px solid #444; min-height: 24px; margin-left: 15px;">
+                            <input type="checkbox" id="modalEnableScaling" checked style="margin: 0; margin-right: 12px; transform: scale(1.1); flex-shrink: 0;">
+                            <label for="modalEnableScaling" style="margin: 0; cursor: pointer; color: #ccc; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Include scaling header for inch machine</label>
                         </div>
                         <div class="setting-row">
                             <label for="modalScalingParameter">Scaling Parameter:</label>
@@ -5610,22 +5610,22 @@ function openHeaderConfigurationWindow() {
                     <!-- Header Options -->
                     <div class="setting-group">
                         <h5>Include in Header</h5>
-                        <div class="checkbox-group" style="display: flex; flex-direction: column; gap: 0;">
-                            <div class="checkbox-item" style="display: flex; align-items: center; padding: 8px 0; border-bottom: 1px solid #444;">
-                                <input type="checkbox" id="modalIncludeFileInfo" checked style="margin-right: 10px; transform: scale(1.2);">
-                                <label for="modalIncludeFileInfo" style="margin: 0; cursor: pointer; color: #ccc;">File information</label>
+                        <div class="checkbox-group" style="display: flex; flex-direction: column; gap: 0; margin-left: 15px;">
+                            <div class="checkbox-item" style="display: flex; align-items: center; padding: 8px 0; border-bottom: 1px solid #444; min-height: 24px;">
+                                <input type="checkbox" id="modalIncludeFileInfo" checked style="margin: 0; margin-right: 12px; transform: scale(1.1); flex-shrink: 0;">
+                                <label for="modalIncludeFileInfo" style="margin: 0; cursor: pointer; color: #ccc; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">File information</label>
                             </div>
-                            <div class="checkbox-item" style="display: flex; align-items: center; padding: 8px 0; border-bottom: 1px solid #444;">
-                                <input type="checkbox" id="modalIncludeBounds" checked style="margin-right: 10px; transform: scale(1.2);">
-                                <label for="modalIncludeBounds" style="margin: 0; cursor: pointer; color: #ccc;">Drawing bounds</label>
+                            <div class="checkbox-item" style="display: flex; align-items: center; padding: 8px 0; border-bottom: 1px solid #444; min-height: 24px;">
+                                <input type="checkbox" id="modalIncludeBounds" checked style="margin: 0; margin-right: 12px; transform: scale(1.1); flex-shrink: 0;">
+                                <label for="modalIncludeBounds" style="margin: 0; cursor: pointer; color: #ccc; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Drawing bounds</label>
                             </div>
-                            <div class="checkbox-item" style="display: flex; align-items: center; padding: 8px 0; border-bottom: 1px solid #444;">
-                                <input type="checkbox" id="modalIncludeSetCount" checked style="margin-right: 10px; transform: scale(1.2);">
-                                <label for="modalIncludeSetCount" style="margin: 0; cursor: pointer; color: #ccc;">Operation count</label>
+                            <div class="checkbox-item" style="display: flex; align-items: center; padding: 8px 0; border-bottom: 1px solid #444; min-height: 24px;">
+                                <input type="checkbox" id="modalIncludeSetCount" checked style="margin: 0; margin-right: 12px; transform: scale(1.1); flex-shrink: 0;">
+                                <label for="modalIncludeSetCount" style="margin: 0; cursor: pointer; color: #ccc; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Operation count</label>
                             </div>
-                            <div class="checkbox-item" style="display: flex; align-items: center; padding: 8px 0;">
-                                <input type="checkbox" id="modalIncludeProgramStart" checked style="margin-right: 10px; transform: scale(1.2);">
-                                <label for="modalIncludeProgramStart" style="margin: 0; cursor: pointer; color: #ccc;">Program start marker (%1)</label>
+                            <div class="checkbox-item" style="display: flex; align-items: center; padding: 8px 0; min-height: 24px;">
+                                <input type="checkbox" id="modalIncludeProgramStart" checked style="margin: 0; margin-right: 12px; transform: scale(1.1); flex-shrink: 0;">
+                                <label for="modalIncludeProgramStart" style="margin: 0; cursor: pointer; color: #ccc; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Program start marker (%1)</label>
                             </div>
                         </div>
                     </div>
