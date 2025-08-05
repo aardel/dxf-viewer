@@ -242,6 +242,14 @@ ipcMain.handle('show-error-dialog', async (event, title, message) => {
     dialog.showErrorBox(title, message);
 });
 
+ipcMain.handle('show-directory-dialog', async () => {
+    const result = await dialog.showOpenDialog(mainWindow, {
+        properties: ['openDirectory'],
+        title: 'Select Default Save Directory'
+    });
+    return result;
+});
+
 ipcMain.handle('save-layer-mapping', async (event, content, defaultFilename) => {
     try {
         // First, let the user choose where to save the original DXF file's location

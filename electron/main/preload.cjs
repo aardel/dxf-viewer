@@ -5,6 +5,7 @@ const { contextBridge, ipcRenderer } = require('electron');
 contextBridge.exposeInMainWorld('electronAPI', {
     // File operations
     showOpenDialog: () => ipcRenderer.invoke('show-open-dialog'),
+    showDirectoryDialog: () => ipcRenderer.invoke('show-directory-dialog'),
     readFile: (filePath) => ipcRenderer.invoke('read-file', filePath),
     showErrorDialog: (title, message) => ipcRenderer.invoke('show-error-dialog', title, message),
     saveLayerMapping: (content, defaultFilename) => ipcRenderer.invoke('save-layer-mapping', content, defaultFilename),

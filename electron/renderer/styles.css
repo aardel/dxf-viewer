@@ -1390,6 +1390,73 @@ body {
     gap: 0.75rem;
 }
 
+.output-setting-group {
+    margin-bottom: 1.5rem;
+}
+
+.output-setting-group label {
+    display: block;
+    font-weight: 600;
+    color: #ffffff;
+    margin-bottom: 0.5rem;
+}
+
+.output-setting-group input[type="text"] {
+    width: 100%;
+    padding: 0.75rem;
+    border: 1px solid #555;
+    border-radius: 6px;
+    background: #3a3a3a;
+    color: #ffffff;
+    font-size: 0.9rem;
+    margin-bottom: 0.5rem;
+}
+
+.output-setting-group input[type="text"]:focus {
+    outline: none;
+    border-color: #00BFFF;
+    box-shadow: 0 0 0 2px rgba(0, 191, 255, 0.2);
+}
+
+.output-setting-group input[type="text"][readonly] {
+    background: #2a2a2a;
+    color: #888;
+    cursor: not-allowed;
+}
+
+.path-input-group {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+    margin-bottom: 0.5rem;
+}
+
+.path-input-group input[type="text"] {
+    flex: 1;
+    margin-bottom: 0;
+}
+
+.path-input-group .btn {
+    white-space: nowrap;
+    padding: 0.75rem 1rem;
+}
+
+.setting-help {
+    font-size: 0.8rem;
+    color: #888;
+    margin-top: 0.25rem;
+    line-height: 1.4;
+}
+
+.output-setting-group input[type="checkbox"] {
+    margin-right: 0.5rem;
+    transform: scale(1.1);
+}
+
+.output-setting-group input[type="checkbox"] + .setting-help {
+    margin-top: 0.5rem;
+}
+
 .setting-row {
     display: flex;
     align-items: flex-start;

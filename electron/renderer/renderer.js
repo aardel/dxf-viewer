@@ -2462,6 +2462,11 @@ function getDefaultConfiguration() {
         },
         lineNumbers: {
             enabled: true, startNumber: 10, increment: 10, format: 'N{number}'
+        },
+        outputSettings: {
+            defaultSavePath: '',
+            filenameFormat: '{original_name}.din',
+            autoSaveEnabled: true
         }
     };
 }
@@ -2515,8 +2520,15 @@ function applyConfigurationToUI(config) {
         }
     }
     
-    // Scaling configuration
-    if (config.units?.scalingHeader) {
+            // Scaling configuration
+        if (config.units?.scalingHeader) {
+            
+        }
+        
+        // File output settings
+        if (config.outputSettings) {
+            loadFileOutputSettings();
+        }
         const enableScalingCheckbox = document.getElementById('enableScaling');
         const scalingParameterInput = document.getElementById('scalingParameter');
         const scaleCommandInput = document.getElementById('scaleCommand');
@@ -2877,6 +2889,9 @@ function initializeDinGeneration() {
     generateDinBtn?.addEventListener('click', async () => {
         await generateDinFile();
     });
+    
+    // Initialize file output settings
+    initializeFileOutputSettings();
 }
 
 // Preview DIN file content
@@ -2963,6 +2978,124 @@ async function generateDinFile() {
         console.error('Error generating DIN file:', error);
         showStatus(`Failed to generate DIN file: ${error.message}`, 'error');
     }
+}
+
+// Initialize file output settings
+function initializeFileOutputSettings() {
+    const browseSavePathBtn = document.getElementById('browseSavePathBtn');
+    const clearSavePathBtn = document.getElementById('clearSavePathBtn');
+    const defaultSavePathInput = document.getElementById('defaultSavePath');
+    const filenameFormatInput = document.getElementById('filenameFormat');
+    const autoSaveEnabledCheckbox = document.getElementById('autoSaveEnabled');
+    
+    // Load saved settings
+    loadFileOutputSettings();
+    
+    // Browse button event
+    browseSavePathBtn?.addEventListener('click', async () => {
+        try {
+            const result = await window.electronAPI.showDirectoryDialog();
+            if (result && result.filePaths && result.filePaths.length > 0) {
+                const selectedPath = result.filePaths[0];
+                defaultSavePathInput.value = selectedPath;
+                saveFileOutputSettings();
+                showStatus('Default save location updated', 'success');
+            }
+        } catch (error) {
+            console.error('Error selecting directory:', error);
+            showStatus('Failed to select directory', 'error');
+        }
+    });
+    
+    // Clear button event
+    clearSavePathBtn?.addEventListener('click', () => {
+        defaultSavePathInput.value = '';
+        saveFileOutputSettings();
+        showStatus('Default save location cleared', 'success');
+    });
+    
+    // Filename format change event
+    filenameFormatInput?.addEventListener('input', () => {
+        saveFileOutputSettings();
+    });
+    
+    // Auto-save checkbox change event
+    autoSaveEnabledCheckbox?.addEventListener('change', () => {
+        saveFileOutputSettings();
+    });
+}
+
+// Load file output settings from current profile
+function loadFileOutputSettings() {
+    if (!currentPostprocessorConfig) return;
+    
+    const defaultSavePathInput = document.getElementById('defaultSavePath');
+    const filenameFormatInput = document.getElementById('filenameFormat');
+    const autoSaveEnabledCheckbox = document.getElementById('autoSaveEnabled');
+    
+    // Load from configuration
+    const outputSettings = currentPostprocessorConfig.outputSettings || {};
+    
+    if (defaultSavePathInput) {
+        defaultSavePathInput.value = outputSettings.defaultSavePath || '';
+    }
+    
+    if (filenameFormatInput) {
+        filenameFormatInput.value = outputSettings.filenameFormat || '{original_name}.din';
+    }
+    
+    if (autoSaveEnabledCheckbox) {
+        autoSaveEnabledCheckbox.checked = outputSettings.autoSaveEnabled !== false;
+    }
+}
+
+// Save file output settings to current profile
+function saveFileOutputSettings() {
+    if (!currentPostprocessorConfig) return;
+    
+    const defaultSavePathInput = document.getElementById('defaultSavePath');
+    const filenameFormatInput = document.getElementById('filenameFormat');
+    const autoSaveEnabledCheckbox = document.getElementById('autoSaveEnabled');
+    
+    // Initialize output settings if not exists
+    if (!currentPostprocessorConfig.outputSettings) {
+        currentPostprocessorConfig.outputSettings = {};
+    }
+    
+    // Save to configuration
+    currentPostprocessorConfig.outputSettings.defaultSavePath = defaultSavePathInput?.value || '';
+    currentPostprocessorConfig.outputSettings.filenameFormat = filenameFormatInput?.value || '{original_name}.din';
+    currentPostprocessorConfig.outputSettings.autoSaveEnabled = autoSaveEnabledCheckbox?.checked !== false;
+    
+    // Save to XML profile
+    const currentProfile = getCurrentProfileFilename();
+    if (currentProfile) {
+        saveXmlProfileConfiguration(currentProfile).catch(error => {
+            console.error('Error saving file output settings:', error);
+        });
+    }
+}
+
+// Generate filename based on format and metadata
+function generateFilename(format, metadata) {
+    if (!format || !metadata) return 'output.din';
+    
+    let filename = format;
+    
+    // Replace variables
+    filename = filename.replace(/{original_name}/g, metadata.originalName || 'output');
+    filename = filename.replace(/{date}/g, new Date().toISOString().split('T')[0]);
+    filename = filename.replace(/{time}/g, new Date().toTimeString().split(' ')[0].replace(/:/g, '-'));
+    filename = filename.replace(/{timestamp}/g, new Date().toISOString().replace(/[:.]/g, '-'));
+    filename = filename.replace(/{width}/g, metadata.width ? metadata.width.toFixed(1) : '0');
+    filename = filename.replace(/{height}/g, metadata.height ? metadata.height.toFixed(1) : '0');
+    
+    // Ensure .din extension
+    if (!filename.toLowerCase().endsWith('.din')) {
+        filename += '.din';
+    }
+    
+    return filename;
 }
 
 // Extract entities from the DXF viewer
@@ -3161,8 +3294,31 @@ function showDinPreview(content) {
 // Save DIN file using Electron API
 async function saveDinFile(content, defaultFilename) {
     try {
-        // Use existing layer mapping save functionality as template
-        await window.electronAPI.saveLayerMappingFixed(content, defaultFilename, currentFilePath);
+        // Get output settings from current configuration
+        const outputSettings = currentPostprocessorConfig?.outputSettings || {};
+        const autoSaveEnabled = outputSettings.autoSaveEnabled !== false;
+        const defaultSavePath = outputSettings.defaultSavePath || '';
+        const filenameFormat = outputSettings.filenameFormat || '{original_name}.din';
+        
+        // Generate filename based on format
+        const metadata = {
+            originalName: currentFilename ? currentFilename.replace(/\.[^/.]+$/, '') : 'output',
+            width: getDrawingDimensions()?.width || 0,
+            height: getDrawingDimensions()?.height || 0
+        };
+        
+        const generatedFilename = generateFilename(filenameFormat, metadata);
+        
+        // If auto-save is enabled and we have a default path, save directly
+        if (autoSaveEnabled && defaultSavePath) {
+            const fullPath = `${defaultSavePath}/${generatedFilename}`;
+            await window.electronAPI.saveLayerMappingFixed(content, generatedFilename, defaultSavePath);
+            showStatus(`DIN file saved to: ${fullPath}`, 'success');
+            return;
+        }
+        
+        // Otherwise, show save dialog
+        await window.electronAPI.saveLayerMappingFixed(content, generatedFilename, currentFilePath);
         
     } catch (error) {
         throw new Error(`Failed to save DIN file: ${error.message}`);
