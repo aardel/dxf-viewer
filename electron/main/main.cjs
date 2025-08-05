@@ -435,11 +435,20 @@ ipcMain.handle('save-din-file', async (event, content, filename, savePath) => {
 // Line Types Management
 ipcMain.handle('load-line-types', async () => {
     try {
-        const userDataPath = app.getPath('userData');
-        const configPath = path.join(userDataPath, 'CONFIG', 'LineTypes', 'line-types.csv');
+        let configPath;
+        
+        if (process.argv.includes('--dev')) {
+            // In development, use local CONFIG directory
+            const appRoot = process.cwd();
+            configPath = path.join(appRoot, 'CONFIG', 'LineTypes', 'line-types.csv');
+        } else {
+            // In production, use user data directory
+            const userDataPath = app.getPath('userData');
+            configPath = path.join(userDataPath, 'CONFIG', 'LineTypes', 'line-types.csv');
+        }
         
         if (!fs.existsSync(configPath)) {
-            return { success: false, error: 'Line types file not found' };
+            return { success: false, error: `Line types file not found at: ${configPath}` };
         }
         
         const csvContent = fs.readFileSync(configPath, 'utf8');

@@ -300,13 +300,18 @@ async function loadAvailableItems(mode) {
         } else {
             // Load actual line types from line-types.xml
             try {
+                addConsoleMessage('Loading line types from CSV file...', 'info');
                 const response = await window.electronAPI.loadLineTypes();
-                if (response.success && response.data) {
+                addConsoleMessage(`LoadLineTypes response: ${JSON.stringify(response)}`, 'info');
+                
+                if (response.success && response.data && response.data.length > 0) {
+                    addConsoleMessage(`Successfully loaded ${response.data.length} line types from CSV`, 'success');
                     response.data.forEach(lineType => {
                         const item = createPriorityItem(lineType.name, lineType.name, lineType.description);
                         availableList.appendChild(item);
                     });
                 } else {
+                    addConsoleMessage('Failed to load line types from CSV, using fallback', 'warning');
                     // Fallback to default line types if loading fails
                     const defaultLineTypes = ['1pt CW', '2pt CW', '3pt CW', '4pt CW', 'Fast Engrave', 'Nozzle Engrave', 'Engrave', 'Milling 1', 'Milling 2', 'Milling 3'];
                     defaultLineTypes.forEach(lineType => {
