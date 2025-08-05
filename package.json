@@ -56,16 +56,13 @@
             "node_modules/**/*"
         ],
         "mac": {
-            "category": "public.app-category.graphics-design",
-            "icon": "assets/icon.png"
+            "category": "public.app-category.graphics-design"
         },
         "win": {
-            "target": "nsis",
-            "icon": "assets/icon.png"
+            "target": "nsis"
         },
         "linux": {
-            "target": "AppImage",
-            "icon": "assets/icon.png"
+            "target": "AppImage"
         }
     }
 }
