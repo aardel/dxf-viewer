@@ -1,0 +1,120 @@
+{
+  "name": "Line Type to Tool Mappings",
+  "description": "Maps internal line types to machine tools and cutting parameters",
+  "version": "1.0",
+  "created": "2025-08-02",
+  "author": "Lasercomb GmbH",
+  
+  "mappings": {
+    "cutting": {
+      "tool": "T2",
+      "description": "Standard cutting operations",
+      "priority": 3,
+      "parameters": {
+        "speed": 800,
+        "passes": 1,
+        "depth": "through",
+        "offset": "none"
+      }
+    },
+    "engraving": {
+      "tool": "T1",
+      "description": "Fine engraving and text",
+      "priority": 1,
+      "parameters": {
+        "speed": 1200,
+        "passes": 1,
+        "depth": 0.1,
+        "offset": "none"
+      }
+    },
+    "perforating": {
+      "tool": "T3",
+      "description": "Perforation lines",
+      "priority": 2,
+      "parameters": {
+        "speed": 600,
+        "passes": 1,
+        "depth": "through",
+        "offset": "none",
+        "pattern": "dash",
+        "dashLength": 2.0,
+        "gapLength": 1.0
+      }
+    },
+    "scoring": {
+      "tool": "T1",
+      "description": "Light scoring for bending",
+      "priority": 2,
+      "parameters": {
+        "speed": 1000,
+        "passes": 1,
+        "depth": 0.05,
+        "offset": "none"
+      }
+    },
+    "marking": {
+      "tool": "T1",
+      "description": "Surface marking only",
+      "priority": 1,
+      "parameters": {
+        "speed": 1500,
+        "passes": 1,
+        "depth": 0.02,
+        "offset": "none"
+      }
+    },
+    "construction": {
+      "tool": "none",
+      "description": "Construction lines - not machined",
+      "priority": 999,
+      "parameters": {
+        "skip": true
+      }
+    }
+  },
+  
+  "layerMappings": {
+    "0": "cutting",
+    "CUT": "cutting",
+    "CUTTING": "cutting",
+    "ENGRAVE": "engraving",
+    "ENGRAVING": "engraving",
+    "TEXT": "engraving",
+    "PERF": "perforating",
+    "PERFORATION": "perforating",
+    "SCORE": "scoring",
+    "SCORING": "scoring",
+    "MARK": "marking",
+    "MARKING": "marking",
+    "CONSTRUCTION": "construction",
+    "HIDDEN": "construction",
+    "DIMENSIONS": "construction"
+  },
+  
+  "colorMappings": {
+    "1": "cutting",
+    "2": "engraving", 
+    "3": "perforating",
+    "4": "scoring",
+    "5": "marking",
+    "6": "construction",
+    "7": "cutting",
+    "8": "engraving",
+    "9": "construction",
+    "10": "cutting"
+  },
+  
+  "defaultMapping": "cutting",
+  
+  "rules": {
+    "layerPriority": true,
+    "colorFallback": true,
+    "entityTypeOverride": {
+      "TEXT": "engraving",
+      "MTEXT": "engraving",
+      "DIMENSION": "construction",
+      "LEADER": "construction"
+    }
+  }
+}

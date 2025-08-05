@@ -1,0 +1,795 @@
+/**
+ * DIN File Generator
+ * Converts DXF entities to DIN format using optimization algorithms
+ */
+
+import { PathOptimizer } from './PathOptimizer.js';
+
+export class DinGenerator {
+    constructor() {
+        this.optimizer = new PathOptimizer();
+        this.currentTool = null;
+        this.lineNumber = 1;
+        this.config = null;
+    }
+
+    /**
+     * Generate DIN file content from DXF entities
+     * @param {Array} entities - DXF entities to convert
+     * @param {Object} config - Postprocessor configuration
+     * @param {Object} metadata - File metadata (filename, bounds, etc.)
+     * @returns {String} DIN file content
+     */
+    generateDin(entities, config, metadata = {}) {
+        this.config = config;
+        this.lineNumber = config.lineNumbers?.startNumber || 10;
+        this.currentTool = null;
+
+        console.log('DIN Generator: Starting generation with config:', {
+            lineNumbers: config.lineNumbers,
+            header: config.header,
+            laser: config.laser,
+            gcode: config.gcode
+        });
+
+        // Load tools with priority information
+        const toolsWithPriority = this.loadToolsFromConfig(config);
+        console.log('Tools with priority loaded:', toolsWithPriority);
+        
+        // Optimize entity order
+        const optimizedEntities = this.optimizer.optimizePaths(
+            entities, 
+            toolsWithPriority,
+            config.optimization || {}
+        );
+
+        // Generate DIN content
+        const dinLines = [];
+        
+        // Add header
+        dinLines.push(...this.generateHeader(metadata));
+        
+        // Add setup commands
+        dinLines.push(...this.generateSetupCommands());
+        
+        // Process entities
+        dinLines.push(...this.generateEntityCommands(optimizedEntities));
+        
+        // Add footer
+        dinLines.push(...this.generateFooter());
+
+        // Filter out empty lines and join
+        const filteredLines = dinLines.filter(line => line && line.trim() !== '');
+        const result = filteredLines.join('\n');
+        
+        console.log('DIN Generator: Generated DIN file with', filteredLines.length, 'lines');
+        return result;
+    }
+
+    /**
+     * Generate DIN header based on configuration
+     */
+    generateHeader(metadata) {
+        const lines = [];
+        const config = this.config;
+
+        // Always include basic file information
+        const filename = metadata.filename || 'unknown.dxf';
+        const timestamp = new Date().toLocaleString();
+        lines.push(`{ File: ${filename} - Generated: ${timestamp} }`);
+
+        // Bounds information if available
+        if (metadata.bounds) {
+            const bounds = metadata.bounds;
+            lines.push(`{ Bounds: X${bounds.minX.toFixed(1)} Y${bounds.minY.toFixed(1)} to X${bounds.maxX.toFixed(1)} Y${bounds.maxY.toFixed(1)} }`);
+        }
+
+        // Operation count if available
+        if (metadata.entityCount) {
+            lines.push(`{ Operations: ${metadata.entityCount} }`);
+        }
+
+        // Custom header from configuration if available
+        if (config.header?.includeFileInfo && config.header?.template) {
+            const template = config.header.template
+                .replace('{filename}', filename)
+                .replace('{width}', metadata.width?.toFixed(1) || '0.0')
+                .replace('{height}', metadata.height?.toFixed(1) || '0.0')
+                .replace('{timestamp}', timestamp);
+            
+            lines.push(`{ ${template} }`);
+        }
+
+        // Custom fields from configuration
+        if (config.header?.customFields) {
+            Object.entries(config.header.customFields).forEach(([key, value]) => {
+                if (value && !value.startsWith('{')) { // Skip template variables
+                    lines.push(`{ ${key.toUpperCase()}: ${value} }`);
+                }
+            });
+        }
+
+        // Scaling header for inch machines
+        if (config.units?.feedInchMachine && config.units?.scalingHeader?.enabled) {
+            lines.push(config.units.scalingHeader.parameter);
+            lines.push(config.units.scalingHeader.scaleCommand);
+            
+            if (config.units.scalingHeader.comment) {
+                lines.push(`{ ${config.units.scalingHeader.comment} }`);
+            }
+        }
+
+        // Program start marker - comes AFTER comments
+        console.log('Header config:', config.header);
+        console.log('IncludeProgramStart:', config.header?.includeProgramStart);
+        console.log('ProgramStart:', config.header?.programStart);
+        
+        if (config.header?.includeProgramStart !== false) { // Default to true if not specified
+            const programStart = config.header?.programStart || '%1';
+            console.log('Adding program start:', programStart);
+            lines.push(programStart);
+        }
+
+        return lines;
+    }
+
+    /**
+     * Generate setup commands
+     */
+    generateSetupCommands() {
+        const lines = [];
+        
+        if (this.config.header?.setupCommands) {
+            this.config.header.setupCommands.forEach(command => {
+                if (command.trim()) {
+                    lines.push(this.formatLine(command.trim()));
+                }
+            });
+        }
+
+        return lines;
+    }
+
+    /**
+     * Generate commands for all entities
+     */
+    generateEntityCommands(entities) {
+        const lines = [];
+        
+        entities.forEach(entity => {
+            // Check if tool change is needed
+            const requiredTool = this.getRequiredTool(entity);
+            if (requiredTool && requiredTool.id !== this.currentTool?.id) {
+                lines.push(...this.generateToolChange(requiredTool));
+                this.currentTool = requiredTool;
+            }
+
+            // Generate entity-specific commands
+            lines.push(...this.generateEntityDin(entity));
+        });
+
+        return lines;
+    }
+
+    /**
+     * Generate tool change commands
+     */
+    generateToolChange(tool) {
+        const lines = [];
+        const config = this.config;
+
+        console.log('generateToolChange - input tool:', tool);
+
+        // Clean up tool properties - remove extra whitespace and newlines
+        const cleanHCode = tool.hCode ? tool.hCode.trim().replace(/\s+/g, ' ') : null;
+        const cleanName = tool.name ? tool.name.trim().replace(/\s+/g, ' ') : null;
+
+        console.log('generateToolChange - cleaned HCode:', cleanHCode);
+        console.log('generateToolChange - cleaned Name:', cleanName);
+
+        // Create properly formatted tool change command
+        if (cleanHCode) {
+            const comment = cleanName ? `{${cleanName}}` : '';
+            const toolChangeCommand = `${cleanHCode} M6 ${comment}`;
+            console.log('generateToolChange - toolChangeCommand:', toolChangeCommand);
+            lines.push(this.formatLine(toolChangeCommand));
+        } else {
+            // Fallback if H-code not available
+            if (cleanName) {
+                lines.push(this.formatLine(`M6 {${cleanName}}`));
+            } else {
+                lines.push(this.formatLine('M6'));
+            }
+        }
+        return lines;
+    }
+
+    /**
+     * Generate DIN commands for a specific entity
+     */
+    generateEntityDin(entity) {
+        const lines = [];
+
+        switch (entity.type) {
+            case 'LINE':
+                lines.push(...this.generateLineDin(entity));
+                break;
+            case 'ARC':
+                lines.push(...this.generateArcDin(entity));
+                break;
+            case 'CIRCLE':
+                lines.push(...this.generateCircleDin(entity));
+                break;
+            case 'POLYLINE':
+            case 'LWPOLYLINE':
+                lines.push(...this.generatePolylineDin(entity));
+                break;
+            default:
+                console.warn(`Unsupported entity type: ${entity.type}`);
+        }
+
+        return lines;
+    }
+
+    /**
+     * Generate DIN for LINE entity
+     */
+    generateLineDin(entity) {
+        const lines = [];
+        
+        // Move to start position
+        lines.push(this.formatLine(`${this.config.gcode.rapidMove} X${entity.start.x.toFixed(3)} Y${entity.start.y.toFixed(3)}`));
+        
+        // Laser on
+        if (this.config.laser?.comments?.enabled) {
+            lines.push(this.formatLine(`${this.config.laser.laserOn} { ${this.config.laser.comments.onCommand || 'LASER ON'} }`));
+        } else {
+            lines.push(this.formatLine(this.config.laser.laserOn));
+        }
+        
+        // Cut to end position
+        lines.push(this.formatLine(`${this.config.gcode.linearMove} X${entity.end.x.toFixed(3)} Y${entity.end.y.toFixed(3)}`));
+        
+        // Laser off
+        if (this.config.laser?.comments?.enabled) {
+            lines.push(this.formatLine(`${this.config.laser.laserOff} { ${this.config.laser.comments.offCommand || 'LASER OFF'} }`));
+        } else {
+            lines.push(this.formatLine(this.config.laser.laserOff));
+        }
+
+        return lines;
+    }
+
+    /**
+     * Generate DIN for ARC entity
+     */
+    generateArcDin(entity) {
+        const lines = [];
+        
+        // Calculate start and end points
+        const startAngle = entity.startAngle || 0;
+        const endAngle = entity.endAngle || Math.PI * 2;
+        
+        const startX = entity.center.x + entity.radius * Math.cos(startAngle);
+        const startY = entity.center.y + entity.radius * Math.sin(startAngle);
+        const endX = entity.center.x + entity.radius * Math.cos(endAngle);
+        const endY = entity.center.y + entity.radius * Math.sin(endAngle);
+        
+        // Move to start position
+        lines.push(this.formatLine(`${this.config.gcode.rapidMove} X${startX.toFixed(3)} Y${startY.toFixed(3)}`));
+        
+        // Laser on
+        if (this.config.laser?.comments?.enabled) {
+            lines.push(this.formatLine(`${this.config.laser.laserOn} { ${this.config.laser.comments.onCommand || 'LASER ON'} }`));
+        } else {
+            lines.push(this.formatLine(this.config.laser.laserOn));
+        }
+        
+        // Arc command - determine clockwise or counterclockwise
+        // In DXF, if startAngle > endAngle, it's typically a clockwise arc
+        let isClockwise = entity.clockwise;
+        if (isClockwise === undefined) {
+            // Calculate sweep angle to determine direction
+            let sweepAngle = endAngle - startAngle;
+            if (sweepAngle < 0) {
+                sweepAngle += Math.PI * 2; // Normalize to positive
+            }
+            // Most DXF arcs are counterclockwise by default
+            isClockwise = false;
+        }
+        
+        const arcCommand = isClockwise ? this.config.gcode.cwArc : this.config.gcode.ccwArc;
+        const i = entity.center.x - startX;
+        const j = entity.center.y - startY;
+        
+        lines.push(this.formatLine(`${arcCommand} X${endX.toFixed(3)} Y${endY.toFixed(3)} I${i.toFixed(3)} J${j.toFixed(3)}`));
+        
+        // Laser off
+        if (this.config.laser?.comments?.enabled) {
+            lines.push(this.formatLine(`${this.config.laser.laserOff} { ${this.config.laser.comments.offCommand || 'LASER OFF'} }`));
+        } else {
+            lines.push(this.formatLine(this.config.laser.laserOff));
+        }
+
+        return lines;
+    }
+
+    /**
+     * Generate DIN for CIRCLE entity
+     */
+    generateCircleDin(entity) {
+        const lines = [];
+        
+        // Start at rightmost point of circle
+        const startX = entity.center.x + entity.radius;
+        const startY = entity.center.y;
+        
+        // Move to start position
+        lines.push(this.formatLine(`${this.config.gcode.rapidMove} X${startX.toFixed(3)} Y${startY.toFixed(3)}`));
+        
+        // Laser on
+        if (this.config.laser?.comments?.enabled) {
+            lines.push(this.formatLine(`${this.config.laser.laserOn} { ${this.config.laser.comments.onCommand || 'LASER ON'} }`));
+        } else {
+            lines.push(this.formatLine(this.config.laser.laserOn));
+        }
+        
+        // Full circle as 360-degree arc
+        const i = -entity.radius;
+        const j = 0;
+        
+        lines.push(this.formatLine(`${this.config.gcode.cwArc} X${startX.toFixed(3)} Y${startY.toFixed(3)} I${i.toFixed(3)} J${j.toFixed(3)}`));
+        
+        // Laser off
+        if (this.config.laser?.comments?.enabled) {
+            lines.push(this.formatLine(`${this.config.laser.laserOff} { ${this.config.laser.comments.offCommand || 'LASER OFF'} }`));
+        } else {
+            lines.push(this.formatLine(this.config.laser.laserOff));
+        }
+
+        return lines;
+    }
+
+    /**
+     * Generate DIN for POLYLINE entity
+     */
+    generatePolylineDin(entity) {
+        const lines = [];
+        
+        if (!entity.vertices || entity.vertices.length < 2) {
+            return lines;
+        }
+
+        // Move to first vertex
+        const firstVertex = entity.vertices[0];
+        lines.push(this.formatLine(`${this.config.gcode.rapidMove} X${firstVertex.x.toFixed(3)} Y${firstVertex.y.toFixed(3)}`));
+        
+        // Laser on
+        if (this.config.laser?.comments?.enabled) {
+            lines.push(this.formatLine(`${this.config.laser.laserOn} { ${this.config.laser.comments.onCommand || 'LASER ON'} }`));
+        } else {
+            lines.push(this.formatLine(this.config.laser.laserOn));
+        }
+        
+        // Cut to each subsequent vertex
+        for (let i = 1; i < entity.vertices.length; i++) {
+            const prevVertex = entity.vertices[i - 1];
+            const vertex = entity.vertices[i];
+            
+            // Check if previous vertex has a bulge value (indicating an arc segment)
+            if (prevVertex.bulge && Math.abs(prevVertex.bulge) > 0.001) {
+                // Generate arc command using bulge value
+                const arcData = this.calculateArcFromBulge(prevVertex, vertex, prevVertex.bulge);
+                if (arcData) {
+                    const arcCommand = arcData.clockwise ? this.config.gcode.cwArc : this.config.gcode.ccwArc;
+                    lines.push(this.formatLine(`${arcCommand} X${vertex.x.toFixed(3)} Y${vertex.y.toFixed(3)} I${arcData.i.toFixed(3)} J${arcData.j.toFixed(3)}`));
+                } else {
+                    // Fallback to linear move if arc calculation fails
+                    lines.push(this.formatLine(`${this.config.gcode.linearMove} X${vertex.x.toFixed(3)} Y${vertex.y.toFixed(3)}`));
+                }
+            } else {
+                // Standard linear move
+                lines.push(this.formatLine(`${this.config.gcode.linearMove} X${vertex.x.toFixed(3)} Y${vertex.y.toFixed(3)}`));
+            }
+        }
+        
+        // Close polyline if specified
+        if (entity.closed && entity.vertices.length > 2) {
+            lines.push(this.formatLine(`${this.config.gcode.linearMove} X${firstVertex.x.toFixed(3)} Y${firstVertex.y.toFixed(3)}`));
+        }
+        
+        // Laser off
+        if (this.config.laser?.comments?.enabled) {
+            lines.push(this.formatLine(`${this.config.laser.laserOff} { ${this.config.laser.comments.offCommand || 'LASER OFF'} }`));
+        } else {
+            lines.push(this.formatLine(this.config.laser.laserOff));
+        }
+
+        return lines;
+    }
+
+    /**
+     * Generate footer commands
+     */
+    generateFooter() {
+        const lines = [];
+        
+        // Return to home position
+        if (this.config.gcode?.homeCommand) {
+            lines.push(this.formatLine(this.config.gcode.homeCommand));
+        }
+        
+        // Program end
+        if (this.config.gcode?.programEnd) {
+            lines.push(this.formatLine(this.config.gcode.programEnd));
+        }
+
+        return lines;
+    }
+
+    /**
+     * Format a line with line numbers if enabled
+     */
+    formatLine(command) {
+        // Always add line numbers for DIN files
+        const format = this.config.lineNumbers?.format || 'N{number}';
+        const lineNumber = format.replace('{number}', this.lineNumber);
+        this.lineNumber += this.config.lineNumbers?.increment || 1;
+        
+        // Clean command - remove all newlines and extra whitespace, but preserve single spaces
+        const cleanCommand = command.trim().replace(/\s+/g, ' ').replace(/\s+$/, '');
+        
+        // Ensure line number and command are on the same line with proper spacing
+        const result = `${lineNumber} ${cleanCommand}`;
+        console.log(`formatLine input: "${command}"`);
+        console.log(`formatLine output: "${result}"`);
+        return result;
+    }
+
+    /**
+     * Get required tool for entity based on 2-step workflow mapping
+     */
+    getRequiredTool(entity) {
+        if (!this.config.mappingWorkflow) {
+            console.warn('No mappingWorkflow found in config');
+            return null;
+        }
+
+        // Step 1: Layer/Color → Line Type
+        const lineType = this.determineLineType(entity);
+        console.log(`Entity line type determined: ${lineType}`);
+        
+        // Step 2: Line Type → Tool
+        const toolId = this.getToolFromLineType(lineType);
+        console.log(`Tool ID from line type: ${toolId}`);
+        
+        if (toolId && toolId !== 'none') {
+            const toolName = this.getToolName(toolId);
+            const toolHCode = this.getToolHCode(toolId);
+            
+            console.log(`Tool details - ID: ${toolId}, Name: ${toolName}, HCode: ${toolHCode}`);
+            
+            if (toolHCode) {
+                return {
+                    id: toolId,
+                    name: toolName,
+                    hCode: toolHCode
+                };
+            } else {
+                console.warn(`No H-code found for tool ${toolId}, skipping entity`);
+                return null;
+            }
+        }
+        
+        console.warn(`No tool found for line type: ${lineType}, skipping entity`);
+        return null; // Skip this entity
+    }
+
+    /**
+     * Determine line type from entity layer and color (Step 1 of workflow)
+     */
+    determineLineType(entity) {
+        // Priority 1: Use actual line type from DXF if available
+        if (entity.lineType && entity.lineType !== 'BYLAYER' && entity.lineType !== 'CONTINUOUS') {
+            return entity.lineType;
+        }
+        
+        // Priority 2: Convert line type ID to name if available
+        if (entity.lineTypeId) {
+            const lineTypeName = this.getLineTypeNameFromId(entity.lineTypeId);
+            if (lineTypeName) {
+                return lineTypeName;
+            }
+        }
+        
+        // Priority 3: Entity type override for special cases
+        if (entity.type === 'TEXT' || entity.type === 'MTEXT') {
+            return 'engraving';
+        }
+        if (entity.type === 'DIMENSION' || entity.type === 'LEADER') {
+            return 'construction';
+        }
+
+        // Priority 2: Layer to line type mapping
+        if (entity.layer && this.config.mappingWorkflow?.layerToLineType) {
+            const layerMappings = this.config.mappingWorkflow.layerToLineType;
+            
+            // Check for exact layer name match first
+            const mappings = Array.isArray(layerMappings) ? layerMappings : Object.values(layerMappings || {});
+            for (const mapping of mappings) {
+                if (mapping.layer && mapping.layer.toUpperCase() === entity.layer.toUpperCase()) {
+                    return mapping.lineType;
+                }
+            }
+            
+            // Fallback to keyword-based mapping
+            const layerUpper = entity.layer.toUpperCase();
+            if (layerUpper.includes('CUT')) return 'cutting';
+            if (layerUpper.includes('ENGRAV') || layerUpper.includes('TEXT')) return 'engraving';
+            if (layerUpper.includes('PERF')) return 'perforating';
+            if (layerUpper.includes('SCORE')) return 'scoring';
+            if (layerUpper.includes('MARK')) return 'marking';
+            if (layerUpper.includes('CONSTRUCTION') || layerUpper.includes('HIDDEN')) return 'construction';
+        }
+
+        // Priority 3: Color to line type mapping
+        if (entity.color !== undefined && this.config.mappingWorkflow?.colorToLineType) {
+            const colorMappings = this.config.mappingWorkflow.colorToLineType;
+            
+            // Check configured color mappings
+            const mappings = Array.isArray(colorMappings) ? colorMappings : Object.values(colorMappings || {});
+            for (const mapping of mappings) {
+                if (mapping.color && parseInt(mapping.color) === entity.color) {
+                    return mapping.lineType;
+                }
+            }
+            
+            // Fallback to default color mappings
+            const defaultColorMappings = {
+                1: 'cutting',     // Red
+                2: 'engraving',   // Yellow  
+                3: 'perforating', // Green
+                4: 'scoring',     // Cyan
+                5: 'marking',     // Blue
+                6: 'construction' // Magenta
+            };
+            
+            if (defaultColorMappings[entity.color]) {
+                return defaultColorMappings[entity.color];
+            }
+        }
+
+        // Default fallback
+        return 'cutting';
+    }
+
+    /**
+     * Get tool from line type (Step 2 of workflow)
+     */
+    getToolFromLineType(lineType) {
+        if (!this.config.mappingWorkflow?.lineTypeToTool) {
+            console.warn('No mappingWorkflow.lineTypeToTool found in config');
+            return null;
+        }
+
+        const lineTypeMappings = this.config.mappingWorkflow.lineTypeToTool;
+        const mappings = Array.isArray(lineTypeMappings) ? lineTypeMappings : Object.values(lineTypeMappings || {});
+        
+        for (const mapping of mappings) {
+            if (mapping.lineType && mapping.lineType === lineType) {
+                return mapping.tool;
+            }
+        }
+        
+        console.warn(`No tool mapping found for line type: ${lineType}`);
+        return null;
+    }
+
+    /**
+     * Get line type name from ID
+     */
+    getLineTypeNameFromId(lineTypeId) {
+        const lineTypeMap = {
+            '1': '1pt CW',
+            '2': '2pt CW',
+            '3': '3pt CW',
+            '4': '4pt CW',
+            '5': '2pt Puls',
+            '6': '3pt Puls',
+            '7': '4pt Puls',
+            '8': '1.5pt CW',
+            '9': '1pt Puls',
+            '10': '1.5pt Puls',
+            '11': 'Fast Engrave',
+            '12': 'Fine Cut Pulse',
+            '13': 'Fine Cut CW',
+            '14': '2pt Bridge',
+            '15': '3pt Bridge',
+            '16': '4pt Bridge',
+            '17': 'Nozzle Engrave',
+            '18': 'Groove',
+            '19': 'Cut CW',
+            '20': 'Pulse_1',
+            '21': 'Pulse_2',
+            '22': 'Engrave',
+            '23': 'Milling 1',
+            '24': 'Milling 2',
+            '25': 'Milling 3',
+            '26': 'Milling 4',
+            '27': 'Milling 5',
+            '28': 'Milling 6',
+            '29': 'Milling 7',
+            '30': 'Milling 8'
+        };
+        const result = lineTypeMap[lineTypeId] || null;
+        console.log(`getLineTypeNameFromId: ${lineTypeId} → ${result}`);
+        return result;
+    }
+
+    /**
+     * Get tool name from tool ID
+     */
+    getToolName(toolId) {
+        // Get tool name from configuration only
+        if (this.config.tools && this.config.tools[toolId] && this.config.tools[toolId].name) {
+            return this.config.tools[toolId].name;
+        }
+        
+        console.warn(`No tool name found for tool ID: ${toolId}`);
+        return toolId;
+    }
+
+    /**
+     * Get H-code for tool ID
+     */
+    getToolHCode(toolId) {
+        // Get H-code from configuration only
+        if (this.config.tools && this.config.tools[toolId] && this.config.tools[toolId].hCode) {
+            return this.config.tools[toolId].hCode;
+        }
+        
+        console.warn(`No H-code found for tool ID: ${toolId}`);
+        return null;
+    }
+
+    /**
+     * Calculate arc parameters from DXF bulge value
+     * @param {Object} startVertex - Start vertex with x, y coordinates
+     * @param {Object} endVertex - End vertex with x, y coordinates  
+     * @param {Number} bulge - DXF bulge value
+     * @returns {Object|null} Arc parameters {i, j, clockwise} or null if invalid
+     */
+    calculateArcFromBulge(startVertex, endVertex, bulge) {
+        try {
+            if (Math.abs(bulge) < 0.001) return null;
+            
+            const startX = startVertex.x;
+            const startY = startVertex.y;
+            const endX = endVertex.x;
+            const endY = endVertex.y;
+            
+            // Calculate chord length and midpoint
+            const chordLength = Math.sqrt((endX - startX) ** 2 + (endY - startY) ** 2);
+            if (chordLength < 0.001) return null; // Invalid chord
+            
+            const midX = (startX + endX) / 2;
+            const midY = (startY + endY) / 2;
+            
+            // Calculate radius from bulge
+            const radius = (chordLength / 2) * (1 + bulge ** 2) / (2 * Math.abs(bulge));
+            
+            // Calculate sagitta (height of arc segment)
+            const sagitta = Math.abs(bulge) * chordLength / 2;
+            
+            // Calculate center point
+            const chordAngle = Math.atan2(endY - startY, endX - startX);
+            const perpAngle = chordAngle + (bulge > 0 ? Math.PI / 2 : -Math.PI / 2);
+            
+            const centerDistance = radius - sagitta;
+            const centerX = midX + centerDistance * Math.cos(perpAngle);
+            const centerY = midY + centerDistance * Math.sin(perpAngle);
+            
+            // Calculate I, J values (relative to start point)
+            const i = centerX - startX;
+            const j = centerY - startY;
+            
+            // Determine arc direction (bulge > 0 = counterclockwise, bulge < 0 = clockwise)
+            const clockwise = bulge < 0;
+            
+            return { i, j, clockwise, centerX, centerY, radius };
+            
+        } catch (error) {
+            console.warn('Error calculating arc from bulge:', error);
+            return null;
+        }
+    }
+
+    /**
+     * Load tools from configuration with priority information
+     */
+    loadToolsFromConfig(config) {
+        const tools = config.tools || {};
+        
+        // Add priority information to tools if available
+        if (config.optimization?.priority?.items) {
+            const priorityItems = config.optimization.priority.items;
+            
+            // Create a map of tool ID to priority order
+            const priorityMap = new Map();
+            priorityItems.forEach(item => {
+                if (item.value && item.value !== '__LINE_BREAK__') {
+                    priorityMap.set(item.value, item.order);
+                }
+            });
+            
+            // Add priority to each tool
+            Object.keys(tools).forEach(toolId => {
+                if (priorityMap.has(toolId)) {
+                    tools[toolId].priority = priorityMap.get(toolId);
+                } else {
+                    tools[toolId].priority = 999; // Default low priority
+                }
+            });
+        }
+        
+        console.log('Loaded tools with priority:', tools);
+        return tools;
+    }
+
+    /**
+     * Generate preview of DIN file (first 50 lines)
+     */
+    generatePreview(entities, config, metadata) {
+        const fullDin = this.generateDin(entities, config, metadata);
+        const lines = fullDin.split('\n');
+        
+        if (lines.length <= 50) {
+            return fullDin;
+        }
+        
+        const preview = lines.slice(0, 45);
+        preview.push('...');
+        preview.push(`{ ${lines.length - 45} more lines`);
+        preview.push(...lines.slice(-3));
+        
+        return preview.join('\n');
+    }
+
+    /**
+     * Validate DIN output
+     */
+    validateDin(dinContent) {
+        const lines = dinContent.split('\n');
+        const issues = [];
+        
+        // Check for basic DIN structure
+        const hasLaserOn = lines.some(line => line.includes('M14'));
+        const hasLaserOff = lines.some(line => line.includes('M15'));
+        const hasMovement = lines.some(line => line.includes('G0') || line.includes('G1'));
+        
+        if (!hasLaserOn) issues.push('Warning: No laser ON commands found');
+        if (!hasLaserOff) issues.push('Warning: No laser OFF commands found');
+        if (!hasMovement) issues.push('Error: No movement commands found');
+        
+        // Check for balanced laser on/off commands
+        const laserOnCount = lines.filter(line => line.includes('M14')).length;
+        const laserOffCount = lines.filter(line => line.includes('M15')).length;
+        
+        if (laserOnCount !== laserOffCount) {
+            issues.push(`Warning: Unbalanced laser commands (${laserOnCount} ON, ${laserOffCount} OFF)`);
+        }
+        
+        return {
+            valid: issues.filter(issue => issue.startsWith('Error')).length === 0,
+            issues: issues,
+            stats: {
+                totalLines: lines.length,
+                laserOnCommands: laserOnCount,
+                laserOffCommands: laserOffCount,
+                movementCommands: lines.filter(line => line.includes('G0') || line.includes('G1')).length
+            }
+        };
+    }
+}
+
+export default DinGenerator;

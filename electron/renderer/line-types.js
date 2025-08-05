@@ -35,9 +35,10 @@ const editColor = document.getElementById('editColor');
 
 // Initialize
 document.addEventListener('DOMContentLoaded', async () => {
+    console.log('🔄 Line Types Manager v2.0 - Auto-Save Edition Loading...');
     setupEventListeners();
     await loadLineTypes();
-    showStatus('Ready');
+    showStatus('Ready - Auto-Save Edition v2.0 🚀');
 });
 
 function setupEventListeners() {
@@ -101,17 +102,23 @@ async function reloadLineTypes() {
 
 async function saveAllLineTypes() {
     try {
+        console.log('💾 AUTO-SAVE: Saving', lineTypes.length, 'line types...');
         showStatus('Saving line types...');
         const result = await window.electronAPI.saveLineTypes(lineTypes);
         
         if (result.success) {
-            showStatus('Line types saved successfully');
+            console.log('✅ AUTO-SAVE: Save successful -', result.message || 'Saved successfully');
+            showStatus(result.message || 'Line types saved successfully');
+            return true;
         } else {
+            console.error('❌ AUTO-SAVE: Save failed -', result.error);
             showStatus('Error saving line types: ' + result.error, 'error');
+            return false;
         }
     } catch (error) {
-        console.error('Error saving line types:', error);
+        console.error('❌ AUTO-SAVE: Exception during save:', error);
         showStatus('Failed to save line types', 'error');
+        return false;
     }
 }
 
@@ -251,12 +258,15 @@ function getLineTypeIcon(lineType) {
     return icons[lineType] || '🔧';
 }
 
-function updateLineType(id, field, value) {
+async function updateLineType(id, field, value) {
     const lineType = lineTypes.find(lt => lt.id === id);
     if (lineType) {
         lineType[field] = value;
         renderViews(); // Re-render to show changes
         showStatus(`Updated ${lineType.name}`);
+        
+        // Auto-save after inline edit
+        await saveAllLineTypes();
     }
 }
 
@@ -307,7 +317,7 @@ function editLineType(id) {
     editName.select();
 }
 
-function saveLineType() {
+async function saveLineType() {
     const name = editName.value.trim();
     const description = editDescription.value.trim();
     const lineType = editLineTypeSelect.value;
@@ -346,6 +356,9 @@ function saveLineType() {
     
     renderViews();
     closeModal();
+    
+    // Auto-save after modification
+    await saveAllLineTypes();
 }
 
 function confirmDeleteLineType(id) {
@@ -367,12 +380,20 @@ function deleteLineType() {
     }
 }
 
-function deleteLineTypeById(id) {
+async function deleteLineTypeById(id) {
     const index = lineTypes.findIndex(lt => lt.id === id);
     if (index !== -1) {
         const deleted = lineTypes.splice(index, 1)[0];
         renderViews();
-        showStatus(`Deleted line type: ${deleted.name}`);
+        console.log('🗑️ AUTO-SAVE: Deleting line type:', deleted.name);
+        showStatus(`Deleted line type: ${deleted.name} - Auto-saving...`);
+        
+        // Auto-save after deletion
+        const result = await saveAllLineTypes();
+        if (result) {
+            console.log('✅ AUTO-SAVE: Successfully saved after deletion');
+            showStatus(`Deleted "${deleted.name}" and auto-saved ✅`);
+        }
     }
 }
 

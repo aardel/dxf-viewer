@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Unified Mapping Workflow - Lasercomb DXF Studio</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="styles.css">
+    <style>
+        /* Additional styles specific to the unified mapping window */
+        body {
+            margin: 0;
+            padding: 0;
+            background: #1a1a1a;
+            color: #fff;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            overflow: hidden;
+        }
+        
+        .unified-mapping-container {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            background: #1a1a1a;
+        }
+        
+        .unified-header {
+            background: #2a2a2a;
+            padding: 1rem;
+            border-bottom: 2px solid #444;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            user-select: none;
+        }
+        
+        .unified-title {
+            margin: 0;
+            color: #fff;
+            font-size: 1.1rem;
+        }
+        
+        .unified-content {
+            flex: 1;
+            padding: 1rem;
+            overflow: hidden;
+            display: flex;
+            gap: 1.5rem;
+        }
+        
+        .line-types-panel {
+            flex: 1;
+            border: 2px solid #e2a04a;
+            border-radius: 8px;
+            padding: 1rem;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .console-panel {
+            width: 300px;
+            border: 2px solid #444;
+            border-radius: 8px;
+            padding: 1rem;
+            display: flex;
+            flex-direction: column;
+            background: #0d1117;
+        }
+        
+        .panel-title {
+            margin-bottom: 1rem;
+            text-align: center;
+            color: #e2a04a;
+        }
+        
+        .panel-description {
+            font-size: 0.9rem;
+            color: #aaa;
+            margin-bottom: 1rem;
+            text-align: center;
+        }
+        
+        .line-types-content {
+            flex: 1;
+            overflow-y: auto;
+            max-height: 500px;
+        }
+        
+        .line-type-card {
+            background: #2a2a2a;
+            border: 1px solid #444;
+            border-radius: 6px;
+            padding: 1rem;
+            margin-bottom: 1rem;
+            transition: all 0.2s ease;
+        }
+        
+        .line-type-card:hover {
+            border-color: #e2a04a;
+            background: #333;
+        }
+        
+        .line-type-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 0.75rem;
+        }
+        
+        .line-type-icon {
+            width: 12px;
+            height: 12px;
+            background: #ff4444;
+            border-radius: 2px;
+            margin-right: 0.75rem;
+        }
+        
+        .line-type-name {
+            font-weight: 600;
+            color: #fff;
+            flex: 1;
+        }
+        
+        .line-type-details {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0.5rem;
+            margin-bottom: 0.75rem;
+            font-size: 0.85rem;
+        }
+        
+        .detail-item {
+            color: #ccc;
+        }
+        
+        .detail-label {
+            color: #888;
+            font-size: 0.8rem;
+        }
+        
+        .tool-mapping-section {
+            border-top: 1px solid #444;
+            padding-top: 0.75rem;
+        }
+        
+        .tool-mapping-label {
+            font-size: 0.85rem;
+            color: #888;
+            margin-bottom: 0.5rem;
+        }
+        
+        .tool-selector {
+            width: 100%;
+            padding: 0.5rem;
+            background: #1a1a1a;
+            border: 1px solid #555;
+            border-radius: 4px;
+            color: #fff;
+            font-size: 0.9rem;
+        }
+        
+        .tool-selector:focus {
+            outline: none;
+            border-color: #e2a04a;
+        }
+        
+        .tool-selector option {
+            background: #1a1a1a;
+            color: #fff;
+        }
+        
+        .add-line-type-btn {
+            width: 100%;
+            margin-top: 1rem;
+            padding: 0.75rem;
+            background: #4a90e2;
+            border: none;
+            border-radius: 6px;
+            color: #fff;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s ease;
+        }
+        
+        .add-line-type-btn:hover {
+            background: #357abd;
+        }
+        
+        .console-content {
+            flex: 1;
+            overflow-y: auto;
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+            font-size: 0.8rem;
+            color: #ccc;
+            background: #0d1117;
+            border: 1px solid #30363d;
+            border-radius: 4px;
+            padding: 0.5rem;
+        }
+        
+        .console-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.5rem;
+        }
+        
+        .console-title {
+            color: #7d8590;
+            font-size: 0.9rem;
+            margin: 0;
+        }
+        
+        .console-controls {
+            display: flex;
+            gap: 0.5rem;
+        }
+        
+        .console-filter {
+            padding: 0.25rem 0.5rem;
+            background: #21262d;
+            border: 1px solid #30363d;
+            border-radius: 3px;
+            color: #ccc;
+            font-size: 0.75rem;
+        }
+        
+        .unified-footer {
+            background: #2a2a2a;
+            padding: 1rem;
+            border-top: 2px solid #444;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .footer-buttons {
+            display: flex;
+            gap: 1rem;
+        }
+        
+        /* Scrollbar styling */
+        .line-types-content::-webkit-scrollbar,
+        .console-content::-webkit-scrollbar {
+            width: 8px;
+        }
+        
+        .line-types-content::-webkit-scrollbar-track,
+        .console-content::-webkit-scrollbar-track {
+            background: #2a2a2a;
+            border-radius: 4px;
+        }
+        
+        .line-types-content::-webkit-scrollbar-thumb,
+        .console-content::-webkit-scrollbar-thumb {
+            background: #555;
+            border-radius: 4px;
+        }
+        
+        .line-types-content::-webkit-scrollbar-thumb:hover,
+        .console-content::-webkit-scrollbar-thumb:hover {
+            background: #777;
+        }
+    </style>
+</head>
+<body>
+    <div class="unified-mapping-container">
+        <div class="unified-header">
+            <h3 class="unified-title">🎯 Unified Mapping Workflow: Line Types → Tools</h3>
+        </div>
+        
+        <div class="unified-content">
+            <!-- Line Types Panel -->
+            <div class="line-types-panel">
+                <h4 class="panel-title">Internal Line Types</h4>
+                <div class="panel-description">Map line types to machine tools</div>
+                <div class="line-types-content" id="internalLineTypesList">
+                    <!-- Line type cards will be loaded here -->
+                </div>
+                <button class="add-line-type-btn" id="addLineTypeBtn">+ Add Line Type</button>
+            </div>
+            
+            <!-- Console Panel -->
+            <div class="console-panel">
+                <div class="console-header">
+                    <h4 class="console-title">Console</h4>
+                    <div class="console-controls">
+                        <input type="text" class="console-filter" placeholder="Filter logs..." id="consoleFilter">
+                    </div>
+                </div>
+                <div class="console-content" id="consoleOutput">
+                    <!-- Console output will be displayed here -->
+                </div>
+            </div>
+        </div>
+        
+        <div class="unified-footer">
+            <div class="footer-buttons">
+                <button class="btn btn-secondary" id="closeBtn">Close</button>
+                <button class="btn btn-primary" id="saveMappingsBtn">Save Mappings</button>
+            </div>
+        </div>
+    </div>
+
+    <script type="importmap">
+    {
+        "imports": {
+            "three": "../../node_modules/three/build/three.module.js",
+            "three/": "../../node_modules/three/",
+            "loglevel": "../../loglevel-wrapper.js",
+            "opentype.js": "../../node_modules/opentype.js/dist/opentype.module.js",
+            "earcut": "../../node_modules/earcut/src/earcut.js"
+        }
+    }
+    </script>
+    <script type="module" src="unified-mapping.js"></script>
+</body>
+</html> 

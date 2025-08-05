@@ -278,11 +278,47 @@ function parseRGBColor(colorStr) {
         }
     }
     
+    // Handle ACI numbers (AutoCAD Color Index)
+    const aciNum = parseInt(colorStr);
+    if (!isNaN(aciNum) && aciNum >= 0 && aciNum <= 255) {
+        // Convert ACI to RGB using the same mapping as in renderer.js
+        const aciToRGBMap = {
+            1: { r: 255, g: 0, b: 0 },     // Red
+            2: { r: 255, g: 255, b: 0 },   // Yellow
+            3: { r: 0, g: 255, b: 0 },     // Green
+            4: { r: 0, g: 255, b: 255 },   // Cyan
+            5: { r: 0, g: 0, b: 255 },     // Blue
+            6: { r: 255, g: 0, b: 255 },   // Magenta
+            7: { r: 255, g: 255, b: 255 }, // White
+            8: { r: 128, g: 128, b: 128 }, // Gray
+            9: { r: 192, g: 192, b: 192 }, // Light Gray
+            10: { r: 255, g: 128, b: 128 }, // Light Red
+            11: { r: 255, g: 255, b: 128 }, // Light Yellow
+            12: { r: 128, g: 255, b: 128 }, // Light Green
+            13: { r: 128, g: 255, b: 255 }, // Light Cyan
+            14: { r: 128, g: 128, b: 255 }, // Light Blue
+            15: { r: 255, g: 128, b: 255 }, // Light Magenta
+        };
+        
+        if (aciToRGBMap[aciNum]) {
+            return aciToRGBMap[aciNum];
+        } else {
+            // For other ACI numbers, use a default mapping or generate a color
+            return { r: 128, g: 128, b: 128 }; // Default to gray
+        }
+    }
+    
     return null;
 }
 
 // Helper function to format color display
 function formatColorDisplay(colorStr) {
+    // Check if it's an ACI number first
+    const aciNum = parseInt(colorStr);
+    if (!isNaN(aciNum) && aciNum >= 0 && aciNum <= 255) {
+        return aciNum.toString(); // Just show the number, not "ACI X"
+    }
+    
     const rgb = parseRGBColor(colorStr);
     if (rgb) {
         return `${rgb.r},${rgb.g},${rgb.b}`;
@@ -319,7 +355,7 @@ function createMappingRuleRow(rule) {
         </td>
         <td>
             <div class="color-input-container">
-                <div class="color-square" style="background-color: ${getRGBCSSColor(rule.color)}"></div>
+                <div class="color-square" style="background-color: ${rule.colorHex || getRGBCSSColor(rule.color)}"></div>
                 <input type="text" value="${formatColorDisplay(rule.color)}" 
                        onchange="updateRuleColor(${rule.id}, this.value)"
                        placeholder="r,g,b (e.g., 255,0,0)">

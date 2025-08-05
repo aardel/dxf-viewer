@@ -68,17 +68,122 @@
                         </div>
                     </div>
                     <div class="export-section">
-                        <button id="exportLayersBtn" class="btn btn-secondary" disabled>
-                            Export Layer Mapping
-                        </button>
                         <button id="createImportFilterBtn" class="btn btn-primary" disabled>
                             Create Import Filter
                         </button>
                     </div>
                 </div>
                 <div id="outputTab" class="tab-content">
-                    <div class="mapping-content">
-                        <p>Layer mapping functionality coming soon...</p>
+                    <div class="output-content">
+                        <h4>DIN Postprocessor</h4>
+                        
+                        <!-- Postprocessor Profile Selection -->
+                        <div class="settings-section">
+                            <h5>Active Profile</h5>
+                            <div class="profile-selection">
+                                <select id="postprocessorProfile" class="form-select">
+                                    <option value="default_metric">Default Metric</option>
+                                    <option value="default_inch">Default Inch (with scaling)</option>
+                                    <option value="custom">Custom Profile...</option>
+                                </select>
+                                <div class="profile-actions">
+                                    <button class="btn btn-primary btn-small" id="createProfileBtn">+ New</button>
+                                    <button class="btn btn-secondary btn-small" id="copyProfileBtn">Copy</button>
+                                    <button class="btn btn-secondary btn-small" id="editProfileBtn">Edit</button>
+                                    <button class="btn btn-secondary btn-small" id="refreshProfileBtn">🔄 Refresh</button>
+                                    <button class="btn btn-danger btn-small" id="deleteProfileBtn">Delete</button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Quick Configuration -->
+                        <div class="settings-section">
+                            <h5>Quick Configuration</h5>
+                            <div class="config-shortcuts">
+                                <button class="btn btn-primary config-btn" id="openToolConfigBtn">
+                                    <span class="config-icon">🔧</span>
+                                    <div class="config-text">
+                                        <div class="config-title">Tool Configuration</div>
+                                        <div class="config-desc">Manage tools (T1, T2, T3) and cutting parameters</div>
+                                    </div>
+                                </button>
+                                
+                                <button class="btn btn-primary config-btn" id="openMappingConfigBtn">
+                                    <span class="config-icon">🎯</span>
+                                    <div class="config-text">
+                                        <div class="config-title">Line Type Mapping</div>
+                                        <div class="config-desc">Map DXF layers/colors to machine tools</div>
+                                    </div>
+                                </button>
+                                
+                                <button class="btn btn-primary config-btn" id="openHeaderConfigBtn">
+                                    <span class="config-icon">📋</span>
+                                    <div class="config-text">
+                                        <div class="config-title">Header Settings</div>
+                                        <div class="config-desc">Configure DIN file headers and machine setup</div>
+                                    </div>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Optimization Strategy -->
+                        <div class="settings-section">
+                            <h5>Cutting Optimization</h5>
+                            <div class="optimization-settings">
+                                <div class="setting-row">
+                                    <label for="primaryStrategy">Primary Strategy:</label>
+                                    <select id="primaryStrategy" class="form-select">
+                                        <option value="tool_grouped">Group by Tool (Minimize tool changes)</option>
+                                        <option value="priority_order">Priority Order (Follow cutting sequence)</option>
+                                    </select>
+                                </div>
+                                
+                                <div class="setting-row">
+                                    <label for="withinGroupOptimization">Path Optimization:</label>
+                                    <select id="withinGroupOptimization" class="form-select">
+                                        <option value="closest_path">Closest Path First</option>
+                                        <option value="zigzag_horizontal">Zig-Zag Horizontal</option>
+                                        <option value="zigzag_vertical">Zig-Zag Vertical</option>
+                                        <option value="spiral_out">Spiral Outward</option>
+                                        <option value="spiral_in">Spiral Inward</option>
+                                        <option value="left_to_right">Left to Right</option>
+                                        <option value="bottom_to_top">Bottom to Top</option>
+                                        <option value="no_optimization">No Optimization</option>
+                                    </select>
+                                </div>
+                                
+                                <div class="optimization-options">
+                                    <label>
+                                        <input type="checkbox" id="includeComments" checked>
+                                        Include operation comments in DIN file
+                                    </label>
+                                    <label>
+                                        <input type="checkbox" id="validateWidths" checked>
+                                        Validate cutting widths vs tool capabilities
+                                    </label>
+                                    <label>
+                                        <input type="checkbox" id="respectManualBreaks" checked>
+                                        Respect manual priority breaks
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Generation Actions -->
+                        <div class="generation-section">
+                            <div class="generation-status" id="generationStatus">
+                                <div class="status-text">Ready to generate DIN file</div>
+                                <div class="status-details" id="statusDetails">Load a DXF file and configure settings above</div>
+                            </div>
+                            <div class="generation-actions">
+                                <button id="previewDinBtn" class="btn btn-secondary btn-large">
+                                    <span>👁️</span> Preview DIN
+                                </button>
+                                <button id="generateDinBtn" class="btn btn-primary btn-large">
+                                    <span>💾</span> Generate DIN File
+                                </button>
+                            </div>
+                        </div>
                     </div>
                 </div>
                 <div id="settingsTab" class="tab-content">
@@ -152,13 +257,26 @@
                         <div class="settings-section">
                             <h5>Line Types Management</h5>
                             <p>Configure and manage internal line types for processing.</p>
-                            <button class="btn btn-primary" id="lineTypesBtn">Manage Line Types</button>
+                            <div class="button-group">
+                                <button class="btn btn-primary" id="lineTypesBtn">Manage Line Types</button>
+                            </div>
                         </div>
                         
                         <div class="settings-section">
                             <h5>Import Filters</h5>
                             <p>Create mapping profiles to convert DXF layers and colors to internal line types.</p>
-                            <button class="btn btn-primary" id="importFiltersBtn">Manage Import Filters</button>
+                            <div class="button-group">
+                                <button class="btn btn-primary" id="importFiltersBtn">Manage Import Filters</button>
+                                <button class="btn btn-primary" id="globalFilterManagerBtn">Global Filter Manager</button>
+                            </div>
+                        </div>
+                        
+                        <div class="settings-section">
+                            <h5>Machine Tools</h5>
+                            <p>Import machine tool configurations from XML files to expand your tool library.</p>
+                            <div class="button-group">
+                                <button class="btn btn-primary" id="machineToolImporterBtn">Import Machine Tools</button>
+                            </div>
                         </div>
                     </div>
                 </div>

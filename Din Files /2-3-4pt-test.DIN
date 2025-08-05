@@ -1,0 +1,172 @@
+{2- 3- 4- Point TEST / - GROESSE: 120 X 120 / 11.12.03 Sch}
+%1
+
+{Number of Sets: 148}
+{Last Duration: 00:00:00}
+N1 G253 F20020
+N3 G90
+N5 G60 X0  {Genauhalt aus}
+N7 M15  {Strahl aus}
+N9 G0 X10 Y25
+N11 H20 M6  {Gravieren}
+N13 M14  {Strahl ein}
+N15 G1 X10 Y10
+N17 X25 Y10
+N19 M15  {Strahl aus}
+N21 G0 X26.323 Y10
+N23 M14  {Strahl ein}
+N25 G1 X26.323 Y10.524
+N27 X29.323 Y13.524
+N29 X29.323 Y14
+N31 M15  {Strahl aus}
+N33 G0 X26.323 Y14
+N35 M14  {Strahl ein}
+N37 G1 X26.323 Y13.524
+N39 X29.323 Y10.524
+N41 X29.323 Y10
+N43 M15  {Strahl aus}
+N45 G0 X10.025 Y26.394
+N47 M14  {Strahl ein}
+N49 G1 X10.025 Y28.394
+N51 X11.525 Y29.918
+N53 X11.525 Y30.394
+N55 M15  {Strahl aus}
+N57 G0 X10.025 Y28.394
+N59 M14  {Strahl ein}
+N61 G1 X8.525 Y29.918
+N63 X8.525 Y30.394
+N65 M15  {Strahl aus}
+N67 G0 X21.109 Y21.109
+N69 H2 M6   {Schnitt 2 Pt. CW}
+N71 M14  {Strahl ein}
+N73 G1 X29.948 Y29.948
+N75 G4 X0.1
+N77 M15  {Strahl aus}
+N79 H3 M6   {Schnitt 3 Pt. CW}
+N81 M14  {Strahl ein}
+N83 G1 X47.626 Y47.626
+N85 G4 X0.1
+N87 M15  {Strahl aus}
+N89 H2 M6   {Schnitt 2 Pt. CW}
+N91 M14  {Strahl ein}
+N93 G1 X56.464 Y56.464
+N95 G4 X0.1
+N97 M15  {Strahl aus}
+N99 G0 X60 Y55
+N101 M14  {Strahl ein}
+N103 G1 X60 Y42.5
+N105 G4 X0.1
+N107 M15  {Strahl aus}
+N109 H3 M6   {Schnitt 3 Pt. CW}
+N111 M14  {Strahl ein}
+N113 G1 X60 Y17.5
+N115 G4 X0.1
+N117 M15  {Strahl aus}
+N119 H2 M6   {Schnitt 2 Pt. CW}
+N121 M14  {Strahl ein}
+N123 G1 X60 Y5
+N125 G4 X0.1
+N127 M15  {Strahl aus}
+N129 G0 X98.891 Y21.109
+N131 M14  {Strahl ein}
+N133 G1 X90.052 Y29.948
+N135 G4 X0.1
+N137 M15  {Strahl aus}
+N139 H3 M6   {Schnitt 3 Pt. CW}
+N141 M14  {Strahl ein}
+N143 G1 X72.374 Y47.626
+N145 G4 X0.1
+N147 M15  {Strahl aus}
+N149 H2 M6   {Schnitt 2 Pt. CW}
+N151 M14  {Strahl ein}
+N153 G1 X63.536 Y56.464
+N155 G4 X0.1
+N157 M15  {Strahl aus}
+N159 G0 X65 Y60
+N161 M14  {Strahl ein}
+N163 G1 X77.5 Y60
+N165 G4 X0.1
+N167 M15  {Strahl aus}
+N169 H3 M6   {Schnitt 3 Pt. CW}
+N171 M14  {Strahl ein}
+N173 G1 X102.5 Y60
+N175 G4 X0.1
+N177 M15  {Strahl aus}
+N179 H2 M6   {Schnitt 2 Pt. CW}
+N181 M14  {Strahl ein}
+N183 G1 X115 Y60
+N185 G4 X0.1
+N187 M15  {Strahl aus}
+N189 G0 X98.891 Y98.891
+N191 M14  {Strahl ein}
+N193 G1 X90.052 Y90.052
+N195 G4 X0.1
+N197 M15  {Strahl aus}
+N199 H4 M6   {Schnitt 4 Pt. CW}
+N201 M14  {Strahl ein}
+N203 G1 X72.374 Y72.374
+N205 G4 X0.1
+N207 M15  {Strahl aus}
+N209 H2 M6   {Schnitt 2 Pt. CW}
+N211 M14  {Strahl ein}
+N213 G1 X63.536 Y63.536
+N215 G4 X0.1
+N217 M15  {Strahl aus}
+N219 G0 X60 Y65
+N221 M14  {Strahl ein}
+N223 G1 X60 Y77.5
+N225 G4 X0.1
+N227 M15  {Strahl aus}
+N229 H4 M6   {Schnitt 4 Pt. CW}
+N231 M14  {Strahl ein}
+N233 G1 X60 Y102.5
+N235 G4 X0.1
+N237 M15  {Strahl aus}
+N239 H2 M6   {Schnitt 2 Pt. CW}
+N241 M14  {Strahl ein}
+N243 G1 X60 Y115
+N245 G4 X0.1
+N247 M15  {Strahl aus}
+N249 G0 X21.109 Y98.891
+N251 M14  {Strahl ein}
+N253 G1 X29.948 Y90.052
+N255 G4 X0.1
+N257 M15  {Strahl aus}
+N259 H4 M6   {Schnitt 4 Pt. CW}
+N261 M14  {Strahl ein}
+N263 G1 X47.626 Y72.374
+N265 G4 X0.1
+N267 M15  {Strahl aus}
+N269 H2 M6   {Schnitt 2 Pt. CW}
+N271 M14  {Strahl ein}
+N273 G1 X56.464 Y63.536
+N275 G4 X0.1
+N277 M15  {Strahl aus}
+N279 G0 X55 Y60
+N281 M14  {Strahl ein}
+N283 G1 X42.5 Y60
+N285 G4 X0.1
+N287 M15  {Strahl aus}
+N289 H4 M6   {Schnitt 4 Pt. CW}
+N291 M14  {Strahl ein}
+N293 G1 X17.5 Y60
+N295 G4 X0.1
+N297 M15  {Strahl aus}
+N299 H2 M6   {Schnitt 2 Pt. CW}
+N301 M14  {Strahl ein}
+N303 G1 X5 Y60
+N305 G4 X0.1
+N307 M15  {Strahl aus}
+N309 G0 X0 Y112
+N311 H22 M6  {Feinschnitt CW}
+N313 M14  {Strahl ein}
+N315 G2 X8 Y120 I8 J0
+N317 G1 X112 Y120
+N319 G2 X120 Y112 I0 J-8
+N321 G1 X120 Y8
+N323 G2 X112 Y0 I-8 J0
+N325 G1 X8 Y0
+N327 G2 X0 Y8 I0 J8
+N329 G1 X0 Y112
+N331 M15  {Strahl aus}
+N333 G99  {Unterprogrammende}

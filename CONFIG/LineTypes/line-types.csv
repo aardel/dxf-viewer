@@ -1,33 +1,31 @@
-id,name,description,lineType,width,color
-1,1pt CW,1 point,laser,1,#FF0000
-2,2pt CW,2 points,laser,2,#FF0000
-3,3pt CW,3 points,laser,3,#FF0000
-4,4pt CW,4 points,laser,4,#FF0000
-5,2pt Puls,2 points,laser,2,#FF0000
-6,3pt Puls,3 points,laser,3,#FF0000
-7,4pt Puls,4 points,laser,4,#FF0000
-8,1.5pt CW,1.5 points,laser,1.5,#FF0000
-9,1pt Puls,1 point,laser,1,#FF0000
-10,1.5pt Puls,1.5 points,laser,1.5,#FF0000
-11,Fast Engrave,Fast Engrave,engraving,0.5,#00FF00
-12,Fine Cut Pulse,Fine cut pulse,laser,0.1,#FF4444
-13,Fine Cut CW,Fine cut CW,laser,0.1,#FF4444
-14,2pt Bridge,2 points bridge,laser,2,#FFAA00
-15,3pt Bridge,3 points bridge,laser,3,#FFAA00
-16,4pt Bridge,4 points bridge,laser,4,#FFAA00
-17,Nozzle Engrave,Nozzle Engrave,engraving,1,#00AAFF
-18,Groove,Groove,laser,2,#AA00FF
-19,Cut CW,Cut CW,laser,1,#FF0044
-20,Pulse_1,Pulse_1,laser,1,#FF00AA
-21,Pulse_2,Pulse_2,laser,2,#FF00AA
-22,Engrave,Engrave,engraving,0.5,#00FF88
-23,Milling 1,Milling 1,milling,0.5,#666666
-24,Milling 2,Milling 2,milling,1,#777777
-25,Milling 3,Milling 3,milling,1.5,#888888
-26,Milling 4,Milling 4,milling,2,#999999
-27,Milling 5,Milling 5,milling,2.5,#AAAAAA
-28,Milling 6,Milling 6,milling,3,#BBBBBB
-29,Milling 7,Milling 7,milling,4,#CCCCCC
-30,Milling 8,Milling 8,milling,5,#DDDDDD
-31,Milling 9,Milling 9,milling,6,#EEEEEE
-32,Milling 10,Milling 10,milling,8,#F0F0F0
+id,name,description,lineType,processMethod,width,color
+1,1pt CW,1 point,laser,,1,#FF0000
+2,2pt CW,2 points,laser,,2,#FF0000
+3,3pt CW,3 points,laser,,3,#FF0000
+4,4pt CW,4 points,laser,,4,#FF0000
+5,2pt Puls,2 points,laser,,2,#FF0000
+6,3pt Puls,3 points,laser,,3,#FF0000
+7,4pt Puls,4 points,laser,,4,#FF0000
+8,1.5pt CW,1.5 points,laser,,1.5,#FF0000
+9,1pt Puls,1 point,laser,,1,#FF0000
+10,1.5pt Puls,1.5 points,laser,,1.5,#FF0000
+11,Fast Engrave,Fast Engrave,engraving,,0.5,#00FF00
+12,Fine Cut Pulse,Fine cut pulse,laser,,0.1,#FF4444
+13,Fine Cut CW,Fine cut CW,laser,,0.1,#FF4444
+14,2pt Bridge,2 points bridge,laser,,2,#FFAA00
+15,3pt Bridge,3 points bridge,laser,,3,#FFAA00
+16,4pt Bridge,4 points bridge,laser,,4,#FFAA00
+17,Nozzle Engrave,Nozzle Engrave,engraving,,1,#00AAFF
+18,Groove,Groove,laser,,2,#AA00FF
+19,Cut CW,Cut CW,laser,,1,#FF0044
+20,Pulse_1,Pulse_1,laser,,1,#FF00AA
+21,Pulse_2,Pulse_2,laser,,2,#FF00AA
+22,Engrave,Engrave,engraving,,0.5,#00FF88
+23,Milling 1,Milling 1,milling,,0.5,#666666
+24,Milling 2,Milling 2,milling,,1,#777777
+25,Milling 3,Milling 3,milling,,1.5,#888888
+26,Milling 4,Milling 4,milling,,2,#999999
+27,Milling 5,Milling 5,milling,,2.5,#AAAAAA
+28,Milling 6,Milling 6,milling,,3,#BBBBBB
+29,Milling 7,Milling 7,milling,,4,#CCCCCC
+30,Milling 8,Milling 8,milling,,5,#DDDDDD
