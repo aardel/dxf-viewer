@@ -5556,6 +5556,8 @@ async function openMappingConfigurationWindow() {
 function openHeaderConfigurationWindow() {
     const modal = document.createElement('div');
     modal.className = 'modal';
+    modal.id = 'headerConfigModal';
+    console.log('Creating header configuration modal with ID:', modal.id);
     modal.innerHTML = `
         <div class="modal-content" style="width: 95%; max-width: 1000px; height: 90vh;">
             <div class="modal-header">
@@ -5657,6 +5659,11 @@ G0 X0 Y0</textarea>
     // Load current header configuration
     loadModalHeaderConfiguration();
     
+    // Verify modal was created
+    console.log('Modal created, checking for preview element...');
+    const testPreview = modal.querySelector('#modalHeaderPreview');
+    console.log('Preview element found:', !!testPreview);
+    
     // Add event listeners for live preview
     const inputs = ['modalMachineType', 'modalHeaderTemplate', 'modalScalingParameter', 'modalScaleCommand', 'modalSetupCommands'];
     inputs.forEach(id => {
@@ -5693,8 +5700,10 @@ G0 X0 Y0</textarea>
     // Initial preview update - delay to ensure DOM is ready
     setTimeout(() => {
         console.log('Initial preview update triggered');
+        // Force a DOM update before calling preview
+        modal.offsetHeight; // Force reflow
         updateModalHeaderPreview();
-    }, 100);
+    }, 200);
 }
 
 // Helper functions for the new modal windows
@@ -6286,19 +6295,35 @@ async function saveHeaderConfiguration() {
 
 function updateModalHeaderPreview() {
     // Update the live preview in the header modal
-    const modal = document.querySelector('.modal');
-    if (!modal) {
-        console.log('No modal found for header preview');
+    // Look specifically for the header configuration modal
+    let modal = document.getElementById('headerConfigModal');
+    let previewEl = null;
+    
+    if (modal) {
+        previewEl = modal.querySelector('#modalHeaderPreview');
+    }
+    
+    // Fallback: look for any modal with header preview
+    if (!modal || !previewEl) {
+        const modals = document.querySelectorAll('.modal');
+        for (const m of modals) {
+            const preview = m.querySelector('#modalHeaderPreview');
+            if (preview) {
+                modal = m;
+                previewEl = preview;
+                break;
+            }
+        }
+    }
+    
+    if (!modal || !previewEl) {
+        console.log('No modal with header preview found');
         return;
     }
     
-    const previewEl = modal.querySelector('#modalHeaderPreview');
     const statsEl = modal.querySelector('#modalHeaderStats');
     
-    if (!previewEl) {
-        console.log('No preview element found');
-        return;
-    }
+    console.log('Found modal and preview element, updating preview...');
     
     console.log('Updating modal header preview...');
     
