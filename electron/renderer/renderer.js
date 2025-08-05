@@ -2397,6 +2397,9 @@ async function loadXmlProfileConfiguration(filename) {
 // Save current configuration to XML profile
 async function saveXmlProfileConfiguration(filename) {
     try {
+        console.log('saveXmlProfileConfiguration called with filename:', filename);
+        console.log('currentPostprocessorConfig:', currentPostprocessorConfig);
+        
         if (!currentPostprocessorConfig) {
             showStatus('No configuration to save', 'error');
             return;
@@ -6605,13 +6608,20 @@ async function saveHeaderConfiguration() {
         console.log('Saving header configuration:', {
             currentProfile: getCurrentProfileFilename(),
             headerConfig: currentPostprocessorConfig.header,
-            unitsConfig: currentPostprocessorConfig.units
+            unitsConfig: currentPostprocessorConfig.units,
+            lineNumbers: currentPostprocessorConfig.lineNumbers,
+            gcode: currentPostprocessorConfig.gcode
         });
         
         // Save to XML profile
         const currentProfile = getCurrentProfileFilename();
+        console.log('Current profile filename:', currentProfile);
         if (currentProfile) {
+            console.log('Calling saveXmlProfileConfiguration...');
             await saveXmlProfileConfiguration(currentProfile);
+            console.log('saveXmlProfileConfiguration completed');
+        } else {
+            console.log('No current profile filename found');
         }
         
         showStatus('Header configuration saved', 'success');
