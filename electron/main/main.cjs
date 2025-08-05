@@ -1122,6 +1122,16 @@ function parseXMLProfile(xmlContent) {
         };
     }
     
+    // Parse OutputSettings
+    const outputSettings = root.getElementsByTagName('OutputSettings')[0];
+    if (outputSettings) {
+        config.outputSettings = {
+            defaultSavePath: getTextContent(outputSettings, 'DefaultSavePath'),
+            filenameFormat: getTextContent(outputSettings, 'FilenameFormat') || '{original_name}.din',
+            autoSaveEnabled: getTextContent(outputSettings, 'AutoSaveEnabled') === 'true'
+        };
+    }
+    
     return config;
 }
 
@@ -1368,6 +1378,15 @@ function generateXMLProfile(config) {
         addTextElement(xmlDoc, lineNumbers, 'Increment', config.lineNumbers.increment.toString());
         addTextElement(xmlDoc, lineNumbers, 'Format', config.lineNumbers.format);
         root.appendChild(lineNumbers);
+    }
+    
+    // Add OutputSettings
+    if (config.outputSettings) {
+        const outputSettings = xmlDoc.createElement('OutputSettings');
+        addTextElement(xmlDoc, outputSettings, 'DefaultSavePath', config.outputSettings.defaultSavePath || '');
+        addTextElement(xmlDoc, outputSettings, 'FilenameFormat', config.outputSettings.filenameFormat || '{original_name}.din');
+        addTextElement(xmlDoc, outputSettings, 'AutoSaveEnabled', config.outputSettings.autoSaveEnabled ? 'true' : 'false');
+        root.appendChild(outputSettings);
     }
     
     // Add MappingWorkflow
