@@ -453,7 +453,16 @@ export class DinGenerator {
         
         // Program end
         if (this.config.gcode?.programEnd) {
-            lines.push(this.formatLine(this.config.gcode.programEnd));
+            // Handle both string and array formats
+            if (Array.isArray(this.config.gcode.programEnd)) {
+                this.config.gcode.programEnd.forEach(command => {
+                    if (command.trim()) {
+                        lines.push(this.formatLine(command));
+                    }
+                });
+            } else {
+                lines.push(this.formatLine(this.config.gcode.programEnd));
+            }
         }
 
         return lines;

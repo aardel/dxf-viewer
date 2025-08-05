@@ -2449,7 +2449,7 @@ function getDefaultConfiguration() {
         },
         gcode: {
             homeCommand: 'G0 X0 Y0',
-            programEnd: 'M30'
+            programEnd: ['M30']
         }
     };
 }
@@ -5845,7 +5845,7 @@ G0 X0 Y0</textarea>
                         </div>
                         <div class="setting-row">
                             <label for="modalProgramEnd">Program End Command:</label>
-                            <input type="text" id="modalProgramEnd" class="form-input" value="M30">
+                            <textarea id="modalProgramEnd" class="form-textarea" rows="3" placeholder="M30">M30</textarea>
                         </div>
                         <div style="font-size: 0.8rem; color: #888; margin-top: 0.5rem;">
                             Common end commands: M30 (End of Program), M02 (End of Program), M99 (End of Subprogram)
@@ -6304,7 +6304,12 @@ function loadModalHeaderConfiguration() {
         
         const programEndEl = modal.querySelector('#modalProgramEnd');
         if (programEndEl && config.gcode?.programEnd !== undefined) {
-            programEndEl.value = config.gcode.programEnd;
+            // Handle both string and array formats
+            if (Array.isArray(config.gcode.programEnd)) {
+                programEndEl.value = config.gcode.programEnd.join('\n');
+            } else {
+                programEndEl.value = config.gcode.programEnd;
+            }
         }
         
         // Update preview after loading settings
@@ -6531,7 +6536,7 @@ async function saveHeaderConfiguration() {
         const lineNumbersIncrement = lineNumbersIncrementEl ? parseInt(lineNumbersIncrementEl.value) : 1;
         const lineNumbersFormat = lineNumbersFormatEl ? lineNumbersFormatEl.value : 'N{number}';
         const homeCommand = homeCommandEl ? homeCommandEl.value : 'G0 X0 Y0';
-        const programEnd = programEndEl ? programEndEl.value : 'M30';
+        const programEnd = programEndEl ? programEndEl.value.split('\n').filter(cmd => cmd.trim()) : ['M30'];
         
         // Update current configuration
         if (!currentPostprocessorConfig.header) {
