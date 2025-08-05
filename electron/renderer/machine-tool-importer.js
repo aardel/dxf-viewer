@@ -298,12 +298,31 @@ async function loadAvailableItems(mode) {
                 availableList.appendChild(item);
             });
         } else {
-            // Load line types
-            const lineTypes = ['cutting', 'engraving', 'perforating', 'scoring', 'marking', 'construction'];
-            lineTypes.forEach(lineType => {
-                const item = createPriorityItem(lineType, lineType, `Line type operation`);
-                availableList.appendChild(item);
-            });
+            // Load actual line types from line-types.xml
+            try {
+                const response = await window.electronAPI.loadLineTypes();
+                if (response.success && response.data) {
+                    response.data.forEach(lineType => {
+                        const item = createPriorityItem(lineType.name, lineType.name, lineType.description);
+                        availableList.appendChild(item);
+                    });
+                } else {
+                    // Fallback to default line types if loading fails
+                    const defaultLineTypes = ['1pt CW', '2pt CW', '3pt CW', '4pt CW', 'Fast Engrave', 'Nozzle Engrave', 'Engrave', 'Milling 1', 'Milling 2', 'Milling 3'];
+                    defaultLineTypes.forEach(lineType => {
+                        const item = createPriorityItem(lineType, lineType, `Line type operation`);
+                        availableList.appendChild(item);
+                    });
+                }
+            } catch (error) {
+                addConsoleMessage(`Error loading line types: ${error.message}`, 'error');
+                // Fallback to default line types
+                const defaultLineTypes = ['1pt CW', '2pt CW', '3pt CW', '4pt CW', 'Fast Engrave', 'Nozzle Engrave', 'Engrave', 'Milling 1', 'Milling 2', 'Milling 3'];
+                defaultLineTypes.forEach(lineType => {
+                    const item = createPriorityItem(lineType, lineType, `Line type operation`);
+                    availableList.appendChild(item);
+                });
+            }
         }
     } catch (error) {
         addConsoleMessage(`Error loading ${mode} items: ${error.message}`, 'error');
