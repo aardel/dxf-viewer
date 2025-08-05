@@ -1,6 +1,0 @@
-# test_profile
-Layer,Color,Lineweight
-ACXTEMP,#009800,
-GA_DIE,#0000ff,
-GRIP,#00ff7f,
-NAME,#009800,

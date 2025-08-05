@@ -25,16 +25,10 @@ export class DinGenerator {
         this.lineNumber = config.lineNumbers?.startNumber || 10;
         this.currentTool = null;
 
-        console.log('DIN Generator: Starting generation with config:', {
-            lineNumbers: config.lineNumbers,
-            header: config.header,
-            laser: config.laser,
-            gcode: config.gcode
-        });
+
 
         // Load tools with priority information
         const toolsWithPriority = this.loadToolsFromConfig(config);
-        console.log('Tools with priority loaded:', toolsWithPriority);
         
         // Optimize entity order
         const optimizedEntities = this.optimizer.optimizePaths(
@@ -62,7 +56,7 @@ export class DinGenerator {
         const filteredLines = dinLines.filter(line => line && line.trim() !== '');
         const result = filteredLines.join('\n');
         
-        console.log('DIN Generator: Generated DIN file with', filteredLines.length, 'lines');
+
         return result;
     }
 
@@ -120,13 +114,11 @@ export class DinGenerator {
         }
 
         // Program start marker - comes AFTER comments
-        console.log('Header config:', config.header);
-        console.log('IncludeProgramStart:', config.header?.includeProgramStart);
-        console.log('ProgramStart:', config.header?.programStart);
+
         
         if (config.header?.includeProgramStart !== false) { // Default to true if not specified
             const programStart = config.header?.programStart || '%1';
-            console.log('Adding program start:', programStart);
+
             lines.push(programStart);
         }
 
@@ -178,20 +170,19 @@ export class DinGenerator {
         const lines = [];
         const config = this.config;
 
-        console.log('generateToolChange - input tool:', tool);
+
 
         // Clean up tool properties - remove extra whitespace and newlines
         const cleanHCode = tool.hCode ? tool.hCode.trim().replace(/\s+/g, ' ') : null;
         const cleanName = tool.name ? tool.name.trim().replace(/\s+/g, ' ') : null;
 
-        console.log('generateToolChange - cleaned HCode:', cleanHCode);
-        console.log('generateToolChange - cleaned Name:', cleanName);
+
 
         // Create properly formatted tool change command
         if (cleanHCode) {
             const comment = cleanName ? `{${cleanName}}` : '';
             const toolChangeCommand = `${cleanHCode} M6 ${comment}`;
-            console.log('generateToolChange - toolChangeCommand:', toolChangeCommand);
+    
             lines.push(this.formatLine(toolChangeCommand));
         } else {
             // Fallback if H-code not available
@@ -441,8 +432,7 @@ export class DinGenerator {
         
         // Ensure line number and command are on the same line with proper spacing
         const result = `${lineNumber} ${cleanCommand}`;
-        console.log(`formatLine input: "${command}"`);
-        console.log(`formatLine output: "${result}"`);
+
         return result;
     }
 
@@ -457,17 +447,17 @@ export class DinGenerator {
 
         // Step 1: Layer/Color → Line Type
         const lineType = this.determineLineType(entity);
-        console.log(`Entity line type determined: ${lineType}`);
+
         
         // Step 2: Line Type → Tool
         const toolId = this.getToolFromLineType(lineType);
-        console.log(`Tool ID from line type: ${toolId}`);
+
         
         if (toolId && toolId !== 'none') {
             const toolName = this.getToolName(toolId);
             const toolHCode = this.getToolHCode(toolId);
             
-            console.log(`Tool details - ID: ${toolId}, Name: ${toolName}, HCode: ${toolHCode}`);
+
             
             if (toolHCode) {
                 return {
@@ -622,7 +612,7 @@ export class DinGenerator {
             '30': 'Milling 8'
         };
         const result = lineTypeMap[lineTypeId] || null;
-        console.log(`getLineTypeNameFromId: ${lineTypeId} → ${result}`);
+
         return result;
     }
 
@@ -732,7 +722,7 @@ export class DinGenerator {
             });
         }
         
-        console.log('Loaded tools with priority:', tools);
+
         return tools;
     }
 

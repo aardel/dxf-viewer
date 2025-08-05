@@ -72,11 +72,9 @@ export class PathOptimizer {
 
         // Sort groups by tool priority if respect priority is enabled
         const groups = Array.from(toolGroups.values());
-        console.log('Tool groups before sorting:', groups.map(g => ({ tool: g.tool?.id, priority: g.priority, entityCount: g.entities.length })));
         
         if (settings.respectPriority !== false) {
             groups.sort((a, b) => a.priority - b.priority);
-            console.log('Tool groups after sorting:', groups.map(g => ({ tool: g.tool?.id, priority: g.priority, entityCount: g.entities.length })));
         }
 
         return groups;

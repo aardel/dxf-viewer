@@ -53,11 +53,11 @@ function createWindow() {
 
 // Create unified mapping window
 function createUnifiedMappingWindow() {
-    console.log('Creating unified mapping window...');
+    
     
     // Don't create multiple instances
     if (unifiedMappingWindow) {
-        console.log('Window already exists, focusing...');
+
         unifiedMappingWindow.focus();
         return;
     }
@@ -83,12 +83,12 @@ function createUnifiedMappingWindow() {
     });
 
     // Load the unified mapping HTML
-    console.log('Loading unified mapping HTML...');
+    
     unifiedMappingWindow.loadFile(path.join(__dirname, '../renderer/unified-mapping.html'));
 
     // Show window when ready to prevent visual flash
     unifiedMappingWindow.once('ready-to-show', () => {
-        console.log('Unified mapping window ready to show');
+
         unifiedMappingWindow.show();
     });
 
@@ -2371,24 +2371,17 @@ function applyGlobalImportFilter(dxfLayers, globalFilter) {
 // Find matching rule for a layer
 function findMatchingRule(layer, rules, settings) {
     try {
-        console.log(`Finding match for layer: ${layer.name}, color: ${layer.color}`);
-        
         for (const rule of rules) {
-            console.log(`Checking rule: ${rule.layerName}, color: ${rule.color}`);
-            
             // Check layer name match
             const layerNameMatch = settings.caseInsensitive ? 
                 layer.name.toLowerCase() === rule.layerName.toLowerCase() :
                 layer.name === rule.layerName;
-            
-            console.log(`Layer name match: ${layerNameMatch}`);
             
             if (layerNameMatch) {
                 // Convert rule.color to number for comparison
                 const ruleColorNum = parseInt(rule.color);
                 const layerColorNum = parseInt(layer.color);
                 const colorMatch = layerColorNum === ruleColorNum;
-                console.log(`Color match: ${layerColorNum} === ${ruleColorNum} = ${colorMatch}`);
                 
                 if (colorMatch) {
                     return rule;
