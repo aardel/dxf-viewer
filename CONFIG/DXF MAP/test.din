@@ -1,0 +1,13 @@
+{test.dxf / - size: 6.1 x 3.9 / 05.08.25 13:11:45}
+%1
+{ Bounds: X0.0 Y0.0 to X6.1 Y3.9 }
+{Number of Sets: 82}
+G253 F="test.dxf / - size: 6.1 x 3.9 / 05.08.25 13:11:45"
+:P2027=25.4/P674
+G75 X=P2027 Y=P2027
+{ Metric scaling for inch machine }
+N10 G90
+N20 G60 X0
+N30 G0 X0 Y0
+N40 G0 X0 Y0
+N50 M30

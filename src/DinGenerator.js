@@ -521,8 +521,16 @@ export class DinGenerator {
      * Determine line type from entity layer and color (Step 1 of workflow)
      */
     determineLineType(entity) {
+        console.log(`Determining line type for entity:`, {
+            type: entity.type,
+            layer: entity.layer,
+            lineType: entity.lineType,
+            lineTypeId: entity.lineTypeId
+        });
+        
         // Priority 1: Use actual line type from DXF if available
         if (entity.lineType && entity.lineType !== 'BYLAYER' && entity.lineType !== 'CONTINUOUS') {
+            console.log(`Using DXF line type: ${entity.lineType}`);
             return entity.lineType;
         }
         
@@ -530,6 +538,7 @@ export class DinGenerator {
         if (entity.lineTypeId) {
             const lineTypeName = this.getLineTypeNameFromId(entity.lineTypeId);
             if (lineTypeName) {
+                console.log(`Converted lineTypeId ${entity.lineTypeId} to: ${lineTypeName}`);
                 return lineTypeName;
             }
         }
@@ -588,8 +597,13 @@ export class DinGenerator {
         const lineTypeMappings = this.config.mappingWorkflow.lineTypeToTool;
         const mappings = Array.isArray(lineTypeMappings) ? lineTypeMappings : Object.values(lineTypeMappings || {});
         
+        console.log(`Looking for line type: "${lineType}"`);
+        console.log(`Available mappings:`, mappings);
+        
         for (const mapping of mappings) {
+            console.log(`Checking mapping: "${mapping.lineType}" === "${lineType}"`);
             if (mapping.lineType && mapping.lineType === lineType) {
+                console.log(`Found match! Tool: ${mapping.tool}`);
                 return mapping.tool;
             }
         }
