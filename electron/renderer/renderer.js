@@ -6237,9 +6237,9 @@ async function saveHeaderConfiguration() {
             currentPostprocessorConfig = getDefaultConfiguration();
         }
         
-        const modal = document.querySelector('.modal');
+        const modal = document.getElementById('headerConfigModal');
         if (!modal) {
-            showStatus('Modal not found', 'error');
+            showStatus('Header configuration modal not found', 'error');
             return;
         }
         
@@ -6254,6 +6254,17 @@ async function saveHeaderConfiguration() {
         const includeSetCountEl = modal.querySelector('#modalIncludeSetCount');
         const includeProgramStartEl = modal.querySelector('#modalIncludeProgramStart');
         const setupCommandsEl = modal.querySelector('#modalSetupCommands');
+        
+        // Debug: Log what elements we found
+        console.log('Found elements:', {
+            machineTypeEl: !!machineTypeEl,
+            headerTemplateEl: !!headerTemplateEl,
+            setupCommandsEl: !!setupCommandsEl,
+            includeFileInfoEl: !!includeFileInfoEl,
+            includeBoundsEl: !!includeBoundsEl,
+            includeSetCountEl: !!includeSetCountEl,
+            includeProgramStartEl: !!includeProgramStartEl
+        });
         
         if (!machineTypeEl || !headerTemplateEl || !setupCommandsEl) {
             showStatus('Missing form elements', 'error');
@@ -6303,6 +6314,13 @@ async function saveHeaderConfiguration() {
             programStart: '%1',
             setupCommands: setupCommands
         };
+        
+        // Debug: Log the configuration being saved
+        console.log('Saving header configuration:', {
+            currentProfile: getCurrentProfileFilename(),
+            headerConfig: currentPostprocessorConfig.header,
+            unitsConfig: currentPostprocessorConfig.units
+        });
         
         // Save to XML profile
         const currentProfile = getCurrentProfileFilename();
