@@ -5873,8 +5873,8 @@ G0 X0 Y0</textarea>
                 </div>
             </div>
             <div class="modal-footer">
-                <button class="btn btn-secondary" onclick="this.closest('.modal').remove()">Close</button>
-                <button class="btn btn-secondary" onclick="updateModalHeaderPreview()" style="margin-right: 10px;">Test Preview</button>
+                <button class="btn btn-secondary" id="closeHeaderConfigBtn">Close</button>
+                <button class="btn btn-secondary" id="testPreviewBtn" style="margin-right: 10px;">Test Preview</button>
                 <button class="btn btn-primary" id="saveHeaderConfigBtn">Save Configuration</button>
             </div>
         </div>
@@ -5922,6 +5922,13 @@ G0 X0 Y0</textarea>
     });
     
     modal.querySelector('#saveHeaderConfigBtn').addEventListener('click', saveHeaderConfiguration);
+    
+    // Add event listeners for footer buttons
+    modal.querySelector('#closeHeaderConfigBtn').addEventListener('click', () => {
+        modal.remove();
+    });
+    
+    modal.querySelector('#testPreviewBtn').addEventListener('click', updateModalHeaderPreview);
     
     // Initial preview update - delay to ensure DOM is ready
     setTimeout(() => {
