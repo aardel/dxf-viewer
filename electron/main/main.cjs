@@ -324,6 +324,45 @@ ipcMain.handle('save-layer-mapping-fixed', async (event, content, filename, dxfF
     }
 });
 
+ipcMain.handle('save-din-file', async (event, content, filename, savePath) => {
+    try {
+        let finalPath;
+        
+        if (savePath) {
+            // Use the provided save path
+            finalPath = path.join(savePath, filename);
+            
+            // Create directory if it doesn't exist
+            const dir = path.dirname(finalPath);
+            if (!fs.existsSync(dir)) {
+                fs.mkdirSync(dir, { recursive: true });
+            }
+        } else {
+            // Fallback to CONFIG/DXF MAP folder
+            const appRoot = process.cwd();
+            const configDir = path.join(appRoot, 'CONFIG', 'DXF MAP');
+            finalPath = path.join(configDir, filename);
+            
+            if (!fs.existsSync(configDir)) {
+                fs.mkdirSync(configDir, { recursive: true });
+            }
+        }
+
+        // Write the file
+        fs.writeFileSync(finalPath, content, 'utf8');
+        
+        return { 
+            success: true, 
+            filePath: finalPath 
+        };
+    } catch (error) {
+        return { 
+            success: false, 
+            error: error.message 
+        };
+    }
+});
+
 // Line Types Management
 ipcMain.handle('load-line-types', async () => {
     try {

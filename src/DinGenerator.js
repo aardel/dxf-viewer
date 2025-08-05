@@ -473,8 +473,9 @@ export class DinGenerator {
      * Get required tool for entity based on 2-step workflow mapping
      */
     getRequiredTool(entity) {
-        if (!this.config.mappingWorkflow) {
-            console.warn('No mappingWorkflow found in config');
+        // Check for mapping workflow in the correct location
+        if (!this.config.mappingWorkflow && !this.config.lineTypeMappings) {
+            console.warn('No mapping configuration found in config');
             return null;
         }
 

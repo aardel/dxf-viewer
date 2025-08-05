@@ -10,6 +10,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     showErrorDialog: (title, message) => ipcRenderer.invoke('show-error-dialog', title, message),
     saveLayerMapping: (content, defaultFilename) => ipcRenderer.invoke('save-layer-mapping', content, defaultFilename),
     saveLayerMappingFixed: (content, filename, dxfFilePath) => ipcRenderer.invoke('save-layer-mapping-fixed', content, filename, dxfFilePath),
+    saveDinFile: (content, filename, savePath) => ipcRenderer.invoke('save-din-file', content, filename, savePath),
     
         // Line Types API
     loadLineTypes: () => ipcRenderer.invoke('load-line-types'),

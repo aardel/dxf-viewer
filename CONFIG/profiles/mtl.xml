@@ -159,10 +159,13 @@
             </ProgramStart>
             <SetupCommands>
                 <Command>G90
+                
                 </Command>
                 <Command>G60 X0
+                
                 </Command>
                 <Command>G0 X0 Y0
+                
                 </Command>
             </SetupCommands>
         </Header>

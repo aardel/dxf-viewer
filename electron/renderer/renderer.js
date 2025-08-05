@@ -2520,15 +2520,8 @@ function applyConfigurationToUI(config) {
         }
     }
     
-            // Scaling configuration
-        if (config.units?.scalingHeader) {
-            
-        }
-        
-        // File output settings
-        if (config.outputSettings) {
-            loadFileOutputSettings();
-        }
+    // Scaling configuration
+    if (config.units?.scalingHeader) {
         const enableScalingCheckbox = document.getElementById('enableScaling');
         const scalingParameterInput = document.getElementById('scalingParameter');
         const scaleCommandInput = document.getElementById('scaleCommand');
@@ -2544,6 +2537,11 @@ function applyConfigurationToUI(config) {
         if (scaleCommandInput && config.units.scalingHeader.scaleCommand) {
             scaleCommandInput.value = config.units.scalingHeader.scaleCommand;
         }
+    }
+    
+    // File output settings
+    if (config.outputSettings) {
+        loadFileOutputSettings();
     }
 }
 
@@ -3311,14 +3309,22 @@ async function saveDinFile(content, defaultFilename) {
         
         // If auto-save is enabled and we have a default path, save directly
         if (autoSaveEnabled && defaultSavePath) {
-            const fullPath = `${defaultSavePath}/${generatedFilename}`;
-            await window.electronAPI.saveLayerMappingFixed(content, generatedFilename, defaultSavePath);
-            showStatus(`DIN file saved to: ${fullPath}`, 'success');
+            const result = await window.electronAPI.saveDinFile(content, generatedFilename, defaultSavePath);
+            if (result.success) {
+                showStatus(`DIN file saved to: ${result.filePath}`, 'success');
+            } else {
+                showStatus(`Failed to save DIN file: ${result.error}`, 'error');
+            }
             return;
         }
         
         // Otherwise, show save dialog
-        await window.electronAPI.saveLayerMappingFixed(content, generatedFilename, currentFilePath);
+        const result = await window.electronAPI.saveDinFile(content, generatedFilename, null);
+        if (result.success) {
+            showStatus(`DIN file saved to: ${result.filePath}`, 'success');
+        } else {
+            showStatus(`Failed to save DIN file: ${result.error}`, 'error');
+        }
         
     } catch (error) {
         throw new Error(`Failed to save DIN file: ${error.message}`);
