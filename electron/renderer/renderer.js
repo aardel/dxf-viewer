@@ -5683,8 +5683,10 @@ G0 X0 Y0</textarea>
     
     modal.querySelector('#saveHeaderConfigBtn').addEventListener('click', saveHeaderConfiguration);
     
-    // Initial preview update
-    updateModalHeaderPreview();
+    // Initial preview update - delay to ensure DOM is ready
+    setTimeout(() => {
+        updateModalHeaderPreview();
+    }, 100);
 }
 
 // Helper functions for the new modal windows
@@ -6184,24 +6186,44 @@ function resetMappingsToDefault() {
 
 async function saveHeaderConfiguration() {
     try {
+        // Initialize currentPostprocessorConfig if it doesn't exist
         if (!currentPostprocessorConfig) {
-            showStatus('No postprocessor profile selected', 'error');
-            return;
+            currentPostprocessorConfig = getDefaultConfiguration();
         }
         
         const modal = document.querySelector('.modal');
+        if (!modal) {
+            showStatus('Modal not found', 'error');
+            return;
+        }
         
-        // Get values from modal
-        const machineType = modal.querySelector('#modalMachineType').value;
-        const enableScaling = modal.querySelector('#modalEnableScaling').checked;
-        const scalingParameter = modal.querySelector('#modalScalingParameter').value;
-        const scaleCommand = modal.querySelector('#modalScaleCommand').value;
-        const headerTemplate = modal.querySelector('#modalHeaderTemplate').value;
-        const includeFileInfo = modal.querySelector('#modalIncludeFileInfo').checked;
-        const includeBounds = modal.querySelector('#modalIncludeBounds').checked;
-        const includeSetCount = modal.querySelector('#modalIncludeSetCount').checked;
-        const includeProgramStart = modal.querySelector('#modalIncludeProgramStart').checked;
-        const setupCommands = modal.querySelector('#modalSetupCommands').value.split('\n').filter(cmd => cmd.trim());
+        // Get values from modal with null checks
+        const machineTypeEl = modal.querySelector('#modalMachineType');
+        const enableScalingEl = modal.querySelector('#modalEnableScaling');
+        const scalingParameterEl = modal.querySelector('#modalScalingParameter');
+        const scaleCommandEl = modal.querySelector('#modalScaleCommand');
+        const headerTemplateEl = modal.querySelector('#modalHeaderTemplate');
+        const includeFileInfoEl = modal.querySelector('#modalIncludeFileInfo');
+        const includeBoundsEl = modal.querySelector('#modalIncludeBounds');
+        const includeSetCountEl = modal.querySelector('#modalIncludeSetCount');
+        const includeProgramStartEl = modal.querySelector('#modalIncludeProgramStart');
+        const setupCommandsEl = modal.querySelector('#modalSetupCommands');
+        
+        if (!machineTypeEl || !headerTemplateEl || !setupCommandsEl) {
+            showStatus('Missing form elements', 'error');
+            return;
+        }
+        
+        const machineType = machineTypeEl.value;
+        const enableScaling = enableScalingEl ? enableScalingEl.checked : false;
+        const scalingParameter = scalingParameterEl ? scalingParameterEl.value : '';
+        const scaleCommand = scaleCommandEl ? scaleCommandEl.value : '';
+        const headerTemplate = headerTemplateEl.value;
+        const includeFileInfo = includeFileInfoEl ? includeFileInfoEl.checked : false;
+        const includeBounds = includeBoundsEl ? includeBoundsEl.checked : false;
+        const includeSetCount = includeSetCountEl ? includeSetCountEl.checked : false;
+        const includeProgramStart = includeProgramStartEl ? includeProgramStartEl.checked : false;
+        const setupCommands = setupCommandsEl.value.split('\n').filter(cmd => cmd.trim());
         
         // Update current configuration
         if (!currentPostprocessorConfig.header) {
@@ -6284,16 +6306,17 @@ function updateModalHeaderPreview() {
             return;
         }
         
-        const machineType = machineTypeEl.value;
+        // Get values with defaults for missing elements
+        const machineType = machineTypeEl.value || 'metric';
         const enableScaling = enableScalingEl ? enableScalingEl.checked : false;
-        const scalingParameter = scalingParameterEl ? scalingParameterEl.value : '';
-        const scaleCommand = scaleCommandEl ? scaleCommandEl.value : '';
-        const headerTemplate = headerTemplateEl.value;
-        const includeFileInfo = includeFileInfoEl ? includeFileInfoEl.checked : false;
-        const includeBounds = includeBoundsEl ? includeBoundsEl.checked : false;
-        const includeSetCount = includeSetCountEl ? includeSetCountEl.checked : false;
-        const includeProgramStart = includeProgramStartEl ? includeProgramStartEl.checked : false;
-        const setupCommands = setupCommandsEl.value;
+        const scalingParameter = scalingParameterEl ? scalingParameterEl.value : ':P2027=25.4/P674';
+        const scaleCommand = scaleCommandEl ? scaleCommandEl.value : 'G75 X=P2027 Y=P2027';
+        const headerTemplate = headerTemplateEl.value || '{filename} / - size: {width} x {height} / {timestamp}';
+        const includeFileInfo = includeFileInfoEl ? includeFileInfoEl.checked : true;
+        const includeBounds = includeBoundsEl ? includeBoundsEl.checked : true;
+        const includeSetCount = includeSetCountEl ? includeSetCountEl.checked : true;
+        const includeProgramStart = includeProgramStartEl ? includeProgramStartEl.checked : true;
+        const setupCommands = setupCommandsEl.value || 'G90\nG60 X0\nG0 X0 Y0';
         
         // Generate preview header
         const headerLines = [];
