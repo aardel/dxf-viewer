@@ -591,55 +591,17 @@ export class DinGenerator {
      * Get tool from line type (Step 2 of workflow)
      */
     getToolFromLineType(lineType) {
-        // Create a direct mapping from line type names to tool IDs
-        const lineTypeToToolMap = {
-            '1pt CW': 'T1',
-            '2pt CW': 'T2',
-            '3pt CW': 'T3',
-            '4pt CW': 'T4',
-            '2pt Puls': 'T12',
-            '3pt Puls': 'T13',
-            '4pt Puls': 'T14',
-            '1.5pt CW': 'T8',
-            '1pt Puls': 'T9',
-            '1.5pt Puls': 'T10',
-            'Fast Engrave': 'T11',
-            'Fine Cut Pulse': 'T12',
-            'Fine Cut CW': 'T13',
-            '2pt Bridge': 'T14',
-            '3pt Bridge': 'T15',
-            '4pt Bridge': 'T16',
-            'Nozzle Engrave': 'T33',
-            'Groove': 'T18',
-            'Cut CW': 'T19',
-            'Pulse_1': 'T20',
-            'Pulse_2': 'T21',
-            'Engrave': 'T22',
-            'Milling 1': 'T23',
-            'Milling 2': 'T24',
-            'Milling 3': 'T25',
-            'Milling 4': 'T26',
-            'Milling 5': 'T27',
-            'Milling 6': 'T28',
-            'Milling 7': 'T29',
-            'Milling 8': 'T30'
-        };
-
-        // Check if we have a direct mapping
-        if (lineTypeToToolMap[lineType]) {
-            const toolId = lineTypeToToolMap[lineType];
-            // Verify the tool exists in our configuration
-            if (this.config.tools && this.config.tools[toolId]) {
-                return toolId;
-            }
+        if (!this.config.mappingWorkflow?.lineTypeToTool) {
+            console.warn('No mappingWorkflow.lineTypeToTool found in config');
+            return null;
         }
 
-        // Fallback: try to find a tool with a similar name
-        if (this.config.tools) {
-            for (const [toolId, tool] of Object.entries(this.config.tools)) {
-                if (tool.name && tool.name.toLowerCase().includes(lineType.toLowerCase())) {
-                    return toolId;
-                }
+        const lineTypeMappings = this.config.mappingWorkflow.lineTypeToTool;
+        const mappings = Array.isArray(lineTypeMappings) ? lineTypeMappings : Object.values(lineTypeMappings || {});
+        
+        for (const mapping of mappings) {
+            if (mapping.lineType && mapping.lineType === lineType) {
+                return mapping.tool;
             }
         }
         
