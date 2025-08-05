@@ -5661,8 +5661,11 @@ G0 X0 Y0</textarea>
     inputs.forEach(id => {
         const element = modal.querySelector(`#${id}`);
         if (element) {
+            console.log(`Adding event listener to ${id}`);
             element.addEventListener('input', updateModalHeaderPreview);
             element.addEventListener('change', updateModalHeaderPreview);
+        } else {
+            console.log(`Element ${id} not found in modal`);
         }
     });
     
@@ -5670,7 +5673,10 @@ G0 X0 Y0</textarea>
     checkboxes.forEach(id => {
         const element = modal.querySelector(`#${id}`);
         if (element) {
+            console.log(`Adding checkbox event listener to ${id}`);
             element.addEventListener('change', updateModalHeaderPreview);
+        } else {
+            console.log(`Checkbox ${id} not found in modal`);
         }
     });
     
@@ -5685,6 +5691,7 @@ G0 X0 Y0</textarea>
     
     // Initial preview update - delay to ensure DOM is ready
     setTimeout(() => {
+        console.log('Initial preview update triggered');
         updateModalHeaderPreview();
     }, 100);
 }
@@ -6279,12 +6286,20 @@ async function saveHeaderConfiguration() {
 function updateModalHeaderPreview() {
     // Update the live preview in the header modal
     const modal = document.querySelector('.modal');
-    if (!modal) return;
+    if (!modal) {
+        console.log('No modal found for header preview');
+        return;
+    }
     
     const previewEl = modal.querySelector('#modalHeaderPreview');
     const statsEl = modal.querySelector('#modalHeaderStats');
     
-    if (!previewEl) return;
+    if (!previewEl) {
+        console.log('No preview element found');
+        return;
+    }
+    
+    console.log('Updating modal header preview...');
     
     try {
         // Get current values from modal with null checks
@@ -6369,7 +6384,9 @@ function updateModalHeaderPreview() {
         }
         
         // Display preview
-        previewEl.innerHTML = `<strong>Header Preview:</strong><br><pre style="color: #ddd; margin-top: 0.5rem;">${headerLines.join('\n')}</pre>`;
+        const previewContent = `<strong>Header Preview:</strong><br><pre style="color: #ddd; margin-top: 0.5rem;">${headerLines.join('\n')}</pre>`;
+        console.log('Preview content:', previewContent);
+        previewEl.innerHTML = previewContent;
         
         // Update statistics
         if (statsEl) {

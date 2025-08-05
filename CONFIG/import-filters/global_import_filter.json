@@ -4,7 +4,7 @@
   "description": "Single global import filter for all DXF files",
   "version": "1.0",
   "created": "2025-08-05T01:48:18.789Z",
-  "modified": "2025-08-05T03:11:36.248Z",
+  "modified": "2025-08-05T08:33:53.130Z",
   "active": true,
   "rules": [
     {
@@ -105,6 +105,15 @@
       "lineTypeId": "11",
       "description": "Rule for DEPRESS",
       "source": "manual"
+    },
+    {
+      "id": 12,
+      "layerName": "OFFLINE",
+      "color": 65407,
+      "colorHex": "#00FF7F",
+      "lineTypeId": "1",
+      "description": "Rule for OFFLINE",
+      "source": "manual"
     }
   ],
   "settings": {
@@ -116,9 +125,9 @@
     "conflictResolution": "prompt_user"
   },
   "statistics": {
-    "totalRules": 11,
-    "uniqueLayers": 10,
-    "uniqueColors": 7,
+    "totalRules": 12,
+    "uniqueLayers": 11,
+    "uniqueColors": 8,
     "lastConsolidated": "2025-08-05T01:48:21.353Z"
   }
 }
