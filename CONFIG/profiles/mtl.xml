@@ -33,6 +33,16 @@
             </ScalingHeader>
         </MachineSettings>
         <Tools>
+            <Tool ID="T1">
+                <Name>1-Pt CW
+                </Name>
+                <Description>Cutting
+                </Description>
+                <Width>1
+                </Width>
+                <HCode>H1
+                </HCode>
+            </Tool>
             <Tool ID="T22">
                 <Name>FineCut
                 </Name>
@@ -160,11 +170,14 @@
             <SetupCommands>
                 <Command>G90
                 
+                
                 </Command>
                 <Command>G60 X0
                 
+                
                 </Command>
                 <Command>G0 X0 Y0
+                
                 
                 </Command>
             </SetupCommands>
