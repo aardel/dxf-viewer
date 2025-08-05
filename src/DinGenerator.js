@@ -52,9 +52,8 @@ export class DinGenerator {
         // Add footer
         dinLines.push(...this.generateFooter());
 
-        // Filter out empty lines and join
-        const filteredLines = dinLines.filter(line => line && line.trim() !== '');
-        const result = filteredLines.join('\n');
+        // Join lines, preserving empty lines for line feeds
+        const result = dinLines.join('\n');
         
 
         return result;
