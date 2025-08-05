@@ -138,7 +138,7 @@ function renderLineTypeCards() {
     let html = '';
     lineTypes.forEach(lineType => {
         const assignedTool = lineType.assignedTool || '';
-        const tool = tools.find(t => t.id === assignedTool);
+        const tool = tools[assignedTool];
         
         html += `
             <div class="line-type-card" data-line-type="${lineType.name}">
@@ -166,9 +166,9 @@ function renderLineTypeCards() {
                     <div class="tool-mapping-label">Select Machine Tool:</div>
                     <select class="tool-selector" data-line-type="${lineType.name}" onchange="window.updateToolMapping('${lineType.name}', this.value)">
                         <option value="">Choose tool...</option>
-                        ${tools.map(t => `
-                            <option value="${t.id}" ${assignedTool === t.id ? 'selected' : ''}>
-                                ${t.name} (${t.width}mm - ${t.description})
+                        ${Object.entries(tools).map(([toolId, tool]) => `
+                            <option value="${toolId}" ${assignedTool === toolId ? 'selected' : ''}>
+                                ${tool.name} (${tool.width}mm - ${tool.description})
                             </option>
                         `).join('')}
                     </select>
@@ -221,14 +221,14 @@ window.updateToolMapping = function(lineTypeName, toolId) {
 // Get tool name by ID
 function getToolName(toolId) {
     if (!toolId) return 'No tool assigned';
-    const tool = tools.find(t => t.id === toolId);
+    const tool = tools[toolId];
     return tool ? tool.name : 'Unknown tool';
 }
 
 // Get tool display name with better formatting
 function getToolDisplayName(toolId) {
     if (!toolId) return 'None assigned';
-    const tool = tools.find(t => t.id === toolId);
+    const tool = tools[toolId];
     return tool ? `${tool.name} (${tool.width}mm)` : 'Unknown tool';
 }
 

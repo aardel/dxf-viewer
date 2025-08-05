@@ -629,6 +629,15 @@ export class DinGenerator {
      * Get line type name from ID
      */
     getLineTypeNameFromId(lineTypeId) {
+        // Use line types from config if available (CSV data)
+        if (this.config.lineTypes && Array.isArray(this.config.lineTypes)) {
+            const lineType = this.config.lineTypes.find(lt => lt.id === lineTypeId);
+            if (lineType) {
+                return lineType.name;
+            }
+        }
+        
+        // Fallback to hardcoded map if CSV data not available
         const lineTypeMap = {
             '1': '1pt CW',
             '2': '2pt CW',

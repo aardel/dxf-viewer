@@ -158,11 +158,7 @@ function setupEventListeners() {
         addRuleBtn.addEventListener('click', showAddRuleModal);
     }
 
-    // Consolidate button
-    const consolidateBtn = document.getElementById('consolidateBtn');
-    if (consolidateBtn) {
-        consolidateBtn.addEventListener('click', consolidateImportFilters);
-    }
+
 
     // Export button
     const exportBtn = document.getElementById('exportBtn');
@@ -457,26 +453,7 @@ window.deleteRule = async function(ruleId) {
     }
 }
 
-// Consolidate import filters
-async function consolidateImportFilters() {
-    try {
-        showLoading(true);
-        const result = await window.electronAPI.consolidateImportFiltersToGlobal();
-        if (result.success) {
-            await loadGlobalFilter();
-            updateStatistics();
-            renderRulesTable();
-            showSuccess(`Consolidated ${result.consolidatedCount} rules from ${result.profileCount} profiles`);
-        } else {
-            throw new Error(result.error || 'Failed to consolidate import filters');
-        }
-    } catch (error) {
-        console.error('Error consolidating import filters:', error);
-        showError('Failed to consolidate: ' + error.message);
-    } finally {
-        showLoading(false);
-    }
-}
+
 
 // Export global filter
 async function exportGlobalFilter() {

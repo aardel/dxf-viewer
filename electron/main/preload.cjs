@@ -19,11 +19,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
     deleteLineType: (lineTypeId) => ipcRenderer.invoke('delete-line-type', lineTypeId),
     openLineTypesManager: () => ipcRenderer.invoke('open-line-types-manager'),
 
-    // Import Filters API
-    loadImportFilters: () => ipcRenderer.invoke('load-import-filters'),
-    saveImportFilter: (profile) => ipcRenderer.invoke('save-import-filter', profile),
-    deleteImportFilter: (profileId) => ipcRenderer.invoke('delete-import-filter', profileId),
-    openImportFiltersManager: () => ipcRenderer.invoke('open-import-filters-manager'),
+
+
+
 
     // Global Import Filter API
     loadGlobalImportFilter: () => ipcRenderer.invoke('load-global-import-filter'),
@@ -32,7 +30,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     addRuleToGlobalImportFilter: (ruleData) => ipcRenderer.invoke('add-rule-to-global-import-filter', ruleData),
     updateRuleInGlobalImportFilter: (ruleId, ruleData) => ipcRenderer.invoke('update-rule-in-global-import-filter', ruleId, ruleData),
     deleteRuleFromGlobalImportFilter: (ruleId) => ipcRenderer.invoke('delete-rule-from-global-import-filter', ruleId),
-    consolidateImportFiltersToGlobal: () => ipcRenderer.invoke('consolidate-import-filters-to-global'),
+
     openGlobalImportFilterManager: () => ipcRenderer.invoke('open-global-import-filter-manager'),
 
     // Postprocessor Configuration API
@@ -71,6 +69,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
     // Priority Configuration API
     savePriorityConfiguration: (profileName, mode, items) => ipcRenderer.invoke('save-priority-configuration', profileName, mode, items),
     loadPriorityConfiguration: (profileName) => ipcRenderer.invoke('load-priority-configuration', profileName),
+
+    // Configuration validation
+    validateConfiguration: () => ipcRenderer.invoke('validate-configuration'),
+    fixConfigurationIssue: (issue) => ipcRenderer.invoke('fix-configuration-issue', issue),
 
     // Event listeners
     onFileOpened: (callback) => ipcRenderer.on('file-opened', callback),

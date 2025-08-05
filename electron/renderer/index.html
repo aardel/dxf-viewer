@@ -67,11 +67,7 @@
                             <span id="drawingUnits" class="info-value">N/A</span>
                         </div>
                     </div>
-                    <div class="export-section">
-                        <button id="createImportFilterBtn" class="btn btn-primary" disabled>
-                            Create Import Filter
-                        </button>
-                    </div>
+
                 </div>
                 <div id="outputTab" class="tab-content">
                     <div class="output-content">
@@ -300,10 +296,17 @@
                         
                         <div class="settings-section">
                             <h5>Import Filters</h5>
-                            <p>Create mapping profiles to convert DXF layers and colors to internal line types.</p>
+                            <p>Manage the global import filter for all DXF files.</p>
                             <div class="button-group">
-                                <button class="btn btn-primary" id="importFiltersBtn">Manage Import Filters</button>
                                 <button class="btn btn-primary" id="globalFilterManagerBtn">Global Filter Manager</button>
+                            </div>
+                        </div>
+                        
+                        <div class="settings-section">
+                            <h5>Configuration Validation</h5>
+                            <p>Check for configuration inconsistencies and fix them automatically.</p>
+                            <div class="button-group">
+                                <button class="btn btn-warning" id="validateConfigBtn">🔍 Validate Configuration</button>
                             </div>
                         </div>
                         

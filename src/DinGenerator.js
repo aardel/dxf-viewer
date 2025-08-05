@@ -503,6 +503,11 @@ export class DinGenerator {
         // Step 1: Layer/Color → Line Type
         const lineType = this.determineLineType(entity);
 
+        // Handle null line type - this means no mapping was found
+        if (lineType === null) {
+            console.warn(`No line type mapping found for layer: ${entity.layer}. Please create an import filter rule for this layer.`);
+            return null;
+        }
         
         // Step 2: Line Type → Tool
         const toolId = this.getToolFromLineType(lineType);
@@ -526,7 +531,7 @@ export class DinGenerator {
             }
         }
         
-        console.warn(`No tool found for line type: ${lineType}, skipping entity`);
+        console.warn(`No tool mapping found for line type: ${lineType}, skipping entity`);
         return null; // Skip this entity
     }
 
@@ -594,7 +599,8 @@ export class DinGenerator {
             // No fallback color mappings - rely only on configured mappings
         }
 
-        // No default fallback - return null if no mapping found
+        // No mapping found - this will trigger a user notification
+        console.warn(`No line type mapping found for entity on layer: ${entity.layer}`);
         return null;
     }
 
@@ -629,6 +635,15 @@ export class DinGenerator {
      * Get line type name from ID
      */
     getLineTypeNameFromId(lineTypeId) {
+        // Use line types from config if available (CSV data)
+        if (this.config.lineTypes && Array.isArray(this.config.lineTypes)) {
+            const lineType = this.config.lineTypes.find(lt => lt.id === lineTypeId);
+            if (lineType) {
+                return lineType.name;
+            }
+        }
+        
+        // Fallback to hardcoded map if CSV data not available
         const lineTypeMap = {
             '1': '1pt CW',
             '2': '2pt CW',

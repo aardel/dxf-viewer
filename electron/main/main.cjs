@@ -570,100 +570,11 @@ function createElementWithText(doc, tagName, textContent) {
     return element;
 }
 
-// Import Filters IPC handlers
-ipcMain.handle('load-import-filters', async () => {
-    try {
-        const userDataPath = app.getPath('userData');
-        const configDir = path.join(userDataPath, 'CONFIG', 'import-filters');
-        
-        if (!fs.existsSync(configDir)) {
-            fs.mkdirSync(configDir, { recursive: true });
-            return [];
-        }
-        
-        const files = fs.readdirSync(configDir).filter(file => file.endsWith('.json'));
-        const profiles = [];
-        
-        for (const file of files) {
-            try {
-                const filePath = path.join(configDir, file);
-                const content = fs.readFileSync(filePath, 'utf8');
-                const profile = JSON.parse(content);
-                profiles.push(profile);
-            } catch (error) {
-                console.error(`Error loading profile ${file}:`, error);
-            }
-        }
-        
-        return profiles;
-    } catch (error) {
-        console.error('Error loading import filters:', error);
-        return [];
-    }
-});
 
-ipcMain.handle('save-import-filter', async (event, profileData) => {
-    try {
-        const userDataPath = app.getPath('userData');
-        const configDir = path.join(userDataPath, 'CONFIG', 'import-filters');
-        
-        if (!fs.existsSync(configDir)) {
-            fs.mkdirSync(configDir, { recursive: true });
-        }
-        
-        const fileName = `${profileData.id}.json`;
-        const filePath = path.join(configDir, fileName);
-        
-        fs.writeFileSync(filePath, JSON.stringify(profileData, null, 2), 'utf8');
-        
-        return { success: true };
-    } catch (error) {
-        console.error('Error saving import filter:', error);
-        return { success: false, error: error.message };
-    }
-});
 
-ipcMain.handle('delete-import-filter', async (event, profileId) => {
-    try {
-        const userDataPath = app.getPath('userData');
-        const configDir = path.join(userDataPath, 'CONFIG', 'import-filters');
-        const filePath = path.join(configDir, `${profileId}.json`);
-        
-        if (fs.existsSync(filePath)) {
-            fs.unlinkSync(filePath);
-        }
-        
-        return { success: true };
-    } catch (error) {
-        console.error('Error deleting import filter:', error);
-        return { success: false, error: error.message };
-    }
-});
 
-// Open Import Filters Manager window
-ipcMain.handle('open-import-filters-manager', async () => {
-    const importFiltersWindow = new BrowserWindow({
-        width: 1200,
-        height: 800,
-        webPreferences: {
-            nodeIntegration: false,
-            contextIsolation: true,
-            enableRemoteModule: false,
-            preload: path.join(__dirname, 'preload.cjs')
-        },
-        title: 'Import Filters Manager'
-    });
 
-    importFiltersWindow.loadFile(path.join(__dirname, '../renderer/import-filters.html'));
 
-    if (process.env.NODE_ENV === 'development') {
-        importFiltersWindow.webContents.openDevTools();
-    }
-
-    importFiltersWindow.on('closed', () => {
-        importFiltersWindow = null;
-    });
-});
 
 // Open Mapping Wizard window
 ipcMain.handle('open-mapping-wizard', async () => {
@@ -999,10 +910,10 @@ function parseXMLProfile(xmlContent) {
             const tool = toolElements[i];
             const toolId = tool.getAttribute('ID');
             config.tools[toolId] = {
-                name: getTextContent(tool, 'Name'),
-                description: getTextContent(tool, 'Description'),
-                width: parseFloat(getTextContent(tool, 'Width')),
-                hCode: getTextContent(tool, 'HCode')
+                name: tool.getAttribute('Name'),
+                description: tool.getAttribute('Description'),
+                width: parseFloat(tool.getAttribute('Width')),
+                hCode: tool.getAttribute('HCode')
             };
         }
     }
@@ -1109,19 +1020,14 @@ function parseXMLProfile(xmlContent) {
             const mappings = lineTypeToTool.getElementsByTagName('LineTypeMapping');
             for (let i = 0; i < mappings.length; i++) {
                 const mapping = mappings[i];
-                const lineTypeElement = mapping.getElementsByTagName('LineType')[0];
-                const toolElement = mapping.getElementsByTagName('Tool')[0];
+                const lineType = mapping.getAttribute('LineType');
+                const tool = mapping.getAttribute('Tool');
                 
-                if (lineTypeElement && toolElement) {
-                    const lineType = lineTypeElement.textContent.trim();
-                    const tool = toolElement.textContent.trim();
-                    
-                    if (lineType && tool) {
-                        config.mappingWorkflow.lineTypeToTool.push({
-                            lineType: lineType,
-                            tool: tool
-                        });
-                    }
+                if (lineType && tool) {
+                    config.mappingWorkflow.lineTypeToTool.push({
+                        lineType: lineType,
+                        tool: tool
+                    });
                 }
             }
         }
@@ -1310,12 +1216,12 @@ function generateXMLProfile(config) {
         Object.entries(config.tools).forEach(([toolId, tool]) => {
             const toolElement = xmlDoc.createElement('Tool');
             toolElement.setAttribute('ID', toolId);
-            addTextElement(xmlDoc, toolElement, 'Name', tool.name);
-            addTextElement(xmlDoc, toolElement, 'Description', tool.description);
-            addTextElement(xmlDoc, toolElement, 'Width', tool.width.toString());
-            addTextElement(xmlDoc, toolElement, 'HCode', tool.hCode);
+            toolElement.setAttribute('Name', tool.name);
+            toolElement.setAttribute('Description', tool.description);
+            toolElement.setAttribute('Width', tool.width.toString());
+            toolElement.setAttribute('HCode', tool.hCode);
             if (tool.application) {
-                addTextElement(xmlDoc, toolElement, 'Application', Array.isArray(tool.application) ? tool.application.join(',') : tool.application);
+                toolElement.setAttribute('Application', Array.isArray(tool.application) ? tool.application.join(',') : tool.application);
             }
             toolsElement.appendChild(toolElement);
         });
@@ -1672,10 +1578,10 @@ function getToolsFromProfileFile(profileFilename) {
                     
                     if (toolId) {
                         tools[toolId] = {
-                            name: getTextContent(tool, 'Name'),
-                            description: getTextContent(tool, 'Description'),
-                            width: parseFloat(getTextContent(tool, 'Width')) || 0,
-                            hCode: getTextContent(tool, 'HCode')
+                            name: tool.getAttribute('Name'),
+                            description: tool.getAttribute('Description'),
+                            width: parseFloat(tool.getAttribute('Width')) || 0,
+                            hCode: tool.getAttribute('HCode')
                         };
                         console.log(`Parsed tool ${toolId}:`, tools[toolId]);
                     }
@@ -2481,86 +2387,7 @@ function saveGlobalImportFilter(globalFilter) {
     }
 }
 
-// Consolidate all existing import filter profiles into the global filter
-function consolidateImportFiltersToGlobal() {
-    try {
-        console.log('Consolidating import filters to global filter...');
-        
-        const configDir = path.join(process.cwd(), 'CONFIG', 'import-filters');
-        const globalFilter = loadGlobalImportFilter();
-        
-        // Get all profile files except the global filter
-        const profileFiles = fs.readdirSync(configDir)
-            .filter(file => file.endsWith('.json') && file !== 'global_import_filter.json');
-        
-        const consolidatedRules = [];
-        const ruleIdMap = new Map(); // Track rule IDs to avoid duplicates
-        
-        // Process each profile file
-        profileFiles.forEach(profileFile => {
-            try {
-                const profilePath = path.join(configDir, profileFile);
-                const profileContent = fs.readFileSync(profilePath, 'utf8');
-                const profile = JSON.parse(profileContent);
-                
-                console.log(`Processing profile: ${profile.name || profileFile}`);
-                
-                if (profile.rules && Array.isArray(profile.rules)) {
-                    profile.rules.forEach(rule => {
-                        // Create unique key for rule identification
-                        const ruleKey = `${rule.layerName}_${rule.color}`;
-                        
-                        if (!ruleIdMap.has(ruleKey)) {
-                            // Generate new rule ID
-                            const newRuleId = consolidatedRules.length + 1;
-                            
-                            // Add colorHex property for display consistency
-                            const colorHex = aciToHex(parseInt(rule.color) || 7);
-                            
-                            const consolidatedRule = {
-                                id: newRuleId,
-                                layerName: rule.layerName,
-                                color: rule.color,
-                                colorHex: colorHex,
-                                lineTypeId: rule.lineTypeId || "1",
-                                description: rule.description || `Rule from ${profile.name || profileFile}`,
-                                source: profile.id || profileFile.replace('.json', '')
-                            };
-                            
-                            consolidatedRules.push(consolidatedRule);
-                            ruleIdMap.set(ruleKey, newRuleId);
-                            
-                            console.log(`Added rule: ${rule.layerName} -> ${rule.lineTypeId}`);
-                        } else {
-                            console.log(`Skipped duplicate rule: ${rule.layerName}`);
-                        }
-                    });
-                }
-            } catch (error) {
-                console.error(`Error processing profile ${profileFile}:`, error);
-            }
-        });
-        
-        // Update global filter with consolidated rules
-        globalFilter.rules = consolidatedRules;
-        globalFilter.statistics.lastConsolidated = new Date().toISOString();
-        
-        // Save the updated global filter
-        saveGlobalImportFilter(globalFilter);
-        
-        console.log(`Consolidation complete: ${consolidatedRules.length} unique rules from ${profileFiles.length} profiles`);
-        return {
-            success: true,
-            consolidatedCount: consolidatedRules.length,
-            profileCount: profileFiles.length,
-            globalFilter: globalFilter
-        };
-        
-    } catch (error) {
-        console.error('Error consolidating import filters:', error);
-        return { success: false, error: error.message };
-    }
-}
+
 
 // Apply global import filter to DXF layers
 function applyGlobalImportFilter(dxfLayers, globalFilter) {
@@ -2591,7 +2418,7 @@ function applyGlobalImportFilter(dxfLayers, globalFilter) {
                 appliedLayers.push(appliedLayer);
                 console.log(`Applied rule ${matchingRule.id} to layer ${layer.name}`);
             } else {
-                // No matching rule found
+                // No matching rule found - keep original layer without lineTypeId
                 unmatchedLayers.push(layer);
                 console.log(`No matching rule found for layer ${layer.name}`);
             }
@@ -2695,26 +2522,7 @@ ipcMain.handle('save-global-import-filter', async (event, globalFilter) => {
     }
 });
 
-// Consolidate import filters to global
-ipcMain.handle('consolidate-import-filters-to-global', async () => {
-    try {
-        console.log('Consolidating import filters to global...');
-        const result = consolidateImportFiltersToGlobal();
-        if (result && result.success) {
-            return { 
-                success: true, 
-                consolidatedCount: result.consolidatedCount || 0,
-                profileCount: result.profileCount || 0,
-                data: result.globalFilter || result
-            };
-        } else {
-            return { success: false, error: 'Failed to consolidate import filters' };
-        }
-    } catch (error) {
-        console.error('Error consolidating import filters:', error);
-        return { success: false, error: error.message };
-    }
-});
+
 
 // Apply global import filter to DXF layers
 ipcMain.handle('apply-global-import-filter', async (event, dxfLayers) => {
@@ -3069,11 +2877,11 @@ ipcMain.handle('update-output-settings-only', async (event, outputSettings, prof
 // Helper functions for Unified Mapping Workflow
 
 function getDefaultTools() {
-    return [
-        { id: 'tool1', name: 'Tool 1', description: 'Default cutting tool', type: 'cut' },
-        { id: 'tool2', name: 'Tool 2', description: 'Default engraving tool', type: 'engrave' },
-        { id: 'tool3', name: 'Tool 3', description: 'Default marking tool', type: 'mark' }
-    ];
+    return {
+        'T1': { id: 'T1', name: '1pt CW', description: 'Default cutting tool', width: 1, hCode: 'H1', type: 'cut' },
+        'T2': { id: 'T2', name: '2pt CW', description: 'Default cutting tool', width: 1, hCode: 'H2', type: 'cut' },
+        'T3': { id: 'T3', name: '3pt CW', description: 'Default cutting tool', width: 1, hCode: 'H3', type: 'cut' }
+    };
 }
 
 function getDefaultLineTypeMappings() {
@@ -3087,26 +2895,39 @@ function getDefaultLineTypeMappings() {
 
 function parseToolsFromProfile(profileContent) {
     try {
-        // Parse tools from the existing XML structure
-        const toolMatches = profileContent.match(/<Tool ID="([^"]*)">[\s\S]*?<Name>([^<]*)<\/Name>[\s\S]*?<Description>([^<]*)<\/Description>[\s\S]*?<Width>([^<]*)<\/Width>[\s\S]*?<HCode>([^<]*)<\/HCode>[\s\S]*?<\/Tool>/g);
-        if (!toolMatches) return getDefaultTools();
+        // Parse tools from the new attribute-based XML structure
+        const parser = new DOMParser();
+        const xmlDoc = parser.parseFromString(profileContent, 'text/xml');
         
-        return toolMatches.map(match => {
-            const idMatch = match.match(/<Tool ID="([^"]*)">/);
-            const nameMatch = match.match(/<Name>([^<]*)<\/Name>/);
-            const descriptionMatch = match.match(/<Description>([^<]*)<\/Description>/);
-            const widthMatch = match.match(/<Width>([^<]*)<\/Width>/);
-            const hCodeMatch = match.match(/<HCode>([^<]*)<\/HCode>/);
+        const toolsElement = xmlDoc.getElementsByTagName('Tools')[0];
+        if (!toolsElement) {
+            console.log('No Tools element found in profile');
+            return getDefaultTools();
+        }
+        
+        const tools = {};
+        const toolElements = toolsElement.getElementsByTagName('Tool');
+        
+        console.log(`Found ${toolElements.length} tools in profile`);
+        
+        for (let i = 0; i < toolElements.length; i++) {
+            const tool = toolElements[i];
+            const toolId = tool.getAttribute('ID');
             
-            return {
-                id: idMatch ? idMatch[1] : 'unknown',
-                name: nameMatch ? nameMatch[1] : 'Unknown Tool',
-                description: descriptionMatch ? descriptionMatch[1] : 'Default tool',
-                width: widthMatch ? parseFloat(widthMatch[1]) : 0.5,
-                hCode: hCodeMatch ? hCodeMatch[1] : 'H1',
-                type: 'cut' // Default type
-            };
-        });
+            if (toolId) {
+                tools[toolId] = {
+                    id: toolId,
+                    name: tool.getAttribute('Name'),
+                    description: tool.getAttribute('Description'),
+                    width: parseFloat(tool.getAttribute('Width')) || 0,
+                    hCode: tool.getAttribute('HCode'),
+                    type: 'cut' // Default type
+                };
+                console.log(`Parsed tool ${toolId}:`, tools[toolId]);
+            }
+        }
+        
+        return tools;
     } catch (error) {
         console.error('Error parsing tools from profile:', error);
         return getDefaultTools();
@@ -3464,3 +3285,210 @@ function updateProfileWithTools(profileContent, tools) {
         return profileContent;
     }
 }
+
+// Add this new validation function after the existing functions
+function validateConfigurationConsistency() {
+    const issues = [];
+    
+    try {
+        // Get current configuration
+        const profilesDir = getProfilesDirectory();
+        const xmlPath = path.join(profilesDir, 'mtl.xml');
+        const csvPath = path.join(profilesDir, 'line-types.csv');
+        const globalFilterPath = path.join(profilesDir, 'global-import-filter.json');
+        
+        if (!fs.existsSync(xmlPath)) {
+            issues.push({ type: 'error', message: 'MTL profile not found', action: 'restore' });
+            return issues;
+        }
+        
+        // Parse XML profile
+        const profileContent = fs.readFileSync(xmlPath, 'utf8');
+        const config = parseXMLProfile(profileContent);
+        
+        // Parse CSV line types
+        let csvLineTypes = [];
+        if (fs.existsSync(csvPath)) {
+            const csvContent = fs.readFileSync(csvPath, 'utf8');
+            csvLineTypes = parseCSV(csvContent);
+        }
+        
+        // Parse Global Import Filter
+        let globalFilter = { rules: [] };
+        if (fs.existsSync(globalFilterPath)) {
+            const filterContent = fs.readFileSync(globalFilterPath, 'utf8');
+            globalFilter = JSON.parse(filterContent);
+        }
+        
+        // 1. CRITICAL: Check for orphaned line type mappings (mappings to non-existent tools)
+        if (config.lineTypeMappings) {
+            config.lineTypeMappings.forEach(mapping => {
+                if (!config.tools[mapping.toolId]) {
+                    issues.push({
+                        type: 'error',
+                        message: `CRITICAL: Line type "${mapping.lineTypeName}" maps to non-existent tool "${mapping.toolId}" - This will cause DIN generation failures`,
+                        action: 'fix_mapping',
+                        data: { lineTypeId: mapping.lineTypeId, toolId: mapping.toolId }
+                    });
+                }
+            });
+        }
+        
+        // 2. CRITICAL: Check for orphaned priority items (priority to non-existent tools)
+        if (config.priority && config.priority.items) {
+            config.priority.items.forEach(item => {
+                if (item.value && item.value !== '__LINE_BREAK__' && !config.tools[item.value]) {
+                    issues.push({
+                        type: 'error',
+                        message: `CRITICAL: Priority item references non-existent tool "${item.value}" - This will cause DIN generation failures`,
+                        action: 'fix_priority',
+                        data: { order: item.order, toolId: item.value }
+                    });
+                }
+            });
+        }
+        
+        // 3. CRITICAL: Check for orphaned global filter rules (rules referencing non-existent line types)
+        if (globalFilter.rules) {
+            globalFilter.rules.forEach(rule => {
+                const lineTypeExists = csvLineTypes.some(lt => lt.id === rule.lineTypeId);
+                if (!lineTypeExists) {
+                    issues.push({
+                        type: 'error',
+                        message: `CRITICAL: Global filter rule references non-existent line type "${rule.lineTypeId}" - This will cause import failures`,
+                        action: 'fix_filter',
+                        data: { ruleId: rule.id, lineTypeId: rule.lineTypeId }
+                    });
+                }
+            });
+        }
+        
+        // 4. WARNING: Check for line types that are mapped but the tool doesn't exist
+        if (config.lineTypeMappings) {
+            config.lineTypeMappings.forEach(mapping => {
+                if (!config.tools[mapping.toolId]) {
+                    issues.push({
+                        type: 'warning',
+                        message: `Line type "${mapping.lineTypeName}" is mapped but tool "${mapping.toolId}" doesn't exist - Consider adding the tool or changing the mapping`,
+                        action: 'fix_mapping',
+                        data: { lineTypeId: mapping.lineTypeId, toolId: mapping.toolId }
+                    });
+                }
+            });
+        }
+        
+        // 5. INFO: Show which tools are available but not mapped (for reference only)
+        if (config.tools) {
+            const usedTools = new Set();
+            
+            // Collect tools used in mappings
+            if (config.lineTypeMappings) {
+                config.lineTypeMappings.forEach(mapping => {
+                    usedTools.add(mapping.toolId);
+                });
+            }
+            
+            // Collect tools used in priority
+            if (config.priority && config.priority.items) {
+                config.priority.items.forEach(item => {
+                    if (item.value && item.value !== '__LINE_BREAK__') {
+                        usedTools.add(item.value);
+                    }
+                });
+            }
+            
+            // Show unmapped tools as info (not as issues to fix)
+            const unmappedTools = Object.keys(config.tools).filter(toolId => !usedTools.has(toolId));
+            if (unmappedTools.length > 0) {
+                issues.push({
+                    type: 'info',
+                    message: `${unmappedTools.length} tools are available but not mapped: ${unmappedTools.join(', ')} - These can be used for future mappings`,
+                    action: 'none',
+                    data: { unmappedTools }
+                });
+            }
+        }
+        
+    } catch (error) {
+        issues.push({
+            type: 'error',
+            message: `Configuration validation failed: ${error.message}`,
+            action: 'restore'
+        });
+    }
+    
+    return issues;
+}
+
+// Add IPC handler for configuration validation
+ipcMain.handle('validate-configuration', async () => {
+    console.log('Validating configuration consistency...');
+    const issues = validateConfigurationConsistency();
+    console.log(`Found ${issues.length} configuration issues`);
+    return issues;
+});
+
+// Add IPC handler for fixing configuration issues
+ipcMain.handle('fix-configuration-issue', async (event, issue) => {
+    console.log(`Fixing configuration issue: ${issue.action}`);
+    
+    try {
+        const profilesDir = getProfilesDirectory();
+        const xmlPath = path.join(profilesDir, 'mtl.xml');
+        const csvPath = path.join(profilesDir, 'line-types.csv');
+        const globalFilterPath = path.join(profilesDir, 'global-import-filter.json');
+        
+        switch (issue.action) {
+            case 'fix_mapping':
+                // Remove orphaned mapping
+                const profileContent = fs.readFileSync(xmlPath, 'utf8');
+                const config = parseXMLProfile(profileContent);
+                config.lineTypeMappings = config.lineTypeMappings.filter(m => 
+                    !(m.lineTypeId === issue.data.lineTypeId && m.toolId === issue.data.toolId)
+                );
+                const updatedContent = generateXMLProfile(config);
+                fs.writeFileSync(xmlPath, updatedContent);
+                console.log(`Removed orphaned mapping: ${issue.data.lineTypeId} -> ${issue.data.toolId}`);
+                break;
+                
+            case 'fix_priority':
+                // Remove orphaned priority item
+                const priorityContent = fs.readFileSync(xmlPath, 'utf8');
+                const priorityConfig = parseXMLProfile(priorityContent);
+                priorityConfig.priority.items = priorityConfig.priority.items.filter(item => 
+                    !(item.order === issue.data.order && item.value === issue.data.toolId)
+                );
+                const priorityUpdated = generateXMLProfile(priorityConfig);
+                fs.writeFileSync(xmlPath, priorityUpdated);
+                console.log(`Removed orphaned priority item: ${issue.data.toolId}`);
+                break;
+                
+            case 'fix_filter':
+                // Remove orphaned filter rule
+                if (fs.existsSync(globalFilterPath)) {
+                    const filterContent = fs.readFileSync(globalFilterPath, 'utf8');
+                    const filter = JSON.parse(filterContent);
+                    filter.rules = filter.rules.filter(rule => rule.id !== issue.data.ruleId);
+                    fs.writeFileSync(globalFilterPath, JSON.stringify(filter, null, 2));
+                    console.log(`Removed orphaned filter rule: ${issue.data.ruleId}`);
+                }
+                break;
+                
+            case 'none':
+                // No action needed for info items
+                console.log(`Info item: ${issue.message}`);
+                break;
+                
+            case 'restore':
+                // This would require user to manually restore from backup
+                console.log('Manual restoration required');
+                break;
+        }
+        
+        return { success: true, message: `Fixed issue: ${issue.action}` };
+        
+    } catch (error) {
+        console.error('Error fixing configuration issue:', error);
+        return { success: false, message: `Failed to fix issue: ${error.message}` };
+    }
+});
