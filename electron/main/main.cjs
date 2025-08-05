@@ -8,6 +8,63 @@ let mainWindow;
 let unifiedMappingWindow = null;
 let machineToolImporterWindow = null;
 
+// Initialize user data directory and copy default configuration files
+function initializeUserDataDirectory() {
+    try {
+        const userDataPath = app.getPath('userData');
+        const configDir = path.join(userDataPath, 'CONFIG');
+        
+        // Create CONFIG directory structure
+        const dirs = [
+            path.join(configDir, 'profiles'),
+            path.join(configDir, 'import-filters'),
+            path.join(configDir, 'LineTypes'),
+            path.join(configDir, 'optimization'),
+            path.join(configDir, 'DXF MAP')
+        ];
+        
+        dirs.forEach(dir => {
+            if (!fs.existsSync(dir)) {
+                fs.mkdirSync(dir, { recursive: true });
+            }
+        });
+        
+        // Copy default mtl.xml profile if it doesn't exist
+        const defaultProfilePath = path.join(configDir, 'profiles', 'mtl.xml');
+        if (!fs.existsSync(defaultProfilePath)) {
+            const appBundleProfilePath = path.join(__dirname, '../../CONFIG/profiles/mtl.xml');
+            if (fs.existsSync(appBundleProfilePath)) {
+                fs.copyFileSync(appBundleProfilePath, defaultProfilePath);
+                console.log('Copied default mtl.xml profile to user data directory');
+            }
+        }
+        
+        // Copy default global import filter if it doesn't exist
+        const defaultFilterPath = path.join(configDir, 'import-filters', 'global_import_filter.json');
+        if (!fs.existsSync(defaultFilterPath)) {
+            const appBundleFilterPath = path.join(__dirname, '../../CONFIG/import-filters/global_import_filter.json');
+            if (fs.existsSync(appBundleFilterPath)) {
+                fs.copyFileSync(appBundleFilterPath, defaultFilterPath);
+                console.log('Copied default global import filter to user data directory');
+            }
+        }
+        
+        // Copy default line types if they don't exist
+        const defaultLineTypesPath = path.join(configDir, 'LineTypes', 'line-types.xml');
+        if (!fs.existsSync(defaultLineTypesPath)) {
+            const appBundleLineTypesPath = path.join(__dirname, '../../CONFIG/LineTypes/line-types.xml');
+            if (fs.existsSync(appBundleLineTypesPath)) {
+                fs.copyFileSync(appBundleLineTypesPath, defaultLineTypesPath);
+                console.log('Copied default line types to user data directory');
+            }
+        }
+        
+        console.log('User data directory initialized successfully');
+    } catch (error) {
+        console.error('Error initializing user data directory:', error);
+    }
+}
+
 function createWindow() {
     // Create the browser window
     mainWindow = new BrowserWindow({
@@ -366,7 +423,8 @@ ipcMain.handle('save-din-file', async (event, content, filename, savePath) => {
 // Line Types Management
 ipcMain.handle('load-line-types', async () => {
     try {
-        const configPath = path.join(process.cwd(), 'CONFIG', 'LineTypes', 'line-types.csv');
+        const userDataPath = app.getPath('userData');
+        const configPath = path.join(userDataPath, 'CONFIG', 'LineTypes', 'line-types.csv');
         
         if (!fs.existsSync(configPath)) {
             return { success: false, error: 'Line types file not found' };
@@ -403,7 +461,8 @@ ipcMain.handle('load-line-types', async () => {
 
 ipcMain.handle('save-line-types', async (event, lineTypes) => {
     try {
-        const configDir = path.join(process.cwd(), 'CONFIG', 'LineTypes');
+        const userDataPath = app.getPath('userData');
+        const configDir = path.join(userDataPath, 'CONFIG', 'LineTypes');
         const configPath = path.join(configDir, 'line-types.csv');
         
         // Create directory if it doesn't exist
@@ -493,7 +552,8 @@ function createElementWithText(doc, tagName, textContent) {
 // Import Filters IPC handlers
 ipcMain.handle('load-import-filters', async () => {
     try {
-        const configDir = path.join(process.cwd(), 'CONFIG', 'import-filters');
+        const userDataPath = app.getPath('userData');
+        const configDir = path.join(userDataPath, 'CONFIG', 'import-filters');
         
         if (!fs.existsSync(configDir)) {
             fs.mkdirSync(configDir, { recursive: true });
@@ -523,7 +583,8 @@ ipcMain.handle('load-import-filters', async () => {
 
 ipcMain.handle('save-import-filter', async (event, profileData) => {
     try {
-        const configDir = path.join(process.cwd(), 'CONFIG', 'import-filters');
+        const userDataPath = app.getPath('userData');
+        const configDir = path.join(userDataPath, 'CONFIG', 'import-filters');
         
         if (!fs.existsSync(configDir)) {
             fs.mkdirSync(configDir, { recursive: true });
@@ -543,7 +604,8 @@ ipcMain.handle('save-import-filter', async (event, profileData) => {
 
 ipcMain.handle('delete-import-filter', async (event, profileId) => {
     try {
-        const configDir = path.join(process.cwd(), 'CONFIG', 'import-filters');
+        const userDataPath = app.getPath('userData');
+        const configDir = path.join(userDataPath, 'CONFIG', 'import-filters');
         const filePath = path.join(configDir, `${profileId}.json`);
         
         if (fs.existsSync(filePath)) {
@@ -706,7 +768,24 @@ ipcMain.handle('load-tool-library', async (event, libraryName) => {
 // Load optimization algorithms configuration
 ipcMain.handle('load-optimization-config', async () => {
     try {
-        const optimizationPath = path.join(__dirname, '../../CONFIG/optimization/algorithms.json');
+        // Use user data directory instead of app bundle
+        const userDataPath = app.getPath('userData');
+        const optimizationPath = path.join(userDataPath, 'CONFIG', 'optimization', 'algorithms.json');
+        
+        // If the file doesn't exist in user data, try to copy from app bundle
+        if (!fs.existsSync(optimizationPath)) {
+            const appBundlePath = path.join(__dirname, '../../CONFIG/optimization/algorithms.json');
+            if (fs.existsSync(appBundlePath)) {
+                // Create directory structure
+                const optimizationDir = path.dirname(optimizationPath);
+                if (!fs.existsSync(optimizationDir)) {
+                    fs.mkdirSync(optimizationDir, { recursive: true });
+                }
+                // Copy from app bundle to user data
+                fs.copyFileSync(appBundlePath, optimizationPath);
+            }
+        }
+        
         const optimizationData = fs.readFileSync(optimizationPath, 'utf8');
         return JSON.parse(optimizationData);
     } catch (error) {
@@ -738,7 +817,9 @@ ipcMain.handle('save-postprocessor-config', async (event, profileName, configDat
 // Load available XML profiles
 ipcMain.handle('load-xml-profiles', async () => {
     try {
-        const profilesDir = path.join(__dirname, '../../CONFIG/profiles');
+        // Use user data directory instead of app bundle
+        const userDataPath = app.getPath('userData');
+        const profilesDir = path.join(userDataPath, 'CONFIG', 'profiles');
         
         if (!fs.existsSync(profilesDir)) {
             fs.mkdirSync(profilesDir, { recursive: true });
@@ -781,7 +862,9 @@ ipcMain.handle('load-xml-profiles', async () => {
 // Load specific XML profile
 ipcMain.handle('load-xml-profile', async (event, filename) => {
     try {
-        const profilePath = path.join(__dirname, '../../CONFIG/profiles', filename);
+        // Use user data directory instead of app bundle
+        const userDataPath = app.getPath('userData');
+        const profilePath = path.join(userDataPath, 'CONFIG', 'profiles', filename);
         const xmlContent = fs.readFileSync(profilePath, 'utf8');
         
         // Parse XML to JavaScript object
@@ -796,7 +879,9 @@ ipcMain.handle('load-xml-profile', async (event, filename) => {
 // Save XML profile
 ipcMain.handle('save-xml-profile', async (event, filename, configData) => {
     try {
-        const profilesDir = path.join(__dirname, '../../CONFIG/profiles');
+        // Use user data directory instead of app bundle
+        const userDataPath = app.getPath('userData');
+        const profilesDir = path.join(userDataPath, 'CONFIG', 'profiles');
         const profilePath = path.join(profilesDir, filename);
         
         // Ensure directory exists
@@ -834,7 +919,9 @@ ipcMain.handle('save-xml-profile', async (event, filename, configData) => {
 // Delete XML profile
 ipcMain.handle('delete-xml-profile', async (event, filename) => {
     try {
-        const profilesDir = path.join(__dirname, '../../CONFIG/profiles');
+        // Use user data directory instead of app bundle
+        const userDataPath = app.getPath('userData');
+        const profilesDir = path.join(userDataPath, 'CONFIG', 'profiles');
         const profilePath = path.join(profilesDir, filename);
         
         if (fs.existsSync(profilePath)) {
@@ -2255,6 +2342,9 @@ ipcMain.handle('save-unified-mappings', async (event, mappings) => {
 
 // App event handlers
 app.whenReady().then(() => {
+    // Initialize user data directory first
+    initializeUserDataDirectory();
+    
     createWindow();
     createMenu();
 
@@ -2296,7 +2386,8 @@ app.on('web-contents-created', (event, contents) => {
 // Load the global import filter
 function loadGlobalImportFilter() {
     try {
-        const configDir = path.join(process.cwd(), 'CONFIG', 'import-filters');
+        const userDataPath = app.getPath('userData');
+        const configDir = path.join(userDataPath, 'CONFIG', 'import-filters');
         const globalFilterPath = path.join(configDir, 'global_import_filter.json');
         
         if (fs.existsSync(globalFilterPath)) {
@@ -2348,7 +2439,8 @@ function createDefaultGlobalImportFilter() {
 // Save the global import filter
 function saveGlobalImportFilter(globalFilter) {
     try {
-        const configDir = path.join(process.cwd(), 'CONFIG', 'import-filters');
+        const userDataPath = app.getPath('userData');
+        const configDir = path.join(userDataPath, 'CONFIG', 'import-filters');
         const globalFilterPath = path.join(configDir, 'global_import_filter.json');
         
         // Ensure directory exists
