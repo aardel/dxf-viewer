@@ -22,6 +22,7 @@
     "scripts": {
         "start": "electron electron/main/main.cjs",
         "dev": "electron electron/main/main.cjs --dev",
+        "prebuild": "node build-script.js",
         "build": "electron-builder",
         "build:win": "electron-builder --win",
         "build:mac": "electron-builder --mac",
@@ -58,6 +59,12 @@
             "assets/**/*",
             "node_modules/**/*",
             "loglevel-wrapper.js"
+        ],
+        "extraResources": [
+            {
+                "from": "src",
+                "to": "src"
+            }
         ],
         "mac": {
             "category": "public.app-category.graphics-design"

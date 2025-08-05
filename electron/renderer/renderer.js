@@ -1,7 +1,7 @@
 import * as THREE from '../../node_modules/three/build/three.module.js';
-import { DxfViewer } from '../../src/index.js';
-import { PathOptimizer } from '../../src/PathOptimizer.js';
-import { DinGenerator } from '../../src/DinGenerator.js';
+import { DxfViewer } from './src/index.js';
+import { PathOptimizer } from './src/PathOptimizer.js';
+import { DinGenerator } from './src/DinGenerator.js';
 
 // Global variables
 let viewer = null;
