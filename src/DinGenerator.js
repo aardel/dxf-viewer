@@ -184,7 +184,15 @@ export class DinGenerator {
         entities.forEach(entity => {
             // Check if tool change is needed
             const requiredTool = this.getRequiredTool(entity);
-            if (requiredTool && requiredTool.id !== this.currentTool?.id) {
+            
+            // If no tool is found, skip this entity completely
+            if (!requiredTool) {
+                console.log(`Skipping entity (${entity.type}) - no tool mapping found`);
+                return; // Skip to next entity
+            }
+            
+            // Check if tool change is needed
+            if (requiredTool.id !== this.currentTool?.id) {
                 lines.push(...this.generateToolChange(requiredTool));
                 this.currentTool = requiredTool;
             }
