@@ -334,9 +334,9 @@
         <LineNumbers>
             <Enabled>true
             </Enabled>
-            <StartNumber>10
+            <StartNumber>1
             </StartNumber>
-            <Increment>10
+            <Increment>1
             </Increment>
             <Format>N{number}
             </Format>

@@ -2440,6 +2440,16 @@ function getDefaultConfiguration() {
             defaultSavePath: '',
             filenameFormat: '{original_name}.din',
             autoSaveEnabled: true
+        },
+        lineNumbers: {
+            enabled: true,
+            startNumber: 10,
+            increment: 1,
+            format: 'N{number}'
+        },
+        gcode: {
+            homeCommand: 'G0 X0 Y0',
+            programEnd: 'M30'
         }
     };
 }
@@ -5706,7 +5716,7 @@ function openHeaderConfigurationWindow() {
     modal.innerHTML = `
         <div class="modal-content" style="width: 95%; max-width: 1000px; height: 90vh;">
             <div class="modal-header">
-                <h3>DIN File Header Configuration</h3>
+                <h3>DIN File Header & Footer Configuration</h3>
                 <button class="modal-close" onclick="this.closest('.modal').remove()">&times;</button>
             </div>
             <div class="modal-body" style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; height: calc(90vh - 120px); overflow-y: auto;">
@@ -5799,6 +5809,48 @@ function openHeaderConfigurationWindow() {
 G60 X0
 G0 X0 Y0</textarea>
                     </div>
+                    
+                    <!-- Line Numbers Settings -->
+                    <div class="setting-group">
+                        <h5>Line Numbers Settings</h5>
+                        <div style="display: grid; grid-template-columns: 30px 1fr; gap: 0; align-items: center; padding: 8px 0; border-bottom: 1px solid #444; margin-bottom: 15px;">
+                            <div style="display: flex; justify-content: center;">
+                                <input type="checkbox" id="modalLineNumbersEnabled" checked style="margin: 0;">
+                            </div>
+                            <span style="color: white; font-size: 14px;">Enable line numbers</span>
+                        </div>
+                        <div class="setting-row">
+                            <label for="modalLineNumbersStart">Start Number:</label>
+                            <input type="number" id="modalLineNumbersStart" class="form-input" value="10" min="1" max="9999">
+                        </div>
+                        <div class="setting-row">
+                            <label for="modalLineNumbersIncrement">Increment:</label>
+                            <input type="number" id="modalLineNumbersIncrement" class="form-input" value="1" min="1" max="100">
+                        </div>
+                        <div class="setting-row">
+                            <label for="modalLineNumbersFormat">Format Template:</label>
+                            <input type="text" id="modalLineNumbersFormat" class="form-input" value="N{number}">
+                        </div>
+                        <div style="font-size: 0.8rem; color: #888; margin-top: 0.5rem;">
+                            Variables: {number} - will be replaced with actual line number
+                        </div>
+                    </div>
+                    
+                    <!-- G-Code Commands -->
+                    <div class="setting-group">
+                        <h5>G-Code Commands</h5>
+                        <div class="setting-row">
+                            <label for="modalHomeCommand">Home Command:</label>
+                            <input type="text" id="modalHomeCommand" class="form-input" value="G0 X0 Y0">
+                        </div>
+                        <div class="setting-row">
+                            <label for="modalProgramEnd">Program End Command:</label>
+                            <input type="text" id="modalProgramEnd" class="form-input" value="M30">
+                        </div>
+                        <div style="font-size: 0.8rem; color: #888; margin-top: 0.5rem;">
+                            Common end commands: M30 (End of Program), M02 (End of Program), M99 (End of Subprogram)
+                        </div>
+                    </div>
                 </div>
                 
                 <!-- Header Preview -->
@@ -5839,7 +5891,7 @@ G0 X0 Y0</textarea>
     console.log('Preview element found:', !!testPreview);
     
     // Add event listeners for live preview
-    const inputs = ['modalMachineType', 'modalHeaderTemplate', 'modalScalingParameter', 'modalScaleCommand', 'modalSetupCommands'];
+    const inputs = ['modalMachineType', 'modalHeaderTemplate', 'modalScalingParameter', 'modalScaleCommand', 'modalSetupCommands', 'modalLineNumbersStart', 'modalLineNumbersIncrement', 'modalLineNumbersFormat', 'modalHomeCommand', 'modalProgramEnd'];
     inputs.forEach(id => {
         const element = modal.querySelector(`#${id}`);
         if (element) {
@@ -5851,7 +5903,7 @@ G0 X0 Y0</textarea>
         }
     });
     
-    const checkboxes = ['modalEnableScaling', 'modalIncludeFileInfo', 'modalIncludeBounds', 'modalIncludeSetCount', 'modalIncludeProgramStart'];
+    const checkboxes = ['modalEnableScaling', 'modalIncludeFileInfo', 'modalIncludeBounds', 'modalIncludeSetCount', 'modalIncludeProgramStart', 'modalLineNumbersEnabled'];
     checkboxes.forEach(id => {
         const element = modal.querySelector(`#${id}`);
         if (element) {
@@ -6223,6 +6275,38 @@ function loadModalHeaderConfiguration() {
             setupCommandsEl.value = config.header.setupCommands.join('\n');
         }
         
+        // Line Numbers Settings
+        const lineNumbersEnabledEl = modal.querySelector('#modalLineNumbersEnabled');
+        if (lineNumbersEnabledEl && config.lineNumbers?.enabled !== undefined) {
+            lineNumbersEnabledEl.checked = config.lineNumbers.enabled;
+        }
+        
+        const lineNumbersStartEl = modal.querySelector('#modalLineNumbersStart');
+        if (lineNumbersStartEl && config.lineNumbers?.startNumber !== undefined) {
+            lineNumbersStartEl.value = config.lineNumbers.startNumber;
+        }
+        
+        const lineNumbersIncrementEl = modal.querySelector('#modalLineNumbersIncrement');
+        if (lineNumbersIncrementEl && config.lineNumbers?.increment !== undefined) {
+            lineNumbersIncrementEl.value = config.lineNumbers.increment;
+        }
+        
+        const lineNumbersFormatEl = modal.querySelector('#modalLineNumbersFormat');
+        if (lineNumbersFormatEl && config.lineNumbers?.format !== undefined) {
+            lineNumbersFormatEl.value = config.lineNumbers.format;
+        }
+        
+        // G-Code Commands
+        const homeCommandEl = modal.querySelector('#modalHomeCommand');
+        if (homeCommandEl && config.gcode?.homeCommand !== undefined) {
+            homeCommandEl.value = config.gcode.homeCommand;
+        }
+        
+        const programEndEl = modal.querySelector('#modalProgramEnd');
+        if (programEndEl && config.gcode?.programEnd !== undefined) {
+            programEndEl.value = config.gcode.programEnd;
+        }
+        
         // Update preview after loading settings
         // Use requestAnimationFrame to ensure DOM is fully updated
         requestAnimationFrame(() => {
@@ -6400,6 +6484,14 @@ async function saveHeaderConfiguration() {
         const includeProgramStartEl = modal.querySelector('#modalIncludeProgramStart');
         const setupCommandsEl = modal.querySelector('#modalSetupCommands');
         
+        // New form elements for line numbers and G-code
+        const lineNumbersEnabledEl = modal.querySelector('#modalLineNumbersEnabled');
+        const lineNumbersStartEl = modal.querySelector('#modalLineNumbersStart');
+        const lineNumbersIncrementEl = modal.querySelector('#modalLineNumbersIncrement');
+        const lineNumbersFormatEl = modal.querySelector('#modalLineNumbersFormat');
+        const homeCommandEl = modal.querySelector('#modalHomeCommand');
+        const programEndEl = modal.querySelector('#modalProgramEnd');
+        
         // Debug: Log what elements we found
         console.log('Found elements:', {
             machineTypeEl: !!machineTypeEl,
@@ -6408,7 +6500,13 @@ async function saveHeaderConfiguration() {
             includeFileInfoEl: !!includeFileInfoEl,
             includeBoundsEl: !!includeBoundsEl,
             includeSetCountEl: !!includeSetCountEl,
-            includeProgramStartEl: !!includeProgramStartEl
+            includeProgramStartEl: !!includeProgramStartEl,
+            lineNumbersEnabledEl: !!lineNumbersEnabledEl,
+            lineNumbersStartEl: !!lineNumbersStartEl,
+            lineNumbersIncrementEl: !!lineNumbersIncrementEl,
+            lineNumbersFormatEl: !!lineNumbersFormatEl,
+            homeCommandEl: !!homeCommandEl,
+            programEndEl: !!programEndEl
         });
         
         if (!machineTypeEl || !headerTemplateEl || !setupCommandsEl) {
@@ -6427,6 +6525,14 @@ async function saveHeaderConfiguration() {
         const includeProgramStart = includeProgramStartEl ? includeProgramStartEl.checked : false;
         const setupCommands = setupCommandsEl.value.split('\n').filter(cmd => cmd.trim());
         
+        // Extract new form values
+        const lineNumbersEnabled = lineNumbersEnabledEl ? lineNumbersEnabledEl.checked : true;
+        const lineNumbersStart = lineNumbersStartEl ? parseInt(lineNumbersStartEl.value) : 10;
+        const lineNumbersIncrement = lineNumbersIncrementEl ? parseInt(lineNumbersIncrementEl.value) : 1;
+        const lineNumbersFormat = lineNumbersFormatEl ? lineNumbersFormatEl.value : 'N{number}';
+        const homeCommand = homeCommandEl ? homeCommandEl.value : 'G0 X0 Y0';
+        const programEnd = programEndEl ? programEndEl.value : 'M30';
+        
         // Update current configuration
         if (!currentPostprocessorConfig.header) {
             currentPostprocessorConfig.header = {};
@@ -6434,6 +6540,14 @@ async function saveHeaderConfiguration() {
         
         if (!currentPostprocessorConfig.units) {
             currentPostprocessorConfig.units = {};
+        }
+        
+        if (!currentPostprocessorConfig.lineNumbers) {
+            currentPostprocessorConfig.lineNumbers = {};
+        }
+        
+        if (!currentPostprocessorConfig.gcode) {
+            currentPostprocessorConfig.gcode = {};
         }
         
         // Set machine type and scaling
@@ -6458,6 +6572,21 @@ async function saveHeaderConfiguration() {
             includeProgramStart: includeProgramStart,
             programStart: '%1',
             setupCommands: setupCommands
+        };
+        
+        // Set line numbers options
+        currentPostprocessorConfig.lineNumbers = {
+            enabled: lineNumbersEnabled,
+            startNumber: lineNumbersStart,
+            increment: lineNumbersIncrement,
+            format: lineNumbersFormat
+        };
+        
+        // Set G-code options
+        currentPostprocessorConfig.gcode = {
+            ...currentPostprocessorConfig.gcode,
+            homeCommand: homeCommand,
+            programEnd: programEnd
         };
         
         // Debug: Log the configuration being saved
