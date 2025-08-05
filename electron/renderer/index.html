@@ -178,9 +178,11 @@
                                 <div class="output-setting-group">
                                     <label for="defaultSavePath">Default Save Location:</label>
                                     <div class="path-input-group">
-                                        <input type="text" id="defaultSavePath" class="form-input" placeholder="No default path set" readonly>
-                                        <button id="browseSavePathBtn" class="btn btn-secondary">Browse</button>
-                                        <button id="clearSavePathBtn" class="btn btn-tertiary">Clear</button>
+                                        <textarea id="defaultSavePath" class="form-textarea path-textarea" placeholder="No default path set" readonly rows="2"></textarea>
+                                        <div class="path-buttons">
+                                            <button id="browseSavePathBtn" class="btn btn-secondary">Browse</button>
+                                            <button id="clearSavePathBtn" class="btn btn-tertiary">Clear</button>
+                                        </div>
                                     </div>
                                     <div class="setting-help">When no path is set, a save dialog will open for each file.</div>
                                 </div>
