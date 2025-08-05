@@ -8,6 +8,18 @@ let mainWindow;
 let unifiedMappingWindow = null;
 let machineToolImporterWindow = null;
 
+// Get the correct profiles directory (user data directory in production, local in development)
+function getProfilesDirectory() {
+    if (process.argv.includes('--dev')) {
+        // In development, use local CONFIG directory
+        return path.join(__dirname, '../../CONFIG/profiles');
+    } else {
+        // In production, use user data directory
+        const userDataPath = app.getPath('userData');
+        return path.join(userDataPath, 'CONFIG/profiles');
+    }
+}
+
 // Initialize user data directory and copy default configuration files
 function initializeUserDataDirectory() {
     try {
@@ -817,9 +829,8 @@ ipcMain.handle('save-postprocessor-config', async (event, profileName, configDat
 // Load available XML profiles
 ipcMain.handle('load-xml-profiles', async () => {
     try {
-        // Use user data directory instead of app bundle
-        const userDataPath = app.getPath('userData');
-        const profilesDir = path.join(userDataPath, 'CONFIG', 'profiles');
+        // Use the correct profiles directory
+        const profilesDir = getProfilesDirectory();
         
         if (!fs.existsSync(profilesDir)) {
             fs.mkdirSync(profilesDir, { recursive: true });
@@ -862,9 +873,9 @@ ipcMain.handle('load-xml-profiles', async () => {
 // Load specific XML profile
 ipcMain.handle('load-xml-profile', async (event, filename) => {
     try {
-        // Use user data directory instead of app bundle
-        const userDataPath = app.getPath('userData');
-        const profilePath = path.join(userDataPath, 'CONFIG', 'profiles', filename);
+        // Use the correct profiles directory
+        const profilesDir = getProfilesDirectory();
+        const profilePath = path.join(profilesDir, filename);
         const xmlContent = fs.readFileSync(profilePath, 'utf8');
         
         // Parse XML to JavaScript object
@@ -879,9 +890,8 @@ ipcMain.handle('load-xml-profile', async (event, filename) => {
 // Save XML profile
 ipcMain.handle('save-xml-profile', async (event, filename, configData) => {
     try {
-        // Use user data directory instead of app bundle
-        const userDataPath = app.getPath('userData');
-        const profilesDir = path.join(userDataPath, 'CONFIG', 'profiles');
+        // Use the correct profiles directory
+        const profilesDir = getProfilesDirectory();
         const profilePath = path.join(profilesDir, filename);
         
         // Ensure directory exists
@@ -919,9 +929,8 @@ ipcMain.handle('save-xml-profile', async (event, filename, configData) => {
 // Delete XML profile
 ipcMain.handle('delete-xml-profile', async (event, filename) => {
     try {
-        // Use user data directory instead of app bundle
-        const userDataPath = app.getPath('userData');
-        const profilesDir = path.join(userDataPath, 'CONFIG', 'profiles');
+        // Use the correct profiles directory
+        const profilesDir = getProfilesDirectory();
         const profilePath = path.join(profilesDir, filename);
         
         if (fs.existsSync(profilePath)) {
@@ -1593,7 +1602,7 @@ async function getToolsFromActiveProfile() {
             console.log('Active profile detected:', activeProfile);
             
             if (activeProfile) {
-                const profilesDir = path.join(__dirname, '../../CONFIG/profiles');
+                const profilesDir = getProfilesDirectory();
                 const profilePath = path.join(profilesDir, activeProfile);
                 
                 console.log('Looking for profile at:', profilePath);
@@ -1651,7 +1660,7 @@ async function getToolsFromActiveProfile() {
 // Get tools from a specific profile file
 function getToolsFromProfileFile(profileFilename) {
     try {
-        const profilesDir = path.join(__dirname, '../../CONFIG/profiles');
+        const profilesDir = getProfilesDirectory();
         const profilePath = path.join(profilesDir, profileFilename);
         
         console.log('Looking for profile at:', profilePath);
@@ -1703,7 +1712,7 @@ function getToolsFromProfileFile(profileFilename) {
 // Get layer-to-line-type mappings from a specific profile file
 function getLayerToLineTypeMappingsFromProfile(profileFilename) {
     try {
-        const profilesDir = path.join(__dirname, '../../CONFIG/profiles');
+        const profilesDir = getProfilesDirectory();
         const profilePath = path.join(profilesDir, profileFilename);
         
         console.log('Looking for layer mappings in profile:', profilePath);
@@ -1755,7 +1764,7 @@ function getLayerToLineTypeMappingsFromProfile(profileFilename) {
 // Get file-specific mappings from a profile
 function getFileSpecificMappingsFromProfile(profileFilename, fileName = null, fileHash = null) {
     try {
-        const profilesDir = path.join(__dirname, '../../CONFIG/profiles');
+        const profilesDir = getProfilesDirectory();
         const profilePath = path.join(profilesDir, profileFilename);
         
         console.log('Looking for file-specific mappings in profile:', profilePath);
@@ -1913,7 +1922,7 @@ function getCombinedMappingsForFile(profileFilename, fileName, filePath = null) 
 // Save file-specific mappings to a profile
 function saveFileSpecificMappingsToProfile(profileFilename, fileName, fileHash, mappings, description = '') {
     try {
-        const profilesDir = path.join(__dirname, '../../CONFIG/profiles');
+        const profilesDir = getProfilesDirectory();
         const profilePath = path.join(profilesDir, profileFilename);
         
         if (!fs.existsSync(profilePath)) {
