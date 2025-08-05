@@ -465,6 +465,11 @@ export class DinGenerator {
             }
         }
 
+        // Add a line feed after the last program end command
+        if (lines.length > 0) {
+            lines.push(''); // Empty line for line feed
+        }
+
         return lines;
     }
 
