@@ -804,10 +804,26 @@ ipcMain.handle('save-xml-profile', async (event, filename, configData) => {
             fs.mkdirSync(profilesDir, { recursive: true });
         }
         
+        // Create backup of existing file if it exists
+        if (fs.existsSync(profilePath)) {
+            const backupPath = profilePath + '.backup.' + Date.now();
+            fs.copyFileSync(profilePath, backupPath);
+            console.log(`Created backup: ${backupPath}`);
+        }
+        
+        // Validate critical sections before saving
+        const criticalSections = ['tools', 'mappingWorkflow', 'optimization'];
+        const missingSections = criticalSections.filter(section => !configData[section]);
+        
+        if (missingSections.length > 0) {
+            console.warn(`Warning: Missing critical sections in config: ${missingSections.join(', ')}`);
+        }
+        
         // Convert JavaScript object to XML
         const xmlContent = generateXMLProfile(configData);
         fs.writeFileSync(profilePath, xmlContent, 'utf8');
         
+        console.log(`Successfully saved profile: ${filename}`);
         return { success: true };
     } catch (error) {
         console.error('Error saving XML profile:', error);
@@ -1044,12 +1060,16 @@ function parseXMLProfile(xmlContent) {
             const priorityItems = priority.getElementsByTagName('PriorityItem');
             for (let i = 0; i < priorityItems.length; i++) {
                 const item = priorityItems[i];
-                const order = parseInt(item.getAttribute('order')) || 0;
-                const value = item.getAttribute('value') || '';
+                const id = getTextContent(item, 'ID');
+                const name = getTextContent(item, 'Name');
+                const description = getTextContent(item, 'Description');
+                const order = parseInt(getTextContent(item, 'Order')) || 0;
                 
                 config.optimization.priority.items.push({
-                    order: order,
-                    value: value
+                    id: id,
+                    name: name,
+                    description: description,
+                    order: order
                 });
             }
             
@@ -1348,6 +1368,49 @@ function generateXMLProfile(config) {
         addTextElement(xmlDoc, lineNumbers, 'Increment', config.lineNumbers.increment.toString());
         addTextElement(xmlDoc, lineNumbers, 'Format', config.lineNumbers.format);
         root.appendChild(lineNumbers);
+    }
+    
+    // Add MappingWorkflow
+    if (config.mappingWorkflow) {
+        const mappingWorkflow = xmlDoc.createElement('MappingWorkflow');
+        
+        // Add LineTypeToTool mappings
+        if (config.mappingWorkflow.lineTypeToTool) {
+            const lineTypeToTool = xmlDoc.createElement('LineTypeToTool');
+            config.mappingWorkflow.lineTypeToTool.forEach(mapping => {
+                const lineTypeMapping = xmlDoc.createElement('LineTypeMapping');
+                addTextElement(xmlDoc, lineTypeMapping, 'LineType', mapping.lineType);
+                addTextElement(xmlDoc, lineTypeMapping, 'Tool', mapping.tool);
+                lineTypeToTool.appendChild(lineTypeMapping);
+            });
+            mappingWorkflow.appendChild(lineTypeToTool);
+        }
+        
+        root.appendChild(mappingWorkflow);
+    }
+    
+    // Add Priority section to Optimization
+    if (config.optimization && config.optimization.priority) {
+        const priority = xmlDoc.createElement('Priority');
+        addTextElement(xmlDoc, priority, 'Mode', config.optimization.priority.mode || 'tool');
+        
+        // Add PriorityItem elements
+        if (config.optimization.priority.items) {
+            config.optimization.priority.items.forEach(item => {
+                const priorityItem = xmlDoc.createElement('PriorityItem');
+                addTextElement(xmlDoc, priorityItem, 'ID', item.id || item.ID);
+                addTextElement(xmlDoc, priorityItem, 'Name', item.name || item.Name);
+                addTextElement(xmlDoc, priorityItem, 'Description', item.description || item.Description);
+                addTextElement(xmlDoc, priorityItem, 'Order', (item.order || item.Order || 0).toString());
+                priority.appendChild(priorityItem);
+            });
+        }
+        
+        // Find the existing Optimization element and add Priority to it
+        const existingOptimization = root.getElementsByTagName('Optimization')[0];
+        if (existingOptimization) {
+            existingOptimization.appendChild(priority);
+        }
     }
     
     // Generate formatted XML with proper indentation
