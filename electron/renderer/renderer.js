@@ -5582,9 +5582,13 @@ function openHeaderConfigurationWindow() {
                     <!-- Scaling Parameters -->
                     <div class="setting-group" id="modalScalingSettings" style="display: none;">
                         <h5>Scaling Parameters</h5>
-                        <div style="display: flex; align-items: center; padding: 8px 0; margin-bottom: 15px; border-bottom: 1px solid #444; margin-left: 15px;">
-                            <input type="checkbox" id="modalEnableScaling" checked style="margin-right: 12px;">
-                            <span style="color: white; font-size: 14px;">Include scaling header for inch machine</span>
+                        <div style="display: grid; grid-template-columns: 30px 1fr; gap: 0; margin-left: 15px; margin-bottom: 15px;">
+                            <div style="display: flex; justify-content: center; padding: 8px 0;">
+                                <input type="checkbox" id="modalEnableScaling" checked style="margin: 0;">
+                            </div>
+                            <div style="display: flex; align-items: center; padding: 8px 0; border-bottom: 1px solid #444;">
+                                <span style="color: white; font-size: 14px;">Include scaling header for inch machine</span>
+                            </div>
                         </div>
                         <div class="setting-row">
                             <label for="modalScalingParameter">Scaling Parameter:</label>
@@ -5611,21 +5615,21 @@ function openHeaderConfigurationWindow() {
                     <div class="setting-group">
                         <h5>Include in Header</h5>
                         <div style="margin-left: 15px;">
-                            <div style="display: flex; align-items: center; padding: 8px 0; border-bottom: 1px solid #444;">
-                                <input type="checkbox" id="modalIncludeFileInfo" checked style="margin-right: 12px;">
-                                <span style="color: white; font-size: 14px;">File information</span>
-                            </div>
-                            <div style="display: flex; align-items: center; padding: 8px 0; border-bottom: 1px solid #444;">
-                                <input type="checkbox" id="modalIncludeBounds" checked style="margin-right: 12px;">
-                                <span style="color: white; font-size: 14px;">Drawing bounds</span>
-                            </div>
-                            <div style="display: flex; align-items: center; padding: 8px 0; border-bottom: 1px solid #444;">
-                                <input type="checkbox" id="modalIncludeSetCount" checked style="margin-right: 12px;">
-                                <span style="color: white; font-size: 14px;">Operation count</span>
-                            </div>
-                            <div style="display: flex; align-items: center; padding: 8px 0;">
-                                <input type="checkbox" id="modalIncludeProgramStart" checked style="margin-right: 12px;">
-                                <span style="color: white; font-size: 14px;">Program start marker (%1)</span>
+                            <!-- Checkbox Column -->
+                            <div style="display: grid; grid-template-columns: 30px 1fr; gap: 0;">
+                                <div style="display: flex; flex-direction: column; align-items: center; padding: 8px 0;">
+                                    <input type="checkbox" id="modalIncludeFileInfo" checked style="margin: 0;">
+                                    <input type="checkbox" id="modalIncludeBounds" checked style="margin: 8px 0 0 0;">
+                                    <input type="checkbox" id="modalIncludeSetCount" checked style="margin: 8px 0 0 0;">
+                                    <input type="checkbox" id="modalIncludeProgramStart" checked style="margin: 8px 0 0 0;">
+                                </div>
+                                <!-- Text Column -->
+                                <div style="display: flex; flex-direction: column; padding: 8px 0;">
+                                    <span style="color: white; font-size: 14px; padding: 2px 0; border-bottom: 1px solid #444;">File information</span>
+                                    <span style="color: white; font-size: 14px; padding: 10px 0 2px 0; border-bottom: 1px solid #444;">Drawing bounds</span>
+                                    <span style="color: white; font-size: 14px; padding: 10px 0 2px 0; border-bottom: 1px solid #444;">Operation count</span>
+                                    <span style="color: white; font-size: 14px; padding: 10px 0 2px 0;">Program start marker (%1)</span>
+                                </div>
                             </div>
                         </div>
                     </div>
