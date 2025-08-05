@@ -1524,8 +1524,8 @@ function generateXMLProfile(config) {
             const lineTypeToTool = xmlDoc.createElement('LineTypeToTool');
             config.mappingWorkflow.lineTypeToTool.forEach(mapping => {
                 const lineTypeMapping = xmlDoc.createElement('LineTypeMapping');
-                addTextElement(xmlDoc, lineTypeMapping, 'LineType', mapping.lineType);
-                addTextElement(xmlDoc, lineTypeMapping, 'Tool', mapping.tool);
+                lineTypeMapping.setAttribute('LineType', mapping.lineType);
+                lineTypeMapping.setAttribute('Tool', mapping.tool);
                 lineTypeToTool.appendChild(lineTypeMapping);
             });
             mappingWorkflow.appendChild(lineTypeToTool);
@@ -3127,22 +3127,17 @@ function parseLineTypeMappingsFromProfile(profileContent) {
         
         for (let i = 0; i < lineTypeMappings.length; i++) {
             const mapping = lineTypeMappings[i];
-            const lineTypeElement = mapping.getElementsByTagName('LineType')[0];
-            const toolElement = mapping.getElementsByTagName('Tool')[0];
+            const lineType = mapping.getAttribute('LineType');
+            const toolId = mapping.getAttribute('Tool');
             
-            if (lineTypeElement && toolElement) {
-                const lineType = lineTypeElement.textContent.trim();
-                const toolId = toolElement.textContent.trim();
-                
-                // Only include mappings that have actual data
-                if (lineType && toolId && lineType !== '' && toolId !== '') {
-                    mappings.push({
-                        lineTypeId: getLineTypeIdFromName(lineType),
-                        lineTypeName: lineType,
-                        toolId: toolId,
-                        description: `${lineType} mapped to ${toolId}`
-                    });
-                }
+            // Only include mappings that have actual data
+            if (lineType && toolId && lineType !== '' && toolId !== '') {
+                mappings.push({
+                    lineTypeId: getLineTypeIdFromName(lineType),
+                    lineTypeName: lineType,
+                    toolId: toolId,
+                    description: `${lineType} mapped to ${toolId}`
+                });
             }
         }
         
