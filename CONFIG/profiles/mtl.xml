@@ -44,7 +44,7 @@
                 </HCode>
             </Tool>
             <Tool ID="T22">
-                <Name>FineCut
+                <Name>Fine Cut CW
                 </Name>
                 <Description>Cutting
                 </Description>
@@ -469,12 +469,18 @@
     
         
     
+        
+    
+        
+    
+        
+    
         <OutputSettings>
             <DefaultSavePath>/Volumes/Public-1/Lasercomb
             </DefaultSavePath>
             <FilenameFormat>{original_name}.din
             </FilenameFormat>
-            <AutoSaveEnabled>false
+            <AutoSaveEnabled>true
             </AutoSaveEnabled>
         </OutputSettings>
     </PostprocessorProfile>

@@ -3,6 +3,9 @@
     "version": "1.0.0",
     "description": "Lasercomb DXF Studio - Professional CAD Drawing Viewer",
     "main": "electron/main/main.cjs",
+    "browser": {
+        "loglevel": "./loglevel-wrapper.js"
+    },
     "author": "Aaron Delia <aaron@lasercomb.com>",
     "license": "MPL-2.0",
     "repository": "https://github.com/aardel/dxf-viewer",
@@ -53,7 +56,8 @@
             "src/**/*",
             "electron/**/*",
             "assets/**/*",
-            "node_modules/**/*"
+            "node_modules/**/*",
+            "loglevel-wrapper.js"
         ],
         "mac": {
             "category": "public.app-category.graphics-design"
