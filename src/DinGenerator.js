@@ -546,14 +546,7 @@ export class DinGenerator {
                 }
             }
             
-            // Fallback to keyword-based mapping
-            const layerUpper = entity.layer.toUpperCase();
-            if (layerUpper.includes('CUT')) return 'cutting';
-            if (layerUpper.includes('ENGRAV') || layerUpper.includes('TEXT')) return 'engraving';
-            if (layerUpper.includes('PERF')) return 'perforating';
-            if (layerUpper.includes('SCORE')) return 'scoring';
-            if (layerUpper.includes('MARK')) return 'marking';
-            if (layerUpper.includes('CONSTRUCTION') || layerUpper.includes('HIDDEN')) return 'construction';
+            // No fallback mapping - rely only on configured mappings
         }
 
         // Priority 3: Color to line type mapping
@@ -568,23 +561,11 @@ export class DinGenerator {
                 }
             }
             
-            // Fallback to default color mappings
-            const defaultColorMappings = {
-                1: 'cutting',     // Red
-                2: 'engraving',   // Yellow  
-                3: 'perforating', // Green
-                4: 'scoring',     // Cyan
-                5: 'marking',     // Blue
-                6: 'construction' // Magenta
-            };
-            
-            if (defaultColorMappings[entity.color]) {
-                return defaultColorMappings[entity.color];
-            }
+            // No fallback color mappings - rely only on configured mappings
         }
 
-        // Default fallback
-        return 'cutting';
+        // No default fallback - return null if no mapping found
+        return null;
     }
 
     /**

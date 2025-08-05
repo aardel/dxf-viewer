@@ -2416,52 +2416,25 @@ async function saveXmlProfileConfiguration(filename) {
     }
 }
 
-// Get default configuration object
+// Get default configuration object - NO FALLBACK DATA
 function getDefaultConfiguration() {
     return {
         profileInfo: {
-            name: 'Default Configuration',
-            description: 'Default fallback configuration',
+            name: 'New Profile',
+            description: 'New profile created ' + new Date().toLocaleString(),
             version: '1.0',
             created: new Date().toISOString().split('T')[0],
-            author: 'System'
+            author: 'User'
         },
-        tools: getCurrentToolSet(),
-        toolSettings: {
-            speeds: { engraving: 1200, cutting: 800, perforation: 600 },
-            toolChange: { time: 5.0, command: 'M6' },
-            validation: { validateWidths: true, warnOnMissingTools: true }
-        },
-        lineTypeMappings: {
-            customMappings: {
-                cutting: 'T2', engraving: 'T1', perforating: 'T3',
-                scoring: 'T1', marking: 'T1', construction: 'none'
-            }
-        },
-        header: {
-            template: '{filename} / - size: {width} x {height} / {timestamp}',
-            includeFileInfo: true, includeBounds: true, includeSetCount: true,
-            includeProgramStart: true, programStart: '%1',
-            setupCommands: ['G90', 'G60 X0', 'G0 X0 Y0']
+        tools: {},
+        mappingWorkflow: {
+            lineTypeToTool: []
         },
         optimization: {
-            primaryStrategy: 'tool_grouped',
-            withinGroupOptimization: 'closest_path',
-            includeComments: true, validateWidths: true, respectManualBreaks: true
-        },
-        gcode: {
-            rapidMove: 'G0', linearMove: 'G1', cwArc: 'G2', ccwArc: 'G3',
-            homeCommand: 'G0 X0 Y0', programEnd: 'M30'
-        },
-        laser: {
-            laserOn: 'M14', laserOff: 'M15', toolChange: 'M6',
-            comments: {
-                enabled: true, onCommand: 'LASER ON', offCommand: 'LASER OFF',
-                toolChange: 'Tool change: {tool_name} ({tool_id})'
+            priority: {
+                mode: 'tool',
+                items: []
             }
-        },
-        lineNumbers: {
-            enabled: true, startNumber: 10, increment: 10, format: 'N{number}'
         },
         outputSettings: {
             defaultSavePath: '',
