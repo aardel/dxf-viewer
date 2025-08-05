@@ -5616,20 +5616,33 @@ function openHeaderConfigurationWindow() {
                         <h5>Include in Header</h5>
                         <div style="margin-left: 15px;">
                             <!-- Checkbox Column -->
-                            <div style="display: grid; grid-template-columns: 30px 1fr; gap: 0;">
-                                <div style="display: flex; flex-direction: column; align-items: center; padding: 8px 0;">
+                            <!-- Row 1 -->
+                            <div style="display: grid; grid-template-columns: 30px 1fr; gap: 0; align-items: center; padding: 8px 0; border-bottom: 1px solid #444;">
+                                <div style="display: flex; justify-content: center;">
                                     <input type="checkbox" id="modalIncludeFileInfo" checked style="margin: 0;">
-                                    <input type="checkbox" id="modalIncludeBounds" checked style="margin: 8px 0 0 0;">
-                                    <input type="checkbox" id="modalIncludeSetCount" checked style="margin: 8px 0 0 0;">
-                                    <input type="checkbox" id="modalIncludeProgramStart" checked style="margin: 8px 0 0 0;">
                                 </div>
-                                <!-- Text Column -->
-                                <div style="display: flex; flex-direction: column; padding: 8px 0;">
-                                    <span style="color: white; font-size: 14px; padding: 2px 0; border-bottom: 1px solid #444;">File information</span>
-                                    <span style="color: white; font-size: 14px; padding: 10px 0 2px 0; border-bottom: 1px solid #444;">Drawing bounds</span>
-                                    <span style="color: white; font-size: 14px; padding: 10px 0 2px 0; border-bottom: 1px solid #444;">Operation count</span>
-                                    <span style="color: white; font-size: 14px; padding: 10px 0 2px 0;">Program start marker (%1)</span>
+                                <span style="color: white; font-size: 14px;">File information</span>
+                            </div>
+                            <!-- Row 2 -->
+                            <div style="display: grid; grid-template-columns: 30px 1fr; gap: 0; align-items: center; padding: 8px 0; border-bottom: 1px solid #444;">
+                                <div style="display: flex; justify-content: center;">
+                                    <input type="checkbox" id="modalIncludeBounds" checked style="margin: 0;">
                                 </div>
+                                <span style="color: white; font-size: 14px;">Drawing bounds</span>
+                            </div>
+                            <!-- Row 3 -->
+                            <div style="display: grid; grid-template-columns: 30px 1fr; gap: 0; align-items: center; padding: 8px 0; border-bottom: 1px solid #444;">
+                                <div style="display: flex; justify-content: center;">
+                                    <input type="checkbox" id="modalIncludeSetCount" checked style="margin: 0;">
+                                </div>
+                                <span style="color: white; font-size: 14px;">Operation count</span>
+                            </div>
+                            <!-- Row 4 -->
+                            <div style="display: grid; grid-template-columns: 30px 1fr; gap: 0; align-items: center; padding: 8px 0;">
+                                <div style="display: flex; justify-content: center;">
+                                    <input type="checkbox" id="modalIncludeProgramStart" checked style="margin: 0;">
+                                </div>
+                                <span style="color: white; font-size: 14px;">Program start marker (%1)</span>
                             </div>
                         </div>
                     </div>
