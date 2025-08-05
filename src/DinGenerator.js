@@ -84,19 +84,21 @@ export class DinGenerator {
         }).replace(',', '');
 
         // 1. File information (with G253 F= format)
-        if (config.header?.includeFileInfo && config.header?.template) {
-            const template = config.header.template
-                .replace('{filename}', filename)
-                .replace('{width}', metadata.width?.toFixed(1) || '0.0')
-                .replace('{height}', metadata.height?.toFixed(1) || '0.0')
-                .replace('{timestamp}', timestamp);
-            
-            lines.push(`{${template}}`);
-        } else {
-            // Fallback file information
-            const width = metadata.width?.toFixed(1) || '0.0';
-            const height = metadata.height?.toFixed(1) || '0.0';
-            lines.push(`{${filename} / - Size: ${width} X ${height} / ${timestamp}}`);
+        if (config.header?.includeFileInfo) {
+            if (config.header?.template) {
+                const template = config.header.template
+                    .replace('{filename}', filename)
+                    .replace('{width}', metadata.width?.toFixed(1) || '0.0')
+                    .replace('{height}', metadata.height?.toFixed(1) || '0.0')
+                    .replace('{timestamp}', timestamp);
+                
+                lines.push(`{${template}}`);
+            } else {
+                // Fallback file information
+                const width = metadata.width?.toFixed(1) || '0.0';
+                const height = metadata.height?.toFixed(1) || '0.0';
+                lines.push(`{${filename} / - Size: ${width} X ${height} / ${timestamp}}`);
+            }
         }
 
         // 2. Program start marker (%1)
@@ -106,29 +108,31 @@ export class DinGenerator {
         }
 
         // 3. Operation count (Number of Sets)
-        if (metadata.entityCount) {
+        if (config.header?.includeSetCount && metadata.entityCount) {
             lines.push(`{Number of Sets: ${metadata.entityCount}}`);
         }
 
         // 4. File information again (with G253 F= format for machine)
-        if (config.header?.includeFileInfo && config.header?.template) {
-            const template = config.header.template
-                .replace('{filename}', filename)
-                .replace('{width}', metadata.width?.toFixed(1) || '0.0')
-                .replace('{height}', metadata.height?.toFixed(1) || '0.0')
-                .replace('{timestamp}', timestamp);
-            
-            // Use German format for machine
-            const germanTemplate = template
-                .replace('Size:', 'GROESSE:')
-                .replace('X', 'X');
-            
-            lines.push(`G253 F="${germanTemplate}"`);
-        } else {
-            // Fallback G253 format
-            const width = metadata.width?.toFixed(1) || '0.0';
-            const height = metadata.height?.toFixed(1) || '0.0';
-            lines.push(`G253 F="${filename} / - GROESSE: ${width} X ${height} / ${timestamp}"`);
+        if (config.header?.includeFileInfo) {
+            if (config.header?.template) {
+                const template = config.header.template
+                    .replace('{filename}', filename)
+                    .replace('{width}', metadata.width?.toFixed(1) || '0.0')
+                    .replace('{height}', metadata.height?.toFixed(1) || '0.0')
+                    .replace('{timestamp}', timestamp);
+                
+                // Use German format for machine
+                const germanTemplate = template
+                    .replace('Size:', 'GROESSE:')
+                    .replace('X', 'X');
+                
+                lines.push(`G253 F="${germanTemplate}"`);
+            } else {
+                // Fallback G253 format
+                const width = metadata.width?.toFixed(1) || '0.0';
+                const height = metadata.height?.toFixed(1) || '0.0';
+                lines.push(`G253 F="${filename} / - GROESSE: ${width} X ${height} / ${timestamp}"`);
+            }
         }
 
         // 5. Scaling parameters (if INCH machine selected)
