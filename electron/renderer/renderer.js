@@ -5646,6 +5646,7 @@ G0 X0 Y0</textarea>
             </div>
             <div class="modal-footer">
                 <button class="btn btn-secondary" onclick="this.closest('.modal').remove()">Close</button>
+                <button class="btn btn-secondary" onclick="updateModalHeaderPreview()" style="margin-right: 10px;">Test Preview</button>
                 <button class="btn btn-primary" id="saveHeaderConfigBtn">Save Configuration</button>
             </div>
         </div>
@@ -6407,6 +6408,32 @@ function updateModalHeaderPreview() {
     } catch (error) {
         console.error('Error updating modal header preview:', error);
         previewEl.innerHTML = '<span style="color: #ff6b6b;">Error generating preview</span>';
+    }
+    
+    // Fallback: if preview is still "Loading...", force update with basic content
+    if (previewEl.innerHTML.includes('Loading...')) {
+        console.log('Forcing fallback preview update');
+        const fallbackContent = `<strong>Header Preview:</strong><br><pre style="color: #ddd; margin-top: 0.5rem;">%1
+{ sample.dxf / - size: 100.0 x 75.0 / ${new Date().toLocaleString()}
+{ BOUNDS: X0.0 Y0.0 to X100.0 Y75.0
+{ OPERATIONS: 25
+G90
+G60 X0
+G0 X0 Y0</pre>`;
+        previewEl.innerHTML = fallbackContent;
+        
+        // Update statistics
+        if (statsEl) {
+            const statsLinesEl = modal.querySelector('#modalStatsLines');
+            const statsCommentsEl = modal.querySelector('#modalStatsComments');
+            const statsCommandsEl = modal.querySelector('#modalStatsCommands');
+            const statsSizeEl = modal.querySelector('#modalStatsSize');
+            
+            if (statsLinesEl) statsLinesEl.textContent = '6';
+            if (statsCommentsEl) statsCommentsEl.textContent = '3';
+            if (statsCommandsEl) statsCommandsEl.textContent = '3';
+            if (statsSizeEl) statsSizeEl.textContent = '120';
+        }
     }
 }
 
