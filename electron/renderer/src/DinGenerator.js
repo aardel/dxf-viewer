@@ -52,9 +52,8 @@ export class DinGenerator {
         // Add footer
         dinLines.push(...this.generateFooter());
 
-        // Filter out empty lines and join
-        const filteredLines = dinLines.filter(line => line && line.trim() !== '');
-        const result = filteredLines.join('\n');
+        // Join lines, preserving empty lines for line feeds
+        const result = dinLines.join('\n');
         
 
         return result;
@@ -463,6 +462,11 @@ export class DinGenerator {
             } else {
                 lines.push(this.formatLine(this.config.gcode.programEnd));
             }
+        }
+
+        // Add a line feed after the last program end command
+        if (lines.length > 0) {
+            lines.push(''); // Empty line for line feed
         }
 
         return lines;
