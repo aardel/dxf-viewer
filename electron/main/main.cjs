@@ -1194,6 +1194,10 @@ function parseXMLProfile(xmlContent) {
         
         // Handle multiple ProgramEnd elements
         const programEndElements = gcode.getElementsByTagName('ProgramEnd');
+        console.log('Parsing ProgramEnd elements:', {
+            count: programEndElements.length,
+            elements: Array.from(programEndElements).map(el => el.textContent.trim())
+        });
         if (programEndElements.length > 0) {
             const programEndCommands = [];
             for (let i = 0; i < programEndElements.length; i++) {
@@ -1203,8 +1207,10 @@ function parseXMLProfile(xmlContent) {
                 }
             }
             config.gcode.programEnd = programEndCommands;
+            console.log('Parsed programEnd commands:', config.gcode.programEnd);
         } else {
             config.gcode.programEnd = ['M30']; // Default
+            console.log('No ProgramEnd elements found, using default:', config.gcode.programEnd);
         }
     }
     

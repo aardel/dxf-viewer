@@ -240,7 +240,7 @@
         <LineNumbers>
             <Enabled>true
             </Enabled>
-            <StartNumber>10
+            <StartNumber>5
             </StartNumber>
             <Increment>1
             </Increment>
@@ -431,13 +431,4 @@
                 </LineTypeMapping>
             </LineTypeToTool>
         </MappingWorkflow>
-    
-        <OutputSettings>
-            <DefaultSavePath>/Volumes/Public-1/Lasercomb
-            </DefaultSavePath>
-            <FilenameFormat>{original_name}.din
-            </FilenameFormat>
-            <AutoSaveEnabled>true
-            </AutoSaveEnabled>
-        </OutputSettings>
     </PostprocessorProfile>

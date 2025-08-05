@@ -5856,12 +5856,24 @@ G0 X0 Y0</textarea>
                     </div>
                 </div>
                 
-                <!-- Header Preview -->
+                <!-- Header & Footer Preview -->
                 <div>
                     <h4 style="color: #4a90e2; margin-bottom: 1rem;">Live Preview</h4>
-                    <div id="modalHeaderPreview" class="header-preview" style="height: 400px; max-height: none;">
-                        <strong>Header Preview:</strong><br>
-                        Loading...
+                    
+                    <!-- Header Preview -->
+                    <div style="margin-bottom: 2rem;">
+                        <h5 style="color: #4a90e2; margin-bottom: 0.5rem;">Header Preview:</h5>
+                        <div id="modalHeaderPreview" class="header-preview" style="height: 200px; max-height: none;">
+                            Loading...
+                        </div>
+                    </div>
+                    
+                    <!-- Footer Preview -->
+                    <div style="margin-bottom: 1rem;">
+                        <h5 style="color: #4a90e2; margin-bottom: 0.5rem;">Footer Preview:</h5>
+                        <div id="modalFooterPreview" class="header-preview" style="height: 150px; max-height: none;">
+                            Loading...
+                        </div>
                     </div>
                     
                     <div style="margin-top: 1rem;">
@@ -5885,11 +5897,11 @@ G0 X0 Y0</textarea>
     
     document.body.appendChild(modal);
     
-    // Load current header configuration
-    loadModalHeaderConfiguration();
-    
     // Verify modal was created
     console.log('Modal created, checking for preview element...');
+    
+    // Load current header configuration AFTER modal is appended to DOM
+    loadModalHeaderConfiguration(modal);
     const testPreview = modal.querySelector('#modalHeaderPreview');
     console.log('Preview element found:', !!testPreview);
     
@@ -6204,7 +6216,7 @@ async function loadPrioritySettings(actualLineTypes, toolIds) {
 }
 
 
-function loadModalHeaderConfiguration() {
+function loadModalHeaderConfiguration(modal = null) {
     // Load current header settings into modal
     if (!currentPostprocessorConfig) {
         console.warn('No postprocessor config available for header configuration');
@@ -6216,7 +6228,10 @@ function loadModalHeaderConfiguration() {
     }
     
     const config = currentPostprocessorConfig;
-    const modal = document.querySelector('.modal');
+    // Use passed modal or find the first modal
+    if (!modal) {
+        modal = document.querySelector('.modal');
+    }
     if (!modal) return;
     
     try {
@@ -6313,6 +6328,12 @@ function loadModalHeaderConfiguration() {
         }
         
         const programEndEl = modal.querySelector('#modalProgramEnd');
+        console.log('Loading programEnd:', {
+            element: !!programEndEl,
+            config: config.gcode?.programEnd,
+            type: typeof config.gcode?.programEnd,
+            isArray: Array.isArray(config.gcode?.programEnd)
+        });
         if (programEndEl && config.gcode?.programEnd !== undefined) {
             // Handle both string and array formats
             if (Array.isArray(config.gcode.programEnd)) {
@@ -6320,6 +6341,7 @@ function loadModalHeaderConfiguration() {
             } else {
                 programEndEl.value = config.gcode.programEnd;
             }
+            console.log('Set programEnd value to:', programEndEl.value);
         }
         
         // Update preview after loading settings
@@ -6683,6 +6705,10 @@ function updateModalHeaderPreview() {
         const includeProgramStartEl = modal.querySelector('#modalIncludeProgramStart');
         const setupCommandsEl = modal.querySelector('#modalSetupCommands');
         
+        // Get footer-related values
+        const homeCommandEl = modal.querySelector('#modalHomeCommand');
+        const programEndEl = modal.querySelector('#modalProgramEnd');
+        
         // Check if all elements exist
         if (!machineTypeEl || !headerTemplateEl || !setupCommandsEl) {
             console.error('Missing modal elements for header preview');
@@ -6702,6 +6728,10 @@ function updateModalHeaderPreview() {
         const includeProgramStart = includeProgramStartEl ? includeProgramStartEl.checked : true;
         const setupCommands = setupCommandsEl.value || 'G90\nG60 X0\nG0 X0 Y0';
         
+        // Get footer values
+        const homeCommand = homeCommandEl ? homeCommandEl.value : 'G0 X0 Y0';
+        const programEnd = programEndEl ? programEndEl.value.split('\n').filter(cmd => cmd.trim()) : ['M30'];
+        
         // Create a mock configuration object for the DIN generator
         const mockConfig = {
             header: {
@@ -6720,6 +6750,10 @@ function updateModalHeaderPreview() {
                     scaleCommand: scaleCommand,
                     comment: 'Bei Bedarf nach inch skalieren'
                 }
+            },
+            gcode: {
+                homeCommand: homeCommand,
+                programEnd: programEnd
             },
             lineNumbers: {
                 startNumber: 1
@@ -6747,11 +6781,12 @@ function updateModalHeaderPreview() {
             // Set the configuration
             dinGenerator.config = mockConfig;
             
-            // Generate header using the actual DIN generator
+            // Generate header and footer using the actual DIN generator
             const headerLines = dinGenerator.generateHeader(mockMetadata);
             const setupLines = dinGenerator.generateSetupCommands();
+            const footerLines = dinGenerator.generateFooter();
             
-            // Combine header and setup commands
+            // Combine header and setup commands for header preview
             const allLines = [...headerLines, ...setupLines];
             
             // Count statistics
@@ -6766,8 +6801,14 @@ function updateModalHeaderPreview() {
                 }
             });
             
-            // Update preview
+            // Update header preview
             previewEl.innerHTML = allLines.join('\n');
+            
+            // Update footer preview
+            const footerPreviewEl = modal.querySelector('#modalFooterPreview');
+            if (footerPreviewEl) {
+                footerPreviewEl.innerHTML = footerLines.join('\n');
+            }
             
             // Update statistics
             if (statsEl) {
