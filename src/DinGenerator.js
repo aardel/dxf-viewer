@@ -65,10 +65,11 @@ export class DinGenerator {
      * Follows the exact DIN format order:
      * 1. File information (with G253 F= format)
      * 2. Program start marker (%1)
-     * 3. Operation count (Number of Sets)
-     * 4. File information again (with G253 F= format for machine)
-     * 5. Scaling parameters (if INCH machine selected)
-     * 6. Initial setup commands
+     * 3. Drawing bounds (if enabled)
+     * 4. Operation count (Number of Sets)
+     * 5. File information again (with G253 F= format for machine)
+     * 6. Scaling parameters (if INCH machine selected)
+     * 7. Initial setup commands
      */
     generateHeader(metadata) {
         const lines = [];
@@ -107,12 +108,18 @@ export class DinGenerator {
             lines.push(programStart);
         }
 
-        // 3. Operation count (Number of Sets)
+        // 3. Drawing bounds (if enabled)
+        if (config.header?.includeBounds && metadata.bounds) {
+            const bounds = metadata.bounds;
+            lines.push(`{ Bounds: X${bounds.minX.toFixed(1)} Y${bounds.minY.toFixed(1)} to X${bounds.maxX.toFixed(1)} Y${bounds.maxY.toFixed(1)} }`);
+        }
+
+        // 4. Operation count (Number of Sets)
         if (config.header?.includeSetCount && metadata.entityCount) {
             lines.push(`{Number of Sets: ${metadata.entityCount}}`);
         }
 
-        // 4. File information again (with G253 F= format for machine)
+        // 5. File information again (with G253 F= format for machine)
         if (config.header?.includeFileInfo) {
             if (config.header?.template) {
                 const template = config.header.template
@@ -135,7 +142,7 @@ export class DinGenerator {
             }
         }
 
-        // 5. Scaling parameters (if INCH machine selected)
+        // 6. Scaling parameters (if INCH machine selected)
         if (config.units?.feedInchMachine && config.units?.scalingHeader?.enabled) {
             if (config.units.scalingHeader.parameter) {
                 lines.push(config.units.scalingHeader.parameter);
