@@ -30,11 +30,16 @@ export class DinGenerator {
         // Load tools with priority information
         const toolsWithPriority = this.loadToolsFromConfig(config);
         
-        // Optimize entity order
+        // Optimize entity order with full config access
+        const optimizationSettings = {
+            ...(config.optimization || {}),
+            config: config  // Pass full config for priority phase access
+        };
+        
         const optimizedEntities = this.optimizer.optimizePaths(
             entities, 
             toolsWithPriority,
-            config.optimization || {}
+            optimizationSettings
         );
 
         // Generate DIN content

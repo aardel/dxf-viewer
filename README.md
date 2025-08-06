@@ -2,29 +2,22 @@
 
 Professional CAD drawing viewer and analysis tool built with Electron and Three.js WebGL rendering.
 
-## ✨ Features
+## Features
 
-### Core Capabilities
 - **Professional DXF Support**: Complete parsing of DXF files with layers, colors, text, hatching, and geometric entities
-- **Advanced 2D Visualization**: Interactive DIN file preview with step-by-step execution
+- **Advanced Two-Level Path Optimization**: Intelligent cutting sequence with priority phases and travel distance optimization
+- **Priority-Based Cutting Phases**: Configurable cutting phases (engraving → internal → borders) with line break support
+- **Advanced Scaling System**: Dropdown scaling options with custom input validation
 - **Enhanced Dimension Display**: Shows both original and scaled dimensions
 - **Multi-Color Layer Support**: Visual layer management with color coding
 - **3D Rendering**: WebGL-based rendering via Three.js for smooth performance
-
-### Advanced Features (v1.1.0)
-- **🎬 Interactive DIN Preview**: Real-time visualization of cutting operations with play/pause controls
-- **🎨 Color-Coded Operations**: Visual distinction between cutting, rapid moves, and arc operations  
-- **⚡ Speed Control**: Adjustable playback speed (0.5x to 5x) for detailed analysis
-- **📐 Pan & Zoom**: Interactive canvas manipulation for detailed inspection
-- **🎯 Step Navigation**: Direct jump to specific operations in the cutting sequence
-
-### Professional Tools
 - **Layer Management**: Show/hide layers with visual feedback
 - **Import Filters**: Map DXF properties to internal line types
-- **Line Type Management**: Configure internal line type systems  
+- **Line Type Management**: Configure internal line type systems
+- **Tool Configuration**: XML-based tool profiles with H-code mapping
+- **DIN File Generation**: G-code output with customizable postprocessors
 - **Canvas Size Validation**: 3m × 3m size limits with warnings
-- **Tool Configuration**: Comprehensive tool library with 18+ predefined tools
-- **Network Volume Support**: Seamless saving to network-mounted drives
+- **Professional UI**: Clean, modern interface designed for CAD workflows
 
 ## Installation
 
@@ -41,14 +34,12 @@ cd dxf-viewer
 # Install dependencies
 npm install
 
-# Run in development mode (recommended)
+# Run in development mode
 npm run dev
 
-# Run in production mode (for testing)
+# Or run normally
 npm start
 ```
-
-> **💡 Development Tip**: Always use `npm run dev` during development for immediate configuration updates and proper debugging.
 
 ## Building
 
@@ -60,13 +51,6 @@ npm run build
 npm run build:win    # Windows
 npm run build:mac    # macOS  
 npm run build:linux  # Linux
-```
-
-## 📚 Documentation
-
-- **[DEVELOPER_README.md](DEVELOPER_README.md)** - Comprehensive development guide
-- **[QUICK_REFERENCE.md](QUICK_REFERENCE.md)** - Essential commands and troubleshooting
-- **[CLAUDE.md](CLAUDE.md)** - AI-assisted development session log
 
 # Create distribution packages
 npm run dist

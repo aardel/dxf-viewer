@@ -1,7 +1,7 @@
 {
     "name": "lasercomb-dxf-studio",
-    "version": "1.1.0",
-    "description": "Lasercomb DXF Studio - Professional CAD Drawing Viewer with Advanced Visualization",
+    "version": "1.0.0",
+    "description": "Lasercomb DXF Studio - Professional CAD Drawing Viewer",
     "main": "electron/main/main.cjs",
     "browser": {
         "loglevel": "./loglevel-wrapper.js"
@@ -32,7 +32,6 @@
     "files": [
         "src",
         "electron",
-        "CONFIG",
         "assets",
         "README.md"
     ],
@@ -58,7 +57,6 @@
         "files": [
             "src/**/*",
             "electron/**/*",
-            "CONFIG/**/*",
             "assets/**/*",
             "node_modules/**/*",
             "loglevel-wrapper.js"

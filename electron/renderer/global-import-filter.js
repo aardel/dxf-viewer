@@ -955,4 +955,13 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
         });
     });
+});
+
+// Add window close handler to refresh main window when Global Import Filter Manager is closed
+window.addEventListener('beforeunload', () => {
+    // Send refresh message to main window when this window is being closed
+    if (window.electronAPI && window.electronAPI.ipcRenderer) {
+        console.log('Global Import Filter window closing - sending refresh message');
+        window.electronAPI.ipcRenderer.send('refresh-all-windows-global-filter-data');
+    }
 }); 

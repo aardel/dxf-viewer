@@ -115,124 +115,22 @@ dxf-viewer/
    npm install
    ```
 
-3. **Start development mode** (CRITICAL: Always use for development)
+3. **Start development mode**
    ```bash
    npm run dev
    ```
 
-### 🚨 Critical Development Scripts
+### Development Scripts
 
-| Script | Purpose | Configuration Source | When to Use |
-|--------|---------|---------------------|-------------|
-| `npm run dev` | **Development mode** | App bundle (`CONFIG/`) | ✅ **Always for development** |
-| `npm start` | **Production mode** | User data directory | ❌ Only for production testing |
-| `npm run build` | **Build for distribution** | App bundle → User data | ✅ For final builds |
-
-### ⚠️ Path Management - CRITICAL INFORMATION
-
-The application uses **two different configuration systems** based on the mode:
-
-#### Development Mode (`npm run dev`)
-- **Configuration Source**: Local `CONFIG/` directory (app bundle)
-- **Advantage**: Direct file access, no caching issues
-- **Use Case**: All development work, configuration changes
-- **Path Resolution**: `getProfilesDirectory()` returns `path.join(__dirname, '../../CONFIG/profiles')`
-
-#### Production Mode (`npm start`)
-- **Configuration Source**: User data directory (e.g., `~/Library/Application Support/Electron/`)
-- **Advantage**: User-specific settings isolation
-- **Use Case**: Production testing, final user experience
-- **Path Resolution**: `getProfilesDirectory()` returns `path.join(userDataPath, 'CONFIG/profiles')`
-
-### 🔧 Configuration File Locations
-
-```bash
-# Development Mode (npm run dev)
-CONFIG/
-├── profiles/mtl.xml          # ✅ Primary configuration
-├── LineTypes/line-types.csv  # ✅ Line type definitions
-├── import-filters/           # ✅ Import filter rules
-└── tools/standard_tools.json # ✅ Tool definitions
-
-# Production Mode (npm start)
-~/Library/Application Support/Electron/CONFIG/  # macOS
-%APPDATA%/Electron/CONFIG/                       # Windows
-~/.config/Electron/CONFIG/                       # Linux
-```
-
-### 🚨 Common Pitfalls & Solutions
-
-#### Problem: Configuration changes not reflected in UI
-```bash
-# WRONG: Using production mode for development
-npm start  # ❌ Reads from user data directory
-
-# CORRECT: Using development mode
-npm run dev  # ✅ Reads from local CONFIG/ directory
-```
-
-#### Problem: Different paths between tools and settings
-**This was the major caching issue we fixed.** Previously:
-- Tools loaded from: `CONFIG/profiles/mtl.xml`
-- Settings loaded from: `~/Library/Application Support/Electron/CONFIG/profiles/mtl.xml`
-
-**Now fixed**: All handlers use `getProfilesDirectory()` for consistency.
-
-#### Problem: Network volume path errors
-**Fixed**: Updated default save path from `/Volumes/Public-1/Lasercomb` to `/Volumes/Public/Lasercomb`
-
-### 🛠️ Development Workflow
-
-1. **Always start with dev mode**:
-   ```bash
-   npm run dev
-   ```
-
-2. **Make configuration changes** in local `CONFIG/` directory
-
-3. **Test immediately** - changes take effect without restart
-
-4. **Before committing**, test production mode:
-   ```bash
-   # Clear any cached user data (if needed)
-   rm -rf ~/Library/Application\ Support/Electron/CONFIG/
-   
-   # Test production mode
-   npm start
-   ```
-
-5. **Build and test final package**:
-   ```bash
-   npm run build
-   ```
-
-### 🔄 Cache Management
-
-#### Clear User Data Cache (if needed)
-```bash
-# macOS
-rm -rf ~/Library/Application\ Support/Electron/
-rm -rf ~/Library/Application\ Support/lasercomb-dxf-studio/
-
-# Windows
-rmdir /s "%APPDATA%\Electron"
-rmdir /s "%APPDATA%\lasercomb-dxf-studio"
-
-# Linux
-rm -rf ~/.config/Electron/
-rm -rf ~/.config/lasercomb-dxf-studio/
-```
-
-#### Force Configuration Refresh
-```bash
-# Method 1: Use development mode (always fresh)
-npm run dev
-
-# Method 2: Clear cache and restart
-pkill -f "electron"
-rm -rf ~/Library/Application\ Support/Electron/CONFIG/
-npm start
-```
+| Script | Description |
+|--------|-------------|
+| `npm start` | Start production build |
+| `npm run dev` | Start development mode with hot reload |
+| `npm run build` | Build for all platforms |
+| `npm run build:win` | Build for Windows |
+| `npm run build:mac` | Build for macOS |
+| `npm run build:linux` | Build for Linux |
+| `npm run dist` | Create distribution packages |
 
 ## 🔧 Core Components
 
@@ -279,11 +177,36 @@ class DinGenerator {
 ```
 
 ### 4. Path Optimizer (`src/PathOptimizer.js`)
-Optimizes cutting paths for efficiency:
-- Traveling salesman problem solving
-- Path clustering and grouping
-- Tool change optimization
-- Cutting order optimization
+Advanced two-level optimization system for laser cutting workflows:
+
+**Level 1: Primary Strategy**
+- **Priority Order (Default)**: Follows XML priority configuration with phase support
+  - **With Line Breaks**: Creates cutting phases (e.g., engraving → internal → borders)
+  - **Without Line Breaks**: Respects priority sequence as single workflow
+- **Tool Grouped**: Minimizes tool changes by grouping similar operations
+
+**Level 2: Within-Phase Optimization**
+- **Closest Path First (Default)**: Optimizes travel distance within each phase
+- **Zig-Zag**: Horizontal or vertical scanning patterns
+- **Spiral**: Inward or outward spiral cutting patterns
+- **Sequential**: Left-to-right or bottom-to-top patterns
+
+**Key Features:**
+- Intelligent phase detection from XML `__LINE_BREAK__` entries
+- Dynamic priority configuration support
+- Travel distance minimization within cutting phases
+- Automatic tool change optimization
+- Backward compatible with existing configurations
+
+**Usage Example:**
+```javascript
+const optimizer = new PathOptimizer();
+const optimizedEntities = optimizer.optimizePaths(entities, tools, {
+    primaryStrategy: 'priority_order',        // Level 1
+    withinGroupOptimization: 'closest_path',  // Level 2
+    config: profileConfig                     // XML configuration
+});
+```
 
 ## ⚙️ Configuration System
 
@@ -553,6 +476,35 @@ log.debug('Entities to process:', entities.length);
 log.debug('Tool mappings:', mappings);
 ```
 
+## 🚨 Known Issues
+
+### Global Import Filter Refresh
+**Issue**: When closing the Global Import Filter Manager window, the layer mappings in the main window may not refresh automatically to reflect changes (add/edit/delete rules).
+
+**Symptoms**:
+- Layer count statistics don't update (e.g., "4 layers 2 mapped, 2 unmapped" remains unchanged)
+- Layer cards still show old line type assignments or mapping states
+- No console logs showing "Received refresh-global-filter-data message" or file reload
+
+**Current Status**: 
+- ✅ **Adding rules via + button works correctly** (triggers refresh)
+- ⚠️ **Manual Global Import Filter Manager operations** may not trigger refresh
+- 🔧 **Partial implementation exists** - IPC messaging and file reload logic implemented
+
+**Workarounds**:
+1. **Manual file reload**: Close and reopen the DXF file
+2. **Use + button**: Use the + button on layer cards when possible
+3. **Switch tabs**: Navigate away and back to Import tab
+
+**Technical Details**:
+- Global Import Filter Manager needs `beforeunload` event handler
+- Main window expects `refresh-global-filter-data` IPC message
+- File reload mechanism implemented in renderer.js (lines ~2537-2560)
+
+**Priority**: Low (functionality works, UI refresh issue only)
+
+**Last Updated**: August 6, 2025
+
 ## 🤝 Contributing
 
 ### Development Workflow
@@ -596,162 +548,9 @@ This project is licensed under the **MPL-2.0** License - see the [LICENSE](LICEN
 - **Repository**: https://github.com/aardel/dxf-viewer
 - **Issues**: https://github.com/aardel/dxf-viewer/issues
 
-## 📝 Recent Changes (August 2025)
-
-### 🔧 Critical Path Management & Caching Fixes
-
-#### **Configuration Path Consistency**
-- **Fixed Dual Configuration Sources**: Resolved critical issue where app read tools from app bundle but output settings from user data directory
-- **Unified Path Logic**: All configuration handlers now use `getProfilesDirectory()` for consistent dev/production paths
-- **Development Mode Isolation**: `npm run dev` (with `--dev` flag) now reads all configs from app bundle directory
-- **Production Mode Stability**: `npm start` properly uses user data directory for all configurations
-
-#### **Cache Management Solutions**
-- **Eliminated Configuration Caching Issues**: Fixed persistent old configuration values despite file updates
-- **User Data Directory Cleanup**: Added proper cache clearing procedures for user data directories
-- **XML File Synchronization**: Ensured both app bundle and user data XML files have consistent configurations
-
-#### **Network Volume Support**
-- **Fixed Network Drive Permissions**: Resolved `EACCES: permission denied` errors when saving to network volumes
-- **Corrected Volume Path**: Updated default save path from `/Volumes/Public-1/Lasercomb` to `/Volumes/Public/Lasercomb`
-- **Robust Directory Handling**: Improved directory existence checks and creation logic for network drives
-- **Fallback Save Logic**: Maintains fallback to Downloads directory when network paths are inaccessible
-
-#### **Development Workflow Improvements**
-- **Proper Development Scripts**: 
-  - `npm run dev`: Development mode with `--dev` flag (single config source)
-  - `npm start`: Production mode (user data directory)
-- **Configuration File Management**: Clear separation between development and production configuration handling
-- **Build Process Integrity**: Ensures all configuration changes are properly included in builds
-
-### 🛠️ Tool Loading & Management Fixes
-
-#### **Tool Display Corrections**
-- **Fixed "null" Tool Values**: Resolved issue where tools displayed as "null" instead of proper names
-- **XML Parsing Priority**: Tool loading now prioritizes XML data over corrupted postprocessor config
-- **Consistent Tool Loading**: All 18 tools now load correctly with proper IDs, names, and types
-
-#### **Configuration System Enhancements**
-- **Unified Profile Handling**: Standardized how different configuration components access profile data
-- **Error-Resistant Loading**: Improved fallback mechanisms when configuration files are corrupted
-- **Validation & Recovery**: Enhanced configuration validation with automatic recovery procedures
-
-### 🎨 Advanced Visualization System (Implemented)
-
-#### **2D Canvas Visualization**
-- **Complete Implementation**: 686-line `AdvancedVisualization` class with interactive controls
-- **Interactive Playback**: Step-by-step execution with play/pause, speed controls
-- **Visual Feedback**: Color-coded cutting types, pan/zoom capabilities, tool path visualization
-- **Entity Rendering**: Comprehensive support for lines, arcs, circles, polylines with proper scaling
-
-#### **User Interface Integration**
-- **Modal-Based Preview**: Seamless integration with existing DIN generation workflow
-- **Progress Tracking**: Visual step counter and progress indicators
-- **Control Interface**: Professional control panel with speed adjustment and navigation
-
-### 🔄 IPC Communication Enhancements
-
-#### **Standardized Handlers**
-Updated IPC handlers to use consistent path logic:
-```javascript
-// Before: Hardcoded paths
-const profilePath = path.join(__dirname, '..', '..', 'CONFIG', 'profiles', profileName);
-
-// After: Consistent path resolution
-const profilesDir = getProfilesDirectory();
-const profilePath = path.join(profilesDir, profileName);
-```
-
-#### **Key Updated Handlers**
-- `get-tools-from-profile`: Now uses `getProfilesDirectory()`
-- `get-line-type-mappings-from-profile`: Consistent path resolution
-- `save-line-type-mappings-to-profile`: Unified save logic
-- `update-output-settings-only`: Proper path handling
-
-### 📊 Layer Processing Improvements
-
-#### **Object Count Accuracy**
-- **Fixed Object Count Display**: Layer validation dialog shows accurate counts by aggregating color variants
-- **Eliminated Duplicate Listings**: Resolved layers appearing multiple times due to color variations
-- **Enhanced Visual Design**: Improved warning colors and success feedback
-
-#### **Validation Enhancements**
-- **Comprehensive Layer Data**: Enhanced layer details with entity type summaries
-- **Color Breakdown**: Detailed color information for each layer
-- **Progress Feedback**: Improved status messages throughout processing
-
-### 🔐 Security & File System Improvements
-
-#### **Permission Handling**
-- **Cross-Platform Compatibility**: Improved file operations for Windows, macOS, and Linux
-- **Network Share Support**: Proper handling of SMB shares, Nextcloud, and other network volumes
-- **Error Recovery**: Graceful fallback when permission issues arise
-
-#### **File System Robustness**
-- **Directory Creation Logic**: Enhanced directory existence checks before operations
-- **Path Validation**: Improved path validation and sanitization
-- **Error Logging**: Comprehensive error reporting for debugging
-
-### 🚀 Development Best Practices
-
-#### **Path Management Guidelines**
-1. **Always use `getProfilesDirectory()`** for configuration file access
-2. **Use `npm run dev`** for development to avoid caching issues
-3. **Test both dev and production modes** before releases
-4. **Clear user data caches** when configuration changes are not reflected
-
-#### **Configuration Best Practices**
-1. **Single Source of Truth**: All configuration changes in app bundle during development
-2. **Consistent API Usage**: Use standardized IPC handlers for all configuration operations
-3. **Validation First**: Always validate configuration before applying changes
-4. **Backup Strategy**: Maintain configuration backups during updates
-
-#### **Testing Procedures**
-1. **Development Testing**: Use `npm run dev` for all feature development
-2. **Production Testing**: Test `npm start` before building
-3. **Cache Testing**: Verify configuration changes persist after restart
-4. **Network Testing**: Test network volume functionality across platforms
-
-### 🔍 Debugging Enhancements
-
-#### **Configuration Debugging**
-- **Path Logging**: Added comprehensive path logging for configuration operations
-- **Cache Status**: Debug information for configuration cache states
-- **XML Validation**: Enhanced XML parsing error reporting
-
-#### **Development Tools**
-- **Console Logging**: Structured logging for configuration operations
-- **Error Tracking**: Detailed error reporting for file system operations
-- **Performance Monitoring**: Path resolution and configuration loading metrics
-
-### 📋 Migration Notes
-
-#### **For Developers**
-- **Switch to `npm run dev`**: Use development mode for all development work
-- **Update Path Logic**: Replace hardcoded paths with `getProfilesDirectory()` calls
-- **Test Configuration Changes**: Verify changes in both dev and production modes
-
-#### **For Users**
-- **Configuration Migration**: Existing configurations will be automatically migrated
-- **Network Path Updates**: Network volume paths may need reconfiguration
-- **Cache Clearing**: Initial startup may recreate configuration caches
-
-### 🎯 Future Enhancements (Planned)
-
-#### **Advanced Features**
-- **Real-time Configuration Sync**: Live configuration updates across components
-- **Enhanced Network Support**: Improved network volume detection and handling
-- **Configuration Versioning**: Version control for configuration files
-- **Advanced Caching**: Smart caching with change detection
-
-#### **Development Tools**
-- **Configuration Validator**: Standalone tool for validating XML configurations
-- **Path Analyzer**: Tool for analyzing and optimizing configuration paths
-- **Migration Assistant**: Automated migration tool for configuration updates
-
 ---
 
-**Last Updated**: August 6, 2025  
-**Version**: 1.1.0 (Pre-release)  
-**Critical Fixes**: Path management, caching, network volumes, tool loading  
-**Status**: Ready for production use 
+**Last Updated**: January 2025  
+**Version**: 1.0.0  
+**Electron**: 28.0.0  
+**Three.js**: 0.161.0 

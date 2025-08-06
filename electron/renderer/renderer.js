@@ -428,6 +428,10 @@ function populateLayerTable(layers) {
         const addToGlobalButton = !layer.importFilterApplied ? 
             `<button class="btn btn-small btn-primary add-to-global-btn" data-layer-name="${layerName}" data-layer-color="${layer.color}" title="Add to Global Import Filter">+</button>` : '';
         
+        // Add "Edit Mapping" button for mapped layers  
+        const editMappingButton = layer.importFilterApplied && layer.lineTypeId ? 
+            `<button class="btn btn-small btn-secondary edit-mapping-btn" data-layer-name="${layerName}" data-line-type="${layer.lineTypeId}" title="Edit mapping in Global Filter">✏️</button>` : '';
+        
         // Add status indicators
         const mappingStatus = !layer.importFilterApplied && !layer.lineType ? 
             `<span class="mapping-status unmapped" title="This layer is unmapped and will be skipped">⚠️ UNMAPPED</span>` : '';
@@ -445,6 +449,7 @@ function populateLayerTable(layers) {
             <div class="layer-info">
                 <div class="layer-header">
                     ${addToGlobalButton}
+                    ${editMappingButton}
                     <div class="layer-name ${layer.importFilterApplied ? 'mapped-layer' : (!layer.lineType ? 'unmapped-layer' : '')}">
                         ${displayName}
                         ${filterStatus}
@@ -487,6 +492,63 @@ function populateLayerTable(layers) {
                 const layerName = e.target.dataset.layerName;
                 const layerColor = parseInt(e.target.dataset.layerColor); // Use ACI color directly
                 showAddToGlobalModal(layerName, layerColor);
+            });
+        }
+        
+        // Add event listener for "Edit Mapping" button
+        const editMappingBtn = layerRow.querySelector('.edit-mapping-btn');
+        if (editMappingBtn) {
+            editMappingBtn.addEventListener('click', async (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                const layerName = e.target.dataset.layerName;
+                const lineType = e.target.dataset.lineType;
+                console.log(`Edit mapping button clicked for layer: ${layerName}, line type: ${lineType}`);
+                
+                try {
+                    // First get the current global filter rules to find the rule to edit
+                    const rulesResult = await window.electronAPI.loadGlobalImportFilter();
+                    if (rulesResult.success && rulesResult.data) {
+                        // Find the rule that matches this layer
+                        const rule = rulesResult.data.rules.find(r => 
+                            r.layerName === layerName || 
+                            r.layerName === layerName.replace(/_[0-9A-F]+$/, '') // Try without color suffix
+                        );
+                        
+                        if (rule && rule.id) {
+                            console.log(`Found rule to edit:`, rule);
+                            // Open the Global Import Filter manager with the specific rule ID
+                            if (window.electronAPI && window.electronAPI.openGlobalImportFilterManager) {
+                                window.electronAPI.openGlobalImportFilterManager(rule.id);
+                                showStatus(`Opening global filter to edit mapping for layer "${layerName}"`, 'info');
+                            } else {
+                                console.error('electronAPI.openGlobalImportFilterManager not available');
+                                showStatus('Global filter manager is not available', 'error');
+                            }
+                        } else {
+                            console.warn(`No rule found for layer: ${layerName}`);
+                            showStatus(`Could not find rule for layer "${layerName}"`, 'warning');
+                            // Fall back to opening the manager without a specific rule
+                            if (window.electronAPI && window.electronAPI.openGlobalImportFilterManager) {
+                                window.electronAPI.openGlobalImportFilterManager();
+                            }
+                        }
+                    } else {
+                        console.warn('Could not load global filter rules');
+                        showStatus('Could not load global filter rules', 'warning');
+                        // Fall back to opening the manager without a specific rule
+                        if (window.electronAPI && window.electronAPI.openGlobalImportFilterManager) {
+                            window.electronAPI.openGlobalImportFilterManager();
+                        }
+                    }
+                } catch (error) {
+                    console.error('Error finding rule to edit:', error);
+                    showStatus('Error finding rule to edit', 'error');
+                    // Fall back to opening the manager without a specific rule
+                    if (window.electronAPI && window.electronAPI.openGlobalImportFilterManager) {
+                        window.electronAPI.openGlobalImportFilterManager();
+                    }
+                }
             });
         }
     });
@@ -1926,6 +1988,9 @@ async function loadDxfContent(filename, dxfData, filePath = null) {
                     // Use the applied layers (which include lineTypeId from the filter)
                     mappingEntries = appliedLayers.concat(unmatchedLayers);
                     window.processedLayersWithLineTypes = mappingEntries;
+                    
+                    // Update the visual indicators to show the mappings
+                    updateMappingVisuals();
                 } else {
                     console.error('Failed to apply global import filter:', filterResult.error);
                     showStatus('Failed to apply import filter', 'error');
@@ -1938,6 +2003,8 @@ async function loadDxfContent(filename, dxfData, filePath = null) {
             window.currentLayerData = mappingEntries;
             // Populate the layer table with resolved mapping entries
             populateLayerTable(mappingEntries);
+            // Update the visual mapping indicators
+            updateMappingVisuals();
             // Update drawing dimensions
             updateDrawingDimensions();
             // Fit to view
@@ -2464,6 +2531,37 @@ window.electronAPI.onRefreshToolConfiguration(async () => {
         showStatus('Failed to refresh tool configuration', 'error');
     }
 });
+
+// Listen for Global Import Filter data refresh requests
+if (window.electronAPI && window.electronAPI.receive) {
+    window.electronAPI.receive('refresh-global-filter-data', async () => {
+        console.log('Received refresh-global-filter-data message');
+        showStatus('Refreshing layer mappings...', 'info');
+        
+        try {
+            // Simple approach: reload the current file if one is loaded
+            if (currentFilePath && currentFilename) {
+                console.log(`Reloading current file: ${currentFilename}`);
+                
+                // Read the file again
+                const fileContent = await window.electronAPI.readFile(currentFilePath);
+                if (fileContent) {
+                    // Reload the file content - this will automatically apply the updated Global Import Filter
+                    await loadDxfContent(currentFilename, fileContent, currentFilePath);
+                    showStatus('Layer mappings refreshed successfully', 'success');
+                } else {
+                    throw new Error('Failed to read current file');
+                }
+            } else {
+                console.log('No current file to reload');
+                showStatus('No file loaded to refresh', 'warning');
+            }
+        } catch (error) {
+            console.error('Error refreshing layer mappings:', error);
+            showStatus('Failed to refresh layer mappings: ' + error.message, 'error');
+        }
+    });
+}
 
 // Initialize when page loads
 window.addEventListener('load', async () => {
@@ -3486,9 +3584,12 @@ async function showAdvancedVisualization() {
 
         showStatus('Parsing DIN content for visualization...', 'info');
 
+        // Get current tool set for legend
+        const tools = await getCurrentToolSet();
+
         // Create and initialize advanced visualization with actual DIN content
         const advancedViz = new AdvancedVisualization();
-        await advancedViz.initializeFromDinContent(dinContent);
+        await advancedViz.initializeFromDinContent(dinContent, tools);
         
         // Count actual DIN lines for status
         const dinLines = dinContent.split('\n').filter(line => line.trim().length > 0);
@@ -4051,7 +4152,7 @@ function extractEntitiesFromViewer(respectVisibility = false) {
 // Get current optimization settings from UI
 function getCurrentOptimizationSettings() {
     return {
-        primaryStrategy: document.getElementById('primaryStrategy')?.value || 'tool_grouped',
+        primaryStrategy: document.getElementById('primaryStrategy')?.value || 'priority_order',
         withinGroupOptimization: document.getElementById('withinGroupOptimization')?.value || 'closest_path',
         respectPriority: document.getElementById('respectManualBreaks')?.checked !== false,
         includeComments: document.getElementById('includeComments')?.checked !== false,
@@ -5139,9 +5240,11 @@ function loadDxfLayersColumn() {
     }
     
     dxfLayers.forEach(layer => {
+        console.log('Creating layer card for:', layer.name);
         const layerCard = document.createElement('div');
         layerCard.className = 'mapping-item dxf-layer';
         layerCard.dataset.layer = layer.name;
+        console.log('Set data-layer attribute to:', layer.name);
         layerCard.innerHTML = `
             <div class="layer-card" style="padding: 0.75rem; border: 1px solid #555; border-radius: 4px; margin-bottom: 0.5rem; cursor: pointer; background: #2a2a2a; position: relative;">
                 <div class="selection-checkbox" style="position: absolute; top: 0.5rem; right: 0.5rem; width: 16px; height: 16px; border: 1px solid #666; border-radius: 3px; background: transparent; display: none;"></div>
@@ -5155,6 +5258,7 @@ function loadDxfLayersColumn() {
         `;
         
         layerCard.addEventListener('click', (e) => toggleLayerSelection(layer.name, e));
+        
         layersList.appendChild(layerCard);
     });
 }
@@ -5634,13 +5738,29 @@ function updateMappingVisuals() {
 
 // Load existing mappings and show enhanced visual connections with many-to-one support
 function loadExistingMappings() {
-    if (!currentPostprocessorConfig?.mappingWorkflow) return;
+    console.log('loadExistingMappings called');
+    
+    // Use the processed layer data instead of postprocessor config mappings
+    const processedLayers = window.processedLayersWithLineTypes || window.currentLayerData || [];
+    console.log('Processed layers with line types:', processedLayers);
+    
+    if (!processedLayers || processedLayers.length === 0) {
+        console.log('No processed layer data found');
+        return;
+    }
     
     // Clear all existing mapping displays
     clearMappingVisuals();
     
-    const layerMappings = currentPostprocessorConfig.mappingWorkflow.layerToLineType || [];
-    const toolMappings = currentPostprocessorConfig.mappingWorkflow.lineTypeToTool || [];
+    // Create layer mappings from processed data - only include layers that have lineTypeId
+    const layerMappings = processedLayers.filter(layer => layer.lineTypeId).map(layer => ({
+        layer: layer.name,
+        lineType: layer.lineTypeId
+    }));
+    
+    console.log('Created layer mappings from processed data:', layerMappings);
+    
+    const toolMappings = currentPostprocessorConfig?.mappingWorkflow?.lineTypeToTool || [];
     
     // Group layers by line type (many-to-one support)
     const lineTypeToLayers = {};
@@ -5652,17 +5772,94 @@ function loadExistingMappings() {
     });
     
     // Update layer visual indicators
+    console.log('updateMappingVisuals: Processing', layerMappings.length, 'layer mappings');
     layerMappings.forEach(mapping => {
+        console.log('Looking for layer element with selector:', `[data-layer="${mapping.layer}"]`);
         const layerEl = document.querySelector(`[data-layer="${mapping.layer}"]`);
+        console.log('Found layer element:', layerEl);
+        
         if (layerEl) {
             const mappedIndicator = layerEl.querySelector('.mapped-indicator');
             const unmappedIndicator = layerEl.querySelector('.unmapped-indicator');
             const mappedToText = layerEl.querySelector('.mapped-to-text');
+            const layerCard = layerEl.querySelector('.layer-card');
+            
+            console.log('Elements found:', {
+                mappedIndicator: !!mappedIndicator,
+                unmappedIndicator: !!unmappedIndicator,
+                mappedToText: !!mappedToText,
+                layerCard: !!layerCard
+            });
             
             if (mappedIndicator && unmappedIndicator && mappedToText) {
+                console.log(`Updating mapping status for layer: ${mapping.layer} -> ${mapping.lineType}`);
                 mappedIndicator.style.display = 'block';
                 unmappedIndicator.style.display = 'none';
-                mappedToText.textContent = mapping.lineType;
+                
+                // Shorten the tool name for better UI
+                let displayText = mapping.lineType;
+                if (displayText.length > 12) {
+                    displayText = displayText.substring(0, 10) + '...';
+                }
+                mappedToText.textContent = displayText;
+                
+                // Ensure edit button is visible
+                const editBtn = mappedIndicator.querySelector('.edit-mapping-btn');
+                if (editBtn) {
+                    editBtn.style.display = 'inline-block';
+                    console.log(`Edit button found and made visible for layer: ${mapping.layer}`);
+                } else {
+                    console.log(`Edit button NOT found for layer: ${mapping.layer}`);
+                }
+                
+                // Add hover effect for mapped layers and setup edit button
+                if (layerCard) {
+                    layerCard.style.cursor = 'pointer';
+                    layerCard.title = `Layer "${mapping.layer}" is mapped to "${mapping.lineType}". Click the edit button (✏️) to modify mapping.`;
+                    
+                    // Setup edit button functionality - use event delegation from layer card
+                    const editBtn = mappedIndicator.querySelector('.edit-mapping-btn');
+                    if (editBtn) {
+                        console.log(`Setting up edit button for layer: ${mapping.layer}`);
+                        
+                        // Remove any existing event listeners
+                        editBtn.onclick = function(e) {
+                            e.stopPropagation();
+                            console.log(`Edit button clicked for layer: ${mapping.layer}`);
+                            
+                            if (window.electronAPI && window.electronAPI.openGlobalImportFilterManager) {
+                                window.electronAPI.openGlobalImportFilterManager();
+                                showStatus(`Opening global filter to edit mapping for layer "${mapping.layer}"`, 'info');
+                            } else {
+                                console.error('electronAPI.openGlobalImportFilterManager not available');
+                                showStatus('Global filter manager is not available', 'error');
+                            }
+                        };
+                        
+                        // Add hover effect to edit button
+                        editBtn.onmouseenter = function() {
+                            this.style.backgroundColor = '#357abd';
+                            this.style.transform = 'scale(1.1)';
+                        };
+                        
+                        editBtn.onmouseleave = function() {
+                            this.style.backgroundColor = '#4a90e2';
+                            this.style.transform = 'scale(1)';
+                        };
+                    }
+                    
+                    // Add enhanced hover effect for mapped layers
+                    layerCard.addEventListener('mouseenter', function() {
+                        this.style.boxShadow = '0 2px 8px rgba(74, 144, 226, 0.3)';
+                        this.style.transform = 'translateY(-1px)';
+                        this.style.transition = 'all 0.2s ease';
+                    });
+                    
+                    layerCard.addEventListener('mouseleave', function() {
+                        this.style.boxShadow = 'none';
+                        this.style.transform = 'translateY(0)';
+                    });
+                }
             }
         }
     });
@@ -8137,7 +8334,12 @@ async function showAddToGlobalModal(layerName, layerColor) {
                         const updatedLayers = await window.electronAPI.applyGlobalImportFilter(window.currentDxfLayers);
                         if (updatedLayers.success) {
                             const { appliedLayers, unmatchedLayers } = updatedLayers.data;
-                            populateLayerTable(appliedLayers.concat(unmatchedLayers));
+                            const allLayers = appliedLayers.concat(unmatchedLayers);
+                            // Update currentLayerData to reflect new mappings
+                            window.currentLayerData = allLayers;
+                            populateLayerTable(allLayers);
+                            // Update layer status counts
+                            updateLayerStatus();
                         }
                     }
                 } else {

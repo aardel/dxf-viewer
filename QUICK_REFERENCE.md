@@ -1,101 +1,103 @@
-# Quick Developer Reference
+# Lasercomb DXF Studio - Quick Reference
 
-## 🚀 Essential Commands
+## 🎯 Path Optimization System
 
-### Development
-```bash
-npm run dev          # Development mode (recommended)
-npm start           # Production mode testing
-npm run build       # Build for distribution
+### Two-Level Optimization Strategy
+
+**Level 1: Primary Strategy (Default: Priority Order)**
+- **Priority Order**: Follows XML priority configuration
+  - With line breaks: Creates cutting phases
+  - Without line breaks: Single priority sequence
+- **Tool Grouped**: Minimizes tool changes
+
+**Level 2: Within-Phase Optimization (Default: Closest Path First)**
+- **Closest Path First**: Shortest travel distance
+- **Zig-Zag**: Horizontal/vertical scanning
+- **Spiral**: Inward/outward patterns
+- **Sequential**: Left-to-right, bottom-to-top
+
+### Laser Cutting Workflow (Priority Phases)
+
 ```
-
-### Key Differences
-- **Development Mode** (`npm run dev`): Uses app bundle CONFIG files, immediate updates
-- **Production Mode** (`npm start`): Uses user data CONFIG files, cached behavior
-
-## 🔧 Critical Files
+Phase 1: T20 (Engraving)     ← Fine details first
+         ↓ __LINE_BREAK__
+Phase 2: T2  (Internal Cuts) ← Internal features
+         ↓ __LINE_BREAK__  
+Phase 3: T22 (Border Cuts)   ← Borders last
+```
 
 ### Configuration
-- `CONFIG/profiles/mtl.xml` - Primary tool/settings configuration (development)
-- `~/Library/Application Support/Electron/CONFIG/profiles/mtl.xml` - User data (production)
 
-### Core Modules
-- `electron/main/main.cjs` - Backend IPC handlers
-- `electron/renderer/renderer.js` - Frontend main logic
-- `electron/renderer/src/advanced-visualization.js` - DIN preview system
-
-## 🐛 Common Issues & Quick Fixes
-
-### Tools Show "null"
-- **Cause**: Corrupted postprocessor config
-- **Fix**: Already resolved - XML data takes priority
-
-### Network Volume Save Fails
-- **Cause**: Incorrect path or permissions
-- **Fix**: Already resolved - corrected to `/Volumes/Public/Lasercomb`
-
-### Configuration Changes Don't Apply
-- **Cause**: Using production mode with cached user data
-- **Fix**: Use `npm run dev` for development
-
-### Path Issues
-- **Cause**: Hardcoded paths vs dynamic resolution
-- **Fix**: All handlers now use `getProfilesDirectory()`
-
-## 📊 Debug Commands
-
-### Check Current Configuration
-```javascript
-// In renderer console
-window.electronAPI.debugGetProfilesDirectory()
+**XML Priority Setup:**
+```xml
+<Priority mode="tool">
+    <PriorityItem order="1" value="T20"/>    <!-- Engraving -->
+    <PriorityItem order="4" value="__LINE_BREAK__"/>
+    <PriorityItem order="5" value="T2"/>     <!-- Internal -->
+    <PriorityItem order="11" value="__LINE_BREAK__"/>
+    <PriorityItem order="12" value="T22"/>   <!-- Borders -->
+</Priority>
 ```
 
-### Verify Tool Loading
-```javascript
-// In renderer console
-const tools = window.rendererInstance.getCurrentToolSet();
-console.log(tools);
-```
+**UI Settings:**
+- Primary Strategy: "Priority Order (Follow cutting sequence)"
+- Path Optimization: "Closest Path First"
 
-### Network Volume Test
-```bash
-ls -la /Volumes/Public/Lasercomb
-```
+## 🛠️ Tool Management
 
-## 📁 Important Directories
+### Tool Priority Configuration
+1. Open `CONFIG/profiles/mtl.xml`
+2. Edit `<Priority>` section
+3. Use `__LINE_BREAK__` for cutting phases
+4. Restart application to reload
 
-```
-CONFIG/
-├── profiles/mtl.xml          # Main configuration
-├── tools/standard_tools.json # Tool definitions
-├── LineTypes/line-types.xml  # Line type mappings
-└── postprocessors/           # Output formats
+### Common Tool Types
+- **T20**: Fast Engrave (engraving, text)
+- **T2**: 2pt CW (general cutting)
+- **T22**: Fine Cut (precision borders)
+- **T12**: 2pt Puls (pulsed cutting)
 
-electron/
-├── main/main.cjs            # Backend
-└── renderer/                # Frontend
-    ├── renderer.js          # Main UI logic
-    └── src/
-        └── advanced-visualization.js  # DIN preview
+## 📁 File Operations
 
-~/Library/Application Support/Electron/CONFIG/  # User data (production)
-```
+### DXF Processing Workflow
+1. **Load DXF**: File → Open DXF
+2. **Configure Tools**: Set layer-to-tool mappings
+3. **Set Priority**: Configure cutting sequence
+4. **Generate DIN**: Process → Generate DIN
+5. **Export**: Save to output directory
 
-## 🔄 Workflow Best Practices
+### Import Filter System
+- **Global Filters**: Apply to all DXF files
+- **File-Specific**: Override global rules
+- **Layer Mapping**: Map layers to tools/line types
 
-1. **Always use `npm run dev` for development**
-2. **Test network volume saves periodically**
-3. **Backup CONFIG files before major changes**
-4. **Use browser DevTools for frontend debugging**
-5. **Check main process logs for backend issues**
+## ⚡ Quick Actions
 
-## 📈 Recent Improvements (v1.1.0)
+### Keyboard Shortcuts
+- `Ctrl+O`: Open DXF file
+- `Ctrl+G`: Generate DIN file
+- `Ctrl+S`: Save current settings
+- `F5`: Refresh display
 
-- ✅ Advanced 2D DIN preview visualization
-- ✅ Fixed tool loading ("null" values resolved)
-- ✅ Network volume save support
-- ✅ Unified configuration path management
-- ✅ Comprehensive debugging infrastructure
+### Common Settings
+- **Units**: Metric (mm) / Imperial (inches)
+- **Precision**: Decimal places for coordinates
+- **Output Format**: DIN/G-code customization
 
----
-*Last updated: August 6, 2025*
+## 🔧 Troubleshooting
+
+### Optimization Issues
+- **Wrong cutting order**: Check priority configuration
+- **Missing line breaks**: Add `__LINE_BREAK__` entries
+- **Poor path efficiency**: Try different path optimization
+
+### Tool Problems
+- **Tool not found**: Check XML tool definitions
+- **Wrong H-code**: Verify tool mapping
+- **Missing operations**: Check layer visibility
+
+### Performance Tips
+- Use priority phases for complex files
+- Enable closest path optimization
+- Limit entity count for large files
+- Use appropriate precision settings

@@ -10,7 +10,9 @@ export class PathOptimizer {
     }
 
     /**
-     * Main optimization function - applies primary strategy and within-group optimization
+     * Main optimization function - applies two-level optimization strategy
+     * Level 1: Primary Strategy (Priority Order with phases or simple priority list)
+     * Level 2: Within-phase optimization (Closest Path First by default)
      * @param {Array} entities - Array of DXF entities to optimize
      * @param {Object} tools - Tool configuration object
      * @param {Object} settings - Optimization settings
@@ -21,38 +23,41 @@ export class PathOptimizer {
             return [];
         }
 
-        const primaryStrategy = settings.primaryStrategy || 'tool_grouped';
+        // Default to Priority Order as primary strategy and Closest Path as secondary
+        const primaryStrategy = settings.primaryStrategy || 'priority_order';
         const withinGroupOptimization = settings.withinGroupOptimization || 'closest_path';
         
         console.log(`Optimizing ${entities.length} entities with strategy: ${primaryStrategy} / ${withinGroupOptimization}`);
 
-        // Step 1: Apply primary strategy
+        // Step 1: Apply primary strategy - Priority Order with phases
         let groupedEntities;
-        switch (primaryStrategy) {
-            case 'tool_grouped':
-                groupedEntities = this.groupByTool(entities, tools, settings);
-                break;
-            case 'priority_order':
-                groupedEntities = this.groupByPriority(entities, settings);
-                break;
-            default:
-                groupedEntities = [{ entities: entities, tool: null, priority: 0 }];
+        if (primaryStrategy === 'priority_order') {
+            groupedEntities = this.groupByPriorityWithPhases(entities, tools, settings);
+        } else {
+            // Fallback to simple tool grouping
+            groupedEntities = this.groupByTool(entities, tools, settings);
         }
 
-        // Step 2: Apply within-group optimization
+        // Step 2: Apply within-group/phase optimization
         const optimizedGroups = groupedEntities.map(group => ({
             ...group,
             entities: this.optimizeWithinGroup(group.entities, withinGroupOptimization, settings)
         }));
 
-        // Step 3: Flatten back to single array
+        // Step 3: Flatten back to single array maintaining phase order
         return optimizedGroups.flatMap(group => group.entities);
     }
 
     /**
-     * Group entities by tool requirements
+     * Group entities by tool requirements with priority phase support
      */
     groupByTool(entities, tools, settings) {
+        // Check if priority phases are enabled and configured
+        if (settings.respectManualBreaks !== false && settings.config?.optimization?.priority?.items) {
+            return this.groupByPriorityPhases(entities, tools, settings);
+        }
+        
+        // Fall back to simple tool grouping
         const toolGroups = new Map();
         
         entities.forEach(entity => {
@@ -77,6 +82,172 @@ export class PathOptimizer {
             groups.sort((a, b) => a.priority - b.priority);
         }
 
+        return groups;
+    }
+
+    /**
+     * Group entities by priority with intelligent phase handling
+     * - If line breaks exist: Create phases and optimize within each phase
+     * - If no line breaks: Respect entire priority list as single sequence
+     */
+    groupByPriorityWithPhases(entities, tools, settings) {
+        // Check if we have priority configuration
+        if (!settings.config?.optimization?.priority?.items) {
+            console.log('No priority configuration found, using simple tool grouping');
+            return this.groupByTool(entities, tools, settings);
+        }
+
+        const priorityItems = settings.config.optimization.priority.items;
+        
+        // Check if there are any line breaks in the priority list
+        const hasLineBreaks = priorityItems.some(item => item.value === '__LINE_BREAK__');
+        
+        if (hasLineBreaks) {
+            console.log('Line breaks detected - using phase-based optimization');
+            return this.groupByPriorityPhases(entities, tools, settings);
+        } else {
+            console.log('No line breaks - using single priority sequence');
+            return this.groupByPrioritySequence(entities, tools, settings);
+        }
+    }
+
+    /**
+     * Group entities by priority phases (respecting line breaks)
+     */
+    groupByPriorityPhases(entities, tools, settings) {
+        const priorityItems = settings.config.optimization.priority.items;
+        
+        // Create priority phases separated by line breaks
+        const phases = [];
+        let currentPhase = [];
+        
+        priorityItems.forEach(item => {
+            if (item.value === '__LINE_BREAK__') {
+                if (currentPhase.length > 0) {
+                    phases.push([...currentPhase]);
+                    currentPhase = [];
+                }
+            } else {
+                currentPhase.push(item);
+            }
+        });
+        
+        // Add the last phase if it has items
+        if (currentPhase.length > 0) {
+            phases.push(currentPhase);
+        }
+        
+        console.log(`Created ${phases.length} priority phases:`, phases.map(phase => 
+            phase.map(item => item.value).join(', ')
+        ));
+        
+        // Group entities by phases
+        const phaseGroups = [];
+        
+        phases.forEach((phase, phaseIndex) => {
+            const phaseEntities = [];
+            
+            // Collect all entities that belong to tools in this phase
+            entities.forEach(entity => {
+                const requiredTool = this.getRequiredTool(entity, tools);
+                if (requiredTool && phase.some(item => item.value === requiredTool.id)) {
+                    phaseEntities.push(entity);
+                }
+            });
+            
+            if (phaseEntities.length > 0) {
+                // Within each phase, group by individual tools and sort by phase priority
+                const toolGroups = new Map();
+                
+                phaseEntities.forEach(entity => {
+                    const requiredTool = this.getRequiredTool(entity, tools);
+                    const toolKey = requiredTool ? requiredTool.id : 'default';
+                    
+                    if (!toolGroups.has(toolKey)) {
+                        // Find the priority order within this phase
+                        const phaseOrder = phase.findIndex(item => item.value === toolKey);
+                        toolGroups.set(toolKey, {
+                            tool: requiredTool,
+                            entities: [],
+                            priority: requiredTool ? requiredTool.priority || 0 : 999,
+                            phase: phaseIndex + 1,
+                            phaseOrder: phaseOrder >= 0 ? phaseOrder : 999
+                        });
+                    }
+                    
+                    toolGroups.get(toolKey).entities.push(entity);
+                });
+                
+                // Sort tools within phase by their phase order
+                const sortedToolGroups = Array.from(toolGroups.values())
+                    .sort((a, b) => a.phaseOrder - b.phaseOrder);
+                
+                phaseGroups.push(...sortedToolGroups);
+            }
+        });
+        
+        return phaseGroups;
+    }
+
+    /**
+     * Group entities by single priority sequence (no line breaks)
+     */
+    groupByPrioritySequence(entities, tools, settings) {
+        const priorityItems = settings.config.optimization.priority.items;
+        
+        console.log('Priority sequence (no phases):', priorityItems.map(item => item.value).join(' → '));
+        
+        // Create a single group for each tool in priority order
+        const toolGroups = [];
+        
+        priorityItems.forEach((item, index) => {
+            if (item.value === '__LINE_BREAK__') return; // Skip any stray line breaks
+            
+            const toolEntities = entities.filter(entity => {
+                const requiredTool = this.getRequiredTool(entity, tools);
+                return requiredTool && requiredTool.id === item.value;
+            });
+            
+            if (toolEntities.length > 0) {
+                const requiredTool = Object.values(tools).find(tool => tool.id === item.value);
+                toolGroups.push({
+                    tool: requiredTool,
+                    entities: toolEntities,
+                    priority: index, // Use sequence position as priority
+                    phase: 1, // Single phase
+                    phaseOrder: index
+                });
+            }
+        });
+        
+        return toolGroups;
+    }
+
+    /**
+     * Group entities by tool requirements (fallback method)
+     */
+    groupByTool(entities, tools, settings) {
+        const toolGroups = new Map();
+        
+        entities.forEach(entity => {
+            const requiredTool = this.getRequiredTool(entity, tools);
+            const toolKey = requiredTool ? requiredTool.id : 'default';
+            
+            if (!toolGroups.has(toolKey)) {
+                toolGroups.set(toolKey, {
+                    tool: requiredTool,
+                    entities: [],
+                    priority: requiredTool ? requiredTool.priority || 0 : 999
+                });
+            }
+            
+            toolGroups.get(toolKey).entities.push(entity);
+        });
+        
+        // Sort by priority
+        const groups = Array.from(toolGroups.values())
+            .sort((a, b) => a.priority - b.priority);
+        
         return groups;
     }
 
