@@ -3473,29 +3473,127 @@ async function showAdvancedVisualization() {
             return;
         }
 
-        showStatus('Preparing advanced visualization...', 'info');
+        showStatus('Generating DIN content for visualization...', 'info');
 
-        // Extract entities from viewer for visualization
-        const entities = extractEntitiesFromViewer();
-        if (entities.length === 0) {
-            showStatus('No entities found to visualize', 'warning');
+        // Use the same exact DIN generation process as the "Generate DIN" button
+        // but without saving to file - this ensures we visualize exactly what the machine will see
+        const dinContent = await generateDinContentSilently();
+
+        if (!dinContent || dinContent.trim().length === 0) {
+            showStatus('Generated DIN content is empty', 'warning');
             return;
         }
 
-        // Get current settings and generate DIN content for reference
-        const settings = getCurrentOptimizationSettings();
-        const metadata = getFileMetadata();
-        const dinContent = dinGenerator.generatePreview(entities, currentPostprocessorConfig, metadata);
+        showStatus('Parsing DIN content for visualization...', 'info');
 
-        // Create and initialize advanced visualization
+        // Create and initialize advanced visualization with actual DIN content
         const advancedViz = new AdvancedVisualization();
-        await advancedViz.initialize(entities, dinContent);
+        await advancedViz.initializeFromDinContent(dinContent);
         
-        showStatus(`Advanced visualization ready with ${entities.length} entities`, 'success');
+        // Count actual DIN lines for status
+        const dinLines = dinContent.split('\n').filter(line => line.trim().length > 0);
+        showStatus(`Advanced visualization ready with ${dinLines.length} DIN commands`, 'success');
 
     } catch (error) {
         console.error('Error showing advanced visualization:', error);
         showStatus(`Failed to show advanced visualization: ${error.message}`, 'error');
+    }
+}
+
+// Generate DIN content silently (same logic as performDinGeneration but without file saving)
+async function generateDinContentSilently() {
+    try {
+        if (!viewer || !viewer.scene || !currentPostprocessorConfig) {
+            throw new Error('Load a DXF file and configure postprocessor first');
+        }
+
+        // Load line types from CSV to pass to DinGenerator
+        let lineTypesData = [];
+        try {
+            lineTypesData = await window.electronAPI.loadLineTypes();
+            console.log('Loaded line types for DIN generation:', lineTypesData.length);
+        } catch (error) {
+            console.warn('Failed to load line types, using fallback:', error);
+        }
+
+        // Extract entities from viewer, filtering by visibility and mappings
+        const entities = extractEntitiesFromViewer();
+        if (entities.length === 0) {
+            throw new Error('No entities found to process');
+        }
+
+        // Create config with line types data
+        const configWithLineTypes = {
+            ...currentPostprocessorConfig,
+            lineTypes: lineTypesData
+        };
+
+        // Generate DIN content
+        const metadata = getFileMetadata();
+        console.log('Generating DIN content silently with:', {
+            entitiesCount: entities.length,
+            config: configWithLineTypes,
+            metadata: metadata
+        });
+
+        // Auto-create lineType-to-tool mappings if missing (same logic as performDinGeneration)
+        if (!currentPostprocessorConfig.mappingWorkflow) {
+            currentPostprocessorConfig.mappingWorkflow = {};
+        }
+        if (!currentPostprocessorConfig.mappingWorkflow.lineTypeToTool) {
+            currentPostprocessorConfig.mappingWorkflow.lineTypeToTool = [];
+        }
+
+        // Check for entities with line types but no tool mappings and auto-map by name
+        const usedLineTypes = [...new Set(entities.map(e => e.lineType).filter(Boolean))];
+        const existingMappings = currentPostprocessorConfig.mappingWorkflow.lineTypeToTool.map(m => m.lineType);
+        const unmappedLineTypes = usedLineTypes.filter(lt => !existingMappings.includes(lt));
+
+        // Auto-map by name matching with available tools from postprocessor profile
+        if (unmappedLineTypes.length > 0) {
+            let machineTools = null;
+            if (currentPostprocessorConfig.tools && Array.isArray(currentPostprocessorConfig.tools)) {
+                machineTools = currentPostprocessorConfig.tools;
+            } else if (currentPostprocessorConfig.tools && typeof currentPostprocessorConfig.tools === 'object') {
+                machineTools = Object.values(currentPostprocessorConfig.tools);
+            }
+
+            if (machineTools && machineTools.length > 0) {
+                unmappedLineTypes.forEach(lineTypeName => {
+                    const matchingTool = machineTools.find(tool => 
+                        tool.name === lineTypeName || 
+                        tool.Name === lineTypeName ||
+                        tool.id === lineTypeName ||
+                        tool.ID === lineTypeName
+                    );
+                    
+                    if (matchingTool) {
+                        const toolId = matchingTool.id || matchingTool.ID;
+                        console.log(`Auto-mapping internal line type "${lineTypeName}" to machine tool "${toolId}"`);
+                        currentPostprocessorConfig.mappingWorkflow.lineTypeToTool.push({
+                            lineType: lineTypeName,
+                            tool: toolId
+                        });
+                    }
+                });
+            }
+        }
+
+        // Generate the actual DIN content using the same function as file generation
+        const dinContent = dinGenerator.generateDin(entities, configWithLineTypes, metadata);
+        console.log('DIN generation completed, content length:', dinContent.length);
+        
+        // Validate DIN content
+        const validation = dinGenerator.validateDin(dinContent);
+        if (!validation.valid) {
+            throw new Error(`DIN validation failed: ${validation.issues.join(', ')}`);
+        }
+
+        return dinContent;
+
+    } catch (error) {
+        console.error('Error generating DIN content silently:', error);
+        throw error;
     }
 }
 

@@ -24,6 +24,7 @@ class AdvancedVisualization {
         this.viewportWidth = 800;
         this.viewportHeight = 600;
         this.boundingBox = { minX: 0, minY: 0, maxX: 100, maxY: 100 };
+        this.showRapidMoves = true; // Option to show/hide rapid movements
         
         // Color coding for different cutting types
         this.cuttingColors = {
@@ -32,6 +33,28 @@ class AdvancedVisualization {
             'pierce': '#ffff00',     // Yellow for pierce points
             'tool_change': '#ff8800', // Orange for tool changes
             'default': '#ffffff'     // White for default
+        };
+        
+        // Tool-specific colors for different H codes
+        this.toolColors = {
+            'H2': '#ff4444',    // Red - 2pt CW
+            'H3': '#ff6644',    // Red-Orange - 3pt CW  
+            'H4': '#ff8844',    // Orange - 4pt CW
+            'H12': '#ff44aa',   // Pink - 2pt Puls
+            'H13': '#ff66aa',   // Light Pink - 3pt Puls
+            'H14': '#ff88aa',   // Lighter Pink - 4pt Puls
+            'H20': '#44ff44',   // Bright Green - Fast Engrave
+            'H22': '#ff2222',   // Bright Red - Fine Cut
+            'H33': '#ffff44',   // Yellow - Nozzle Engrave
+            'H40': '#ffaa00',   // Amber - Piercing
+            'H100': '#4444ff',  // Blue - Milling 1
+            'H101': '#5555ff',  // Blue variants for different milling tools
+            'H102': '#6666ff',
+            'H103': '#7777ff',
+            'H104': '#8888ff',
+            'H105': '#9999ff',
+            'H106': '#aaaaff',
+            'H107': '#bbbbff'
         };
     }
     
@@ -56,6 +79,37 @@ class AdvancedVisualization {
         this.setupEventListeners();
         
         // Initial render
+        this.fitToView();
+        this.render();
+    }
+    
+    /**
+     * Initialize the advanced visualization from DIN content (proper method)
+     */
+    async initializeFromDinContent(dinContent) {
+        this.dinContent = dinContent || '';
+        
+        if (!this.dinContent.trim()) {
+            throw new Error('No DIN content provided for visualization');
+        }
+        
+        // Parse DIN content into visualization entities
+        this.entities = this.parseDinContent(this.dinContent);
+        
+        if (this.entities.length === 0) {
+            throw new Error('No valid DIN commands found in content');
+        }
+        
+        // Calculate bounding box from parsed DIN entities
+        this.calculateBoundingBoxFromDin();
+        
+        // Create and show the modal
+        this.createModal();
+        this.setupCanvas();
+        this.setupControls();
+        this.setupEventListeners();
+        
+        // Initial render with corrected camera orientation
         this.fitToView();
         this.render();
     }
@@ -94,6 +148,127 @@ class AdvancedVisualization {
     }
     
     /**
+     * Parse DIN content into visualization entities
+     */
+    parseDinContent(dinContent) {
+        const entities = [];
+        const lines = dinContent.split('\n');
+        let currentX = 0, currentY = 0;
+        let currentTool = null;
+        let isRapidMode = true;
+        
+        console.log(`Parsing DIN content: ${lines.length} lines`);
+        
+        for (let i = 0; i < lines.length; i++) {
+            const line = lines[i].trim();
+            if (!line || line.startsWith(';') || line.startsWith('(')) continue;
+            
+            // Parse G-code commands
+            const gMatch = line.match(/G(\d+)/);
+            const xMatch = line.match(/X([-\d.]+)/);
+            const yMatch = line.match(/Y([-\d.]+)/);
+            const tMatch = line.match(/T(\d+)/);
+            const hMatch = line.match(/H(\d+)/);
+            
+            // Tool change detection
+            if (tMatch || hMatch) {
+                currentTool = tMatch ? `T${tMatch[1]}` : `H${hMatch[1]}`;
+                entities.push({
+                    type: 'tool_change',
+                    tool: currentTool,
+                    x: currentX,
+                    y: currentY,
+                    step: i
+                });
+                continue;
+            }
+            
+            // Movement commands
+            let newX = currentX, newY = currentY;
+            if (xMatch) newX = parseFloat(xMatch[1]);
+            if (yMatch) newY = parseFloat(yMatch[1]);
+            
+            // Determine movement type
+            let moveType = 'cut';
+            if (gMatch) {
+                const gCode = parseInt(gMatch[1]);
+                switch (gCode) {
+                    case 0:
+                        moveType = 'rapid';
+                        isRapidMode = true;
+                        break;
+                    case 1:
+                        moveType = 'cut';
+                        isRapidMode = false;
+                        break;
+                    case 2:
+                    case 3:
+                        moveType = 'arc';
+                        isRapidMode = false;
+                        break;
+                    default:
+                        moveType = isRapidMode ? 'rapid' : 'cut';
+                }
+            } else {
+                moveType = isRapidMode ? 'rapid' : 'cut';
+            }
+            
+            // Create entity if there's movement
+            if (newX !== currentX || newY !== currentY) {
+                entities.push({
+                    type: moveType,
+                    startX: currentX,
+                    startY: currentY,
+                    endX: newX,
+                    endY: newY,
+                    tool: currentTool,
+                    step: i,
+                    command: line
+                });
+                
+                currentX = newX;
+                currentY = newY;
+            }
+        }
+        
+        console.log(`Parsed ${entities.length} entities from DIN content`);
+        return entities;
+    }
+    
+    /**
+     * Calculate bounding box from parsed DIN entities
+     */
+    calculateBoundingBoxFromDin() {
+        if (this.entities.length === 0) return;
+        
+        let minX = Infinity, minY = Infinity;
+        let maxX = -Infinity, maxY = -Infinity;
+        
+        this.entities.forEach(entity => {
+            if (entity.startX !== undefined) {
+                minX = Math.min(minX, entity.startX, entity.endX);
+                minY = Math.min(minY, entity.startY, entity.endY);
+                maxX = Math.max(maxX, entity.startX, entity.endX);
+                maxY = Math.max(maxY, entity.startY, entity.endY);
+            } else if (entity.x !== undefined && entity.y !== undefined) {
+                minX = Math.min(minX, entity.x);
+                minY = Math.min(minY, entity.y);
+                maxX = Math.max(maxX, entity.x);
+                maxY = Math.max(maxY, entity.y);
+            }
+        });
+        
+        this.boundingBox = {
+            minX: minX !== Infinity ? minX : 0,
+            minY: minY !== Infinity ? minY : 0,
+            maxX: maxX !== -Infinity ? maxX : 100,
+            maxY: maxY !== -Infinity ? maxY : 100
+        };
+        
+        console.log('DIN Bounding box:', this.boundingBox);
+    }
+    
+    /**
      * Create the modal UI structure
      */
     createModal() {
@@ -115,6 +290,12 @@ class AdvancedVisualization {
                                 <label>Speed:</label>
                                 <input type="range" id="vizSpeed" min="10" max="1000" value="100" step="10">
                                 <span id="vizSpeedValue">100ms</span>
+                            </div>
+                            <div class="viz-toggle-control">
+                                <label>
+                                    <input type="checkbox" id="vizShowRapid" checked>
+                                    Show Rapid Moves
+                                </label>
                             </div>
                         </div>
                         <div class="viz-info">
@@ -221,6 +402,13 @@ class AdvancedVisualization {
         speedSlider.addEventListener('input', (e) => {
             this.playbackSpeed = parseInt(e.target.value);
             speedValue.textContent = this.playbackSpeed + 'ms';
+        });
+        
+        // Rapid moves toggle
+        const showRapidToggle = document.getElementById('vizShowRapid');
+        showRapidToggle.addEventListener('change', (e) => {
+            this.showRapidMoves = e.target.checked;
+            this.render(); // Re-render with/without rapid moves
         });
         
         // View controls
@@ -376,12 +564,13 @@ class AdvancedVisualization {
         
         this.scale = Math.min(scaleX, scaleY);
         
-        // Center the drawing
+        // Center the drawing with Y-axis flip compensation
         const centerX = (this.boundingBox.minX + this.boundingBox.maxX) / 2;
         const centerY = (this.boundingBox.minY + this.boundingBox.maxY) / 2;
         
+        // Account for Y-axis flip (-scale) in positioning
         this.panX = this.viewportWidth / 2 - centerX * this.scale;
-        this.panY = this.viewportHeight / 2 - centerY * this.scale;
+        this.panY = this.viewportHeight / 2 + centerY * this.scale;
         
         this.render();
     }
@@ -524,9 +713,11 @@ class AdvancedVisualization {
         // Save context
         this.ctx.save();
         
-        // Apply transformations
+        // Apply transformations with corrected camera orientation
         this.ctx.translate(this.panX, this.panY);
-        this.ctx.scale(this.scale, this.scale);
+        
+        // Mirror vertically only (flip Y-axis to match machine coordinates)
+        this.ctx.scale(this.scale, -this.scale);
         
         // Render grid
         this.renderGrid();
@@ -576,53 +767,90 @@ class AdvancedVisualization {
     renderEntity(entity, isCurrent = false) {
         if (!entity) return;
         
-        // Determine color based on entity type
+        // Skip rapid moves if option is disabled
+        if (entity.type === 'rapid' && !this.showRapidMoves) {
+            return;
+        }
+        
+        // Determine color based on entity type and tool for DIN commands
         let color = this.cuttingColors.default;
-        if (entity.rapid) {
-            color = this.cuttingColors.rapid;
-        } else if (entity.type === 'pierce') {
-            color = this.cuttingColors.pierce;
-        } else if (entity.type === 'tool_change') {
-            color = this.cuttingColors.tool_change;
-        } else if (entity.cutting) {
-            color = this.cuttingColors.cut;
+        
+        // First check if we have a specific tool color
+        if (entity.tool && this.toolColors[entity.tool]) {
+            color = this.toolColors[entity.tool];
+        } else {
+            // Fallback to operation type colors
+            switch (entity.type) {
+                case 'rapid':
+                    color = this.cuttingColors.rapid;
+                    break;
+                case 'cut':
+                    color = this.cuttingColors.cut;
+                    break;
+                case 'arc':
+                    color = this.cuttingColors.cut; // Arcs are cutting operations
+                    break;
+                case 'pierce':
+                    color = this.cuttingColors.pierce;
+                    break;
+                case 'tool_change':
+                    color = this.cuttingColors.tool_change;
+                    break;
+                default:
+                    color = this.cuttingColors.default;
+            }
         }
         
         // Highlight current entity
         if (isCurrent) {
             this.ctx.shadowColor = color;
-            this.ctx.shadowBlur = 5 / this.scale;
+            this.ctx.shadowBlur = 5 / Math.abs(this.scale);
         }
         
         this.ctx.strokeStyle = color;
         this.ctx.fillStyle = color;
-        this.ctx.lineWidth = (isCurrent ? 2 : 1) / this.scale;
+        this.ctx.lineWidth = (isCurrent ? 2 : 1) / Math.abs(this.scale);
         
-        // Render based on entity type
-        switch (entity.type) {
-            case 'line':
-                this.renderLine(entity);
-                break;
-            case 'arc':
-                this.renderArc(entity);
-                break;
-            case 'circle':
-                this.renderCircle(entity);
-                break;
-            case 'polyline':
-                this.renderPolyline(entity);
-                break;
-            case 'point':
-            case 'pierce':
-                this.renderPoint(entity);
-                break;
-            default:
-                this.renderGeneric(entity);
-                break;
+        // Render based on DIN entity type
+        if (entity.type === 'tool_change') {
+            this.renderToolChange(entity, color);
+        } else if (entity.startX !== undefined && entity.endX !== undefined) {
+            this.renderDinMovement(entity);
         }
         
         // Reset shadow
         this.ctx.shadowBlur = 0;
+    }
+    
+    /**
+     * Render a DIN movement command (line or arc)
+     */
+    renderDinMovement(entity) {
+        this.ctx.beginPath();
+        this.ctx.moveTo(entity.startX, entity.startY);
+        this.ctx.lineTo(entity.endX, entity.endY);
+        this.ctx.stroke();
+    }
+    
+    /**
+     * Render a tool change indicator
+     */
+    renderToolChange(entity, color) {
+        const size = 3 / Math.abs(this.scale);
+        this.ctx.beginPath();
+        this.ctx.arc(entity.x, entity.y, size, 0, Math.PI * 2);
+        this.ctx.fill();
+        
+        // Add tool label if not too small
+        if (Math.abs(this.scale) > 0.1) {
+            this.ctx.save();
+            // Flip text back to readable orientation (compensate for Y-axis flip)
+            this.ctx.scale(1, -1);
+            this.ctx.fillStyle = color || this.cuttingColors.tool_change;
+            this.ctx.font = `${12 / Math.abs(this.scale)}px Arial`;
+            this.ctx.fillText(entity.tool || 'T?', entity.x + 5, -entity.y + 5);
+            this.ctx.restore();
+        }
     }
     
     /**
