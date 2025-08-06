@@ -409,10 +409,10 @@ ipcMain.handle('save-din-file', async (event, content, filename, savePath) => {
                 if (!fs.existsSync(dir)) {
                     // Try to create it only if it doesn't exist
                     fs.mkdirSync(dir, { recursive: true });
-                } else {
-                    // Directory exists, check if we have write permissions
-                    fs.accessSync(dir, fs.constants.W_OK);
                 }
+                // For existing directories, don't do permission checks
+                // as network volumes may have different permission models
+                // We'll let the actual file write operation handle any permission errors
             } catch (dirError) {
                 console.warn(`Cannot access/create directory ${dir}: ${dirError.message}`);
                 // Fallback to user's Downloads directory if network path fails
@@ -2659,7 +2659,9 @@ ipcMain.handle('delete-rule-from-global-import-filter', async (event, ruleId) =>
 ipcMain.handle('get-tools-from-profile', async (event, profileName = 'mtl.xml') => {
     try {
         console.log('Getting tools from profile:', profileName);
-        const profilePath = path.join(__dirname, '..', '..', 'CONFIG', 'profiles', profileName);
+        // Use consistent profile directory logic
+        const profilesDir = getProfilesDirectory();
+        const profilePath = path.join(profilesDir, profileName);
         
         if (!fs.existsSync(profilePath)) {
             console.log('Profile not found, creating default tools');
@@ -2679,7 +2681,9 @@ ipcMain.handle('get-tools-from-profile', async (event, profileName = 'mtl.xml') 
 ipcMain.handle('get-line-type-mappings-from-profile', async (event, profileName = 'mtl.xml') => {
     try {
         console.log('Getting line type mappings from profile:', profileName);
-        const profilePath = path.join(__dirname, '..', '..', 'CONFIG', 'profiles', profileName);
+        // Use consistent profile directory logic
+        const profilesDir = getProfilesDirectory();
+        const profilePath = path.join(profilesDir, profileName);
         
         if (!fs.existsSync(profilePath)) {
             console.log('Profile not found, creating default mappings');
@@ -2699,7 +2703,9 @@ ipcMain.handle('get-line-type-mappings-from-profile', async (event, profileName 
     ipcMain.handle('save-line-type-mappings-to-profile', async (event, mappings, profileName = 'mtl.xml') => {
         try {
             console.log('Saving line type mappings to profile:', profileName);
-            const profilePath = path.join(__dirname, '..', '..', 'CONFIG', 'profiles', profileName);
+            // Use consistent profile directory logic
+            const profilesDir = getProfilesDirectory();
+            const profilePath = path.join(profilesDir, profileName);
             
             // Load existing profile or create new one
             let profileContent = '';
@@ -2721,7 +2727,9 @@ ipcMain.handle('get-line-type-mappings-from-profile', async (event, profileName 
 ipcMain.handle('update-output-settings-only', async (event, outputSettings, profileName = 'mtl.xml') => {
     try {
         console.log('Updating OutputSettings only in profile:', profileName);
-        const profilePath = path.join(__dirname, '..', '..', 'CONFIG', 'profiles', profileName);
+        // Use consistent profile directory logic
+        const profilesDir = getProfilesDirectory();
+        const profilePath = path.join(profilesDir, profileName);
         
         if (!fs.existsSync(profilePath)) {
             console.log('Profile not found, cannot update OutputSettings');

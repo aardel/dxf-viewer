@@ -145,14 +145,7 @@
             <Format>N{number}
             </Format>
         </LineNumbers>
-        <OutputSettings>
-            <DefaultSavePath>/Volumes/Public-1/Lasercomb
-            </DefaultSavePath>
-            <FilenameFormat>{original_name}.din
-            </FilenameFormat>
-            <AutoSaveEnabled>true
-            </AutoSaveEnabled>
-        </OutputSettings>
+        
         
     
     <MappingWorkflow>
@@ -178,4 +171,19 @@
             <LineTypeMapping LineType="Milling 8" Tool="T107"/>
         </LineTypeToTool>
     </MappingWorkflow>
+    
+        
+    
+        
+    
+        
+    
+        <OutputSettings>
+            <DefaultSavePath>/Volumes/Public/Lasercomb
+            </DefaultSavePath>
+            <FilenameFormat>{original_name}.din
+            </FilenameFormat>
+            <AutoSaveEnabled>true
+            </AutoSaveEnabled>
+        </OutputSettings>
     </PostprocessorProfile>

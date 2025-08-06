@@ -3528,15 +3528,9 @@ async function performDinGeneration() {
         // Get current settings
         const settings = getCurrentOptimizationSettings();
         
-        // Check for unmapped layers and warn user before DIN generation
-        if (window.processedLayersWithLineTypes) {
-            const unmappedLayers = window.processedLayersWithLineTypes.filter(layer => !layer.lineTypeId);
-            if (unmappedLayers.length > 0) {
-                const layerNames = unmappedLayers.map(l => l.name).join(', ');
-                showStatus(`⚠️ Warning: ${unmappedLayers.length} layers have no import filter rules: ${layerNames}. These layers will be skipped during DIN generation.`, 'warning');
-            }
-        }
-
+        // Note: Layer mapping warnings are now handled by the advanced visualization
+        // No need for redundant status bar warnings
+        
         // Create config with line types data
         const configWithLineTypes = {
             ...currentPostprocessorConfig,
@@ -4441,19 +4435,36 @@ function showToolsManagerModal() {
 // Load tools into manager grid
 async function loadToolsIntoManager() {
     try {
+        console.log('loadToolsIntoManager: Starting to load tools...');
+        
         // Load tools from current postprocessor configuration
         const currentTools = await getCurrentToolSet();
+        console.log('loadToolsIntoManager: Got tools from getCurrentToolSet:', currentTools);
+        console.log('loadToolsIntoManager: Tools type:', typeof currentTools);
+        console.log('loadToolsIntoManager: Tool keys:', Object.keys(currentTools || {}));
         
         const grid = document.getElementById('toolsManagerGrid');
-        if (!grid) return;
+        if (!grid) {
+            console.warn('loadToolsIntoManager: No toolsManagerGrid found');
+            return;
+        }
         
         grid.innerHTML = '';
         
+        if (!currentTools || typeof currentTools !== 'object') {
+            console.error('loadToolsIntoManager: Invalid tools object:', currentTools);
+            return;
+        }
+        
         // Load all current tools dynamically
         Object.entries(currentTools).forEach(([toolId, tool]) => {
+            console.log(`loadToolsIntoManager: Creating card for ${toolId}:`, tool);
+            console.log(`loadToolsIntoManager: Tool properties - name: "${tool.name}", width: "${tool.width}", description: "${tool.description}", hCode: "${tool.hCode}"`);
             const toolCard = createEditableToolCard(toolId, tool);
             grid.appendChild(toolCard);
         });
+        
+        console.log(`loadToolsIntoManager: Successfully created ${Object.keys(currentTools).length} tool cards`);
         
     } catch (error) {
         console.error('Error loading tools into manager:', error);
@@ -4463,20 +4474,31 @@ async function loadToolsIntoManager() {
 
 // Get current tool set from configuration or defaults
 async function getCurrentToolSet() {
-    // First try to get from current postprocessor config
-    if (currentPostprocessorConfig?.tools) {
-        return currentPostprocessorConfig.tools;
-    }
+    console.log('getCurrentToolSet called');
     
-    // Try to load from mtl.xml profile
+    // Always try to load fresh from mtl.xml profile first to avoid corrupted data
     try {
+        console.log('Loading tools from mtl.xml profile...');
         const tools = await window.electronAPI.getToolsFromProfile('mtl.xml');
+        console.log('Tools response from main process:', tools);
         if (tools && tools.success && tools.data) {
-            // tools.data is already in object format, just return it
+            console.log('Successfully loaded tools from XML:', tools.data);
+            console.log('Tools keys:', Object.keys(tools.data));
+            console.log('First tool sample from XML:', tools.data[Object.keys(tools.data)[0]]);
+            // XML tools.data is in correct format, return it directly
             return tools.data;
+        } else {
+            console.warn('Failed to load tools from XML:', tools);
         }
     } catch (error) {
-        console.error('Error loading tools from profile:', error);
+        console.error('Error loading tools from XML profile:', error);
+    }
+    
+    // Fallback: try postprocessor config (but this seems to be corrupted)
+    if (currentPostprocessorConfig?.tools) {
+        console.log('Falling back to postprocessor config tools:', currentPostprocessorConfig.tools);
+        console.log('First postprocessor tool sample:', Object.values(currentPostprocessorConfig.tools)[0]);
+        return currentPostprocessorConfig.tools;
     }
     
     // Fallback to default tool set
