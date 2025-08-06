@@ -328,8 +328,15 @@ function hideModal(modalId) {
 
 // Show edit rule modal
 function showEditRuleModal(ruleId) {
+    console.log('Editing rule with ID:', ruleId, 'Type:', typeof ruleId);
     const rule = globalFilter.rules.find(r => r.id == ruleId);
-    if (!rule) return;
+    console.log('Found rule:', rule);
+    
+    if (!rule) {
+        console.error('Rule not found for ID:', ruleId);
+        console.log('Available rules:', globalFilter.rules.map(r => ({ id: r.id, type: typeof r.id, layerName: r.layerName })));
+        return;
+    }
 
     const modal = document.getElementById('ruleModal');
     if (!modal) return;
@@ -409,6 +416,8 @@ async function updateRule(formData) {
     try {
         const modal = document.getElementById('ruleModal');
         const ruleId = modal.dataset.ruleId;
+        console.log('Updating rule with ID:', ruleId, 'Type:', typeof ruleId);
+        
         const updatedRule = {
             layerName: formData.get('layerName'),
             color: formData.get('color'),
@@ -417,7 +426,10 @@ async function updateRule(formData) {
             source: formData.get('source') || 'manual'
         };
 
+        console.log('Updated rule data:', updatedRule);
         const result = await window.electronAPI.updateRuleInGlobalImportFilter(ruleId, updatedRule);
+        console.log('Update result:', result);
+        
         if (result.success) {
             await loadGlobalFilter();
             updateStatistics();
@@ -435,10 +447,14 @@ async function updateRule(formData) {
 
 // Delete rule - make it globally accessible
 window.deleteRule = async function(ruleId) {
+    console.log('Deleting rule with ID:', ruleId, 'Type:', typeof ruleId);
+    
     if (!confirm('Are you sure you want to delete this rule?')) return;
 
     try {
         const result = await window.electronAPI.deleteRuleFromGlobalImportFilter(ruleId);
+        console.log('Delete result:', result);
+        
         if (result.success) {
             await loadGlobalFilter();
             updateStatistics();

@@ -508,6 +508,11 @@ export class DinGenerator {
         // Step 1: Layer/Color → Line Type
         const lineType = this.determineLineType(entity);
 
+        // Handle null line type - this means no mapping was found
+        if (lineType === null) {
+            console.warn(`No line type mapping found for layer: ${entity.layer}. Please create an import filter rule for this layer.`);
+            return null;
+        }
         
         // Step 2: Line Type → Tool
         const toolId = this.getToolFromLineType(lineType);
@@ -531,7 +536,7 @@ export class DinGenerator {
             }
         }
         
-        console.warn(`No tool found for line type: ${lineType}, skipping entity`);
+        console.warn(`No tool mapping found for line type: ${lineType}, skipping entity`);
         return null; // Skip this entity
     }
 
@@ -599,7 +604,8 @@ export class DinGenerator {
             // No fallback color mappings - rely only on configured mappings
         }
 
-        // No default fallback - return null if no mapping found
+        // No mapping found - this will trigger a user notification
+        console.warn(`No line type mapping found for entity on layer: ${entity.layer}`);
         return null;
     }
 
@@ -843,29 +849,6 @@ export class DinGenerator {
                 movementCommands: lines.filter(line => line.includes('G0') || line.includes('G1')).length
             }
         };
-    }
-
-    /**
-     * Updates the lineType-to-tool mappings in the generator's configuration.
-     * @param {Array} mappings - The array of lineType-to-tool mappings.
-     */
-    updateToolMappings(mappings) {
-        if (!this.config.mappingWorkflow) {
-            this.config.mappingWorkflow = {};
-        }
-        this.config.mappingWorkflow.lineTypeToTool = mappings;
-        console.log('DinGenerator mappings updated:', this.config.mappingWorkflow.lineTypeToTool);
-    }
-
-    /**
-     * Get tool ID for a given line type from the mapping
-     * @param {string} lineType - The line type name (e.g., "Fast Engrave")
-     * @returns {string|null} The tool ID (e.g., "T20") or null if not found
-     */
-    getToolForLineType(lineType) {
-        const mappings = this.config.mappingWorkflow?.lineTypeToTool || [];
-        const mapping = mappings.find(m => m.lineType === lineType);
-        return mapping ? mapping.tool : null;
     }
 }
 

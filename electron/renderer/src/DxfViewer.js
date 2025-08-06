@@ -1,4 +1,4 @@
-import * as three from "three"
+import * as THREE from "three"
 import {BatchingKey} from "./BatchingKey.js"
 import {DxfWorker} from "./DxfWorker.js"
 import {MaterialKey} from "./MaterialKey.js"
@@ -33,20 +33,44 @@ export class DxfViewer {
 
         this.clearColor = this.options.clearColor.getHex()
 
-        this.scene = new three.Scene()
+        this.scene = new THREE.Scene()
 
         try {
-            this.renderer = new three.WebGLRenderer({
+            this.renderer = new THREE.WebGLRenderer({
                 alpha: options.canvasAlpha,
                 premultipliedAlpha: options.canvasPremultipliedAlpha,
                 antialias: options.antialias,
                 depth: false,
-                preserveDrawingBuffer: options.preserveDrawingBuffer
+                preserveDrawingBuffer: options.preserveDrawingBuffer,
+                failIfMajorPerformanceCaveat: false // Allow software rendering as fallback
             })
+            
+            // Test if WebGL context is actually working
+            const gl = this.renderer.getContext();
+            if (!gl || gl.isContextLost()) {
+                throw new Error("WebGL context not available or lost");
+            }
+            
         } catch (e) {
-            console.log("Failed to create renderer: " + e)
-            this.renderer = null
-            return
+            console.error("Failed to create WebGL renderer:", e);
+            console.log("Attempting fallback to software rendering...");
+            
+            try {
+                // Try with different options for compatibility
+                this.renderer = new THREE.WebGLRenderer({
+                    alpha: false,
+                    antialias: false,
+                    depth: false,
+                    preserveDrawingBuffer: false,
+                    powerPreference: "default",
+                    failIfMajorPerformanceCaveat: false
+                });
+            } catch (fallbackError) {
+                console.error("WebGL fallback also failed:", fallbackError);
+                this.renderer = null;
+                this._showWebGLError();
+                return;
+            }
         }
         const renderer = this.renderer
         /* Prevent bounding spheres calculations which fails due to non-conventional geometry
@@ -55,7 +79,7 @@ export class DxfViewer {
         renderer.sortObjects = false
         renderer.setPixelRatio(window.devicePixelRatio)
 
-        const camera = this.camera = new three.OrthographicCamera(-1, 1, 1, -1, 0.1, 2);
+        const camera = this.camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 2);
         camera.position.z = 1
         camera.position.x = 0
         camera.position.y = 0
@@ -116,7 +140,7 @@ export class DxfViewer {
     }
 
     /**
-     * @returns {three.WebGLRenderer | null} Returns the created Three.js renderer.
+     * @returns {THREE.WebGLRenderer | null} Returns the created Three.js renderer.
      */
     GetRenderer(){
         return this.renderer;
@@ -397,14 +421,14 @@ export class DxfViewer {
         this.SetView(center, width * (1 + padding))
     }
 
-    /** @return {Scene} three.js scene for the viewer. Can be used to add custom entities on the
+    /** @return {Scene} THREE.js scene for the viewer. Can be used to add custom entities on the
      *      scene. Remember to apply scene origin available via GetOrigin() method.
      */
     GetScene() {
         return this.scene
     }
 
-    /** @return {OrthographicCamera} three.js camera for the viewer. */
+    /** @return {OrthographicCamera} THREE.js camera for the viewer. */
     GetCamera() {
         return this.camera
     }
@@ -467,16 +491,16 @@ export class DxfViewer {
         const controls = this.controls = new OrbitControls(this.camera, this.canvas)
         controls.enableRotate = false
         controls.mouseButtons = {
-            LEFT: three.MOUSE.PAN,
-            MIDDLE: three.MOUSE.DOLLY
+            LEFT: THREE.MOUSE.PAN,
+            MIDDLE: THREE.MOUSE.DOLLY
         }
         controls.touches = {
-            ONE: three.TOUCH.PAN,
-            TWO: three.TOUCH.DOLLY_PAN
+            ONE: THREE.TOUCH.PAN,
+            TWO: THREE.TOUCH.DOLLY_PAN
         }
         controls.zoomSpeed = 3
         controls.mouseZoomSpeedFactor = 0.05
-        controls.target = new three.Vector3(this.camera.position.x, this.camera.position.y, 0)
+        controls.target = new THREE.Vector3(this.camera.position.x, this.camera.position.y, 0)
         controls.addEventListener("change", () => {
             this.Render()
             this._Emit("viewChanged")
@@ -504,7 +528,7 @@ export class DxfViewer {
 
     /** @return {{x,y}} Scene coordinate corresponding to the specified canvas pixel coordinates. */
     _CanvasToSceneCoord(x, y) {
-        const v = new three.Vector3(x * 2 / this.canvasWidth - 1,
+        const v = new THREE.Vector3(x * 2 / this.canvasWidth - 1,
                                     -y * 2 / this.canvasHeight + 1,
                                     1).unproject(this.camera)
         return {x: v.x, y: v.y}
@@ -572,18 +596,18 @@ export class DxfViewer {
 
     _CreateSimpleColorMaterial(instanceType = InstanceType.NONE) {
         const shaders = this._GenerateShaders(instanceType, false)
-        return new three.RawShaderMaterial({
+        return new THREE.RawShaderMaterial({
             uniforms: {
                 color: {
-                    value: new three.Color(0xff00ff)
+                    value: new THREE.Color(0xff00ff)
                 }
             },
             vertexShader: shaders.vertex,
             fragmentShader: shaders.fragment,
             depthTest: false,
             depthWrite: false,
-            glslVersion: three.GLSL3,
-            side: three.DoubleSide
+            glslVersion: THREE.GLSL3,
+            side: THREE.DoubleSide
         })
     }
 
@@ -594,7 +618,7 @@ export class DxfViewer {
         const src = this.simpleColorMaterial[instanceType]
         /* Should reuse compiled shaders. */
         const m = src.clone()
-        m.uniforms.color = { value: new three.Color(color) }
+        m.uniforms.color = { value: new THREE.Color(color) }
         return m
     }
 
@@ -615,10 +639,10 @@ export class DxfViewer {
 
     _CreateSimplePointMaterial(instanceType = InstanceType.NONE) {
         const shaders = this._GenerateShaders(instanceType, true)
-        return new three.RawShaderMaterial({
+        return new THREE.RawShaderMaterial({
             uniforms: {
                 color: {
-                    value: new three.Color(0xff00ff)
+                    value: new THREE.Color(0xff00ff)
                 },
                 pointSize: {
                     value: 2
@@ -628,7 +652,7 @@ export class DxfViewer {
             fragmentShader: shaders.fragment,
             depthTest: false,
             depthWrite: false,
-            glslVersion: three.GLSL3
+            glslVersion: THREE.GLSL3
         })
     }
 
@@ -640,7 +664,7 @@ export class DxfViewer {
         const src = this.simplePointMaterial[instanceType]
         /* Should reuse compiled shaders. */
         const m = src.clone()
-        m.uniforms.color = { value: new three.Color(color) }
+        m.uniforms.color = { value: new THREE.Color(color) }
         m.uniforms.size = { value: size }
         return m
     }
@@ -757,7 +781,7 @@ DxfViewer.DefaultOptions = {
      */
     autoResize: false,
     /** Frame buffer clear color. */
-    clearColor: new three.Color("#000"),
+    clearColor: new THREE.Color("#000"),
     /** Frame buffer clear color alpha value. */
     clearAlpha: 1.0,
     /** Use alpha channel in a framebuffer. */
@@ -827,10 +851,10 @@ class Batch {
                                  batch.verticesSize)
             if (this.key.geometryType !== BatchingKey.GeometryType.POINT_INSTANCE ||
                 scene.pointShapeHasDot) {
-                this.vertices = new three.BufferAttribute(verticesArray, 2)
+                this.vertices = new THREE.BufferAttribute(verticesArray, 2)
             }
             if (this.key.geometryType === BatchingKey.GeometryType.POINT_INSTANCE) {
-                this.transforms = new three.InstancedBufferAttribute(verticesArray, 2)
+                this.transforms = new THREE.InstancedBufferAttribute(verticesArray, 2)
             }
         }
 
@@ -847,8 +871,8 @@ class Batch {
                                     rawChunk.indicesOffset * Uint16Array.BYTES_PER_ELEMENT,
                                     rawChunk.indicesSize)
                 this.chunks.push({
-                    vertices: new three.BufferAttribute(verticesArray, 2),
-                    indices: new three.BufferAttribute(indicesArray, 1)
+                    vertices: new THREE.BufferAttribute(verticesArray, 2),
+                    indices: new THREE.BufferAttribute(indicesArray, 1)
                 })
             }
         }
@@ -861,9 +885,9 @@ class Batch {
             /* Each transform is 3x2 matrix which is split into two 3D vectors which will occupy two
              * attribute slots.
              */
-            const buf = new three.InstancedInterleavedBuffer(transformsArray, 6)
-            this.transforms0 = new three.InterleavedBufferAttribute(buf, 3, 0)
-            this.transforms1 = new three.InterleavedBufferAttribute(buf, 3, 3)
+            const buf = new THREE.InstancedInterleavedBuffer(transformsArray, 6)
+            this.transforms0 = new THREE.InterleavedBufferAttribute(buf, 3, 0)
+            this.transforms1 = new THREE.InterleavedBufferAttribute(buf, 3, 3)
         }
 
         this.layer = this.key.layerName !== null ? this.viewer.layers.get(this.key.layerName) : null
@@ -917,15 +941,15 @@ class Batch {
         case BatchingKey.GeometryType.POINTS:
         /* This method also called for creating dots for shaped point instances. */
         case BatchingKey.GeometryType.POINT_INSTANCE:
-            objConstructor = three.Points
+            objConstructor = THREE.Points
             break
         case BatchingKey.GeometryType.LINES:
         case BatchingKey.GeometryType.INDEXED_LINES:
-            objConstructor = three.LineSegments
+            objConstructor = THREE.LineSegments
             break
         case BatchingKey.GeometryType.TRIANGLES:
         case BatchingKey.GeometryType.INDEXED_TRIANGLES:
-            objConstructor = three.Mesh
+            objConstructor = THREE.Mesh
             break
         default:
             throw new Error("Unexpected geometry type:" + this.key.geometryType)
@@ -933,7 +957,7 @@ class Batch {
 
         function CreateObject(vertices, indices) {
             const geometry = instanceBatch ?
-                new three.InstancedBufferGeometry() : new three.BufferGeometry()
+                new THREE.InstancedBufferGeometry() : new THREE.BufferGeometry()
             geometry.setAttribute("position", vertices)
             instanceBatch?._SetInstanceTransformAttribute(geometry)
             if (indices) {
@@ -1162,3 +1186,46 @@ function Darken(color, factor) {
     hls.l /= factor
     return HlsToRgb(hls)
 }
+
+// Add WebGL error display method to DxfViewer prototype
+DxfViewer.prototype._showWebGLError = function() {
+    const errorDiv = document.createElement('div');
+    errorDiv.style.cssText = `
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        background: #ffebee;
+        border: 2px solid #f44336;
+        border-radius: 8px;
+        padding: 20px;
+        max-width: 500px;
+        font-family: Arial, sans-serif;
+        color: #d32f2f;
+        z-index: 1000;
+    `;
+    
+    errorDiv.innerHTML = `
+        <h3 style="margin-top: 0; color: #d32f2f;">⚠️ WebGL Not Available</h3>
+        <p>Your system doesn't support WebGL or hardware acceleration is disabled.</p>
+        <p><strong>Possible solutions:</strong></p>
+        <ul style="text-align: left;">
+            <li>Update your graphics drivers</li>
+            <li>Enable hardware acceleration in browser settings</li>
+            <li>Try running as administrator</li>
+            <li>Restart the application</li>
+        </ul>
+        <button onclick="this.parentElement.remove()" style="
+            background: #f44336; 
+            color: white; 
+            border: none; 
+            padding: 8px 16px; 
+            border-radius: 4px; 
+            cursor: pointer;
+        ">Close</button>
+    `;
+    
+    if (this.domContainer) {
+        this.domContainer.appendChild(errorDiv);
+    }
+};

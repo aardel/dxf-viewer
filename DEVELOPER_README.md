@@ -498,6 +498,15 @@ log.debug('Tool mappings:', mappings);
 
 **Technical Details**:
 - Global Import Filter Manager needs `beforeunload` event handler
+
+### ✅ FIXED: Global Import Filter Edit/Delete Bug
+**Issue**: ~~Edit and Delete operations on Global Import Filter rules failed with "Rule not found" error~~
+
+**Root Cause**: ~~ID type mismatch - existing rules had numeric IDs from JSON, but JavaScript passed string IDs~~
+
+**Fix Applied**: Enhanced backend IPC handlers to handle both numeric and string ID types with flexible comparison logic
+
+**Status**: 🎉 **RESOLVED** - Edit and delete operations now work correctly for all rule types
 - Main window expects `refresh-global-filter-data` IPC message
 - File reload mechanism implemented in renderer.js (lines ~2537-2560)
 

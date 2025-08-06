@@ -3,10 +3,58 @@ const path = require('path');
 const fs = require('fs');
 const { DOMParser, XMLSerializer } = require('@xmldom/xmldom');
 
+// Detect if running in a virtual machine environment
+const isVirtualMachine = process.platform === 'win32' && (
+    process.env.PROCESSOR_IDENTIFIER?.includes('Virtual') ||
+    process.env.SYSTEMROOT?.includes('Windows') && fs.existsSync('C:\\Windows\\System32\\drivers\\VBoxGuest.sys') ||
+    process.env.COMPUTERNAME?.includes('DESKTOP-') // Common UTM/VM naming pattern
+);
+
+console.log('Virtual machine detected:', isVirtualMachine);
+
+if (isVirtualMachine) {
+    // Optimized settings for virtual machines (prioritize compatibility over performance)
+    console.log('Applying virtual machine optimizations...');
+    app.commandLine.appendSwitch('disable-gpu');
+    app.commandLine.appendSwitch('disable-gpu-rasterization');
+    app.commandLine.appendSwitch('disable-gpu-compositing');
+    app.commandLine.appendSwitch('enable-software-rasterizer');
+    app.commandLine.appendSwitch('disable-background-timer-throttling');
+    app.commandLine.appendSwitch('disable-renderer-backgrounding');
+} else {
+    // Standard hardware acceleration for physical machines
+    console.log('Applying hardware acceleration settings...');
+    app.commandLine.appendSwitch('enable-webgl');
+    app.commandLine.appendSwitch('enable-accelerated-2d-canvas');
+    app.commandLine.appendSwitch('enable-gpu-rasterization');
+    app.commandLine.appendSwitch('ignore-gpu-blacklist');
+    app.commandLine.appendSwitch('disable-software-rasterizer');
+}
+
 // Keep a global reference of the window object
 let mainWindow;
 let unifiedMappingWindow = null;
 let machineToolImporterWindow = null;
+
+// Get the correct CONFIG directory path for both development and production
+function getConfigPath(subPath = '') {
+    if (process.argv.includes('--dev')) {
+        // In development, use local CONFIG directory
+        return path.join(__dirname, '../../CONFIG', subPath);
+    } else {
+        // In production, check if CONFIG exists in resources, otherwise use user data
+        const resourcesPath = process.resourcesPath;
+        const bundledConfigPath = path.join(resourcesPath, 'CONFIG', subPath);
+        
+        if (fs.existsSync(bundledConfigPath)) {
+            return bundledConfigPath;
+        } else {
+            // Fallback to user data directory
+            const userDataPath = app.getPath('userData');
+            return path.join(userDataPath, 'CONFIG', subPath);
+        }
+    }
+}
 
 // Get the correct profiles directory (user data directory in production, local in development)
 function getProfilesDirectory() {
@@ -44,7 +92,7 @@ function initializeUserDataDirectory() {
         // Copy default mtl.xml profile if it doesn't exist
         const defaultProfilePath = path.join(configDir, 'profiles', 'mtl.xml');
         if (!fs.existsSync(defaultProfilePath)) {
-            const appBundleProfilePath = path.join(__dirname, '../../CONFIG/profiles/mtl.xml');
+            const appBundleProfilePath = getConfigPath('profiles/mtl.xml');
             if (fs.existsSync(appBundleProfilePath)) {
                 fs.copyFileSync(appBundleProfilePath, defaultProfilePath);
                 console.log('Copied default mtl.xml profile to user data directory');
@@ -54,7 +102,7 @@ function initializeUserDataDirectory() {
         // Copy default global import filter if it doesn't exist
         const defaultFilterPath = path.join(configDir, 'import-filters', 'global_import_filter.json');
         if (!fs.existsSync(defaultFilterPath)) {
-            const appBundleFilterPath = path.join(__dirname, '../../CONFIG/import-filters/global_import_filter.json');
+            const appBundleFilterPath = getConfigPath('import-filters/global_import_filter.json');
             if (fs.existsSync(appBundleFilterPath)) {
                 fs.copyFileSync(appBundleFilterPath, defaultFilterPath);
                 console.log('Copied default global import filter to user data directory');
@@ -64,7 +112,7 @@ function initializeUserDataDirectory() {
         // Copy default line types if they don't exist
         const defaultLineTypesPath = path.join(configDir, 'LineTypes', 'line-types.xml');
         if (!fs.existsSync(defaultLineTypesPath)) {
-            const appBundleLineTypesPath = path.join(__dirname, '../../CONFIG/LineTypes/line-types.xml');
+            const appBundleLineTypesPath = getConfigPath('LineTypes/line-types.xml');
             if (fs.existsSync(appBundleLineTypesPath)) {
                 fs.copyFileSync(appBundleLineTypesPath, defaultLineTypesPath);
                 console.log('Copied default line types to user data directory');
@@ -436,17 +484,8 @@ ipcMain.handle('save-din-file', async (event, content, filename, savePath) => {
 // Line Types Management
 ipcMain.handle('load-line-types', async () => {
     try {
-        let configPath;
-        
-        if (process.argv.includes('--dev')) {
-            // In development, use local CONFIG directory
-            const appRoot = process.cwd();
-            configPath = path.join(appRoot, 'CONFIG', 'LineTypes', 'line-types.csv');
-        } else {
-            // In production, use user data directory
-            const userDataPath = app.getPath('userData');
-            configPath = path.join(userDataPath, 'CONFIG', 'LineTypes', 'line-types.csv');
-        }
+        // Use getConfigPath for proper dev/production path resolution
+        const configPath = getConfigPath('LineTypes/line-types.csv');
         
         if (!fs.existsSync(configPath)) {
             return { success: false, error: `Line types file not found at: ${configPath}` };
@@ -677,7 +716,7 @@ ipcMain.handle('open-line-types-manager', async () => {
 // Load postprocessor configuration file
 ipcMain.handle('load-postprocessor-config', async (event, profileName) => {
     try {
-        const configPath = path.join(__dirname, '../../CONFIG/postprocessors', `${profileName}.json`);
+        const configPath = getConfigPath(`postprocessors/${profileName}.json`);
         const configData = fs.readFileSync(configPath, 'utf8');
         return JSON.parse(configData);
     } catch (error) {
@@ -689,7 +728,7 @@ ipcMain.handle('load-postprocessor-config', async (event, profileName) => {
 // Load tool library configuration file
 ipcMain.handle('load-tool-library', async (event, libraryName) => {
     try {
-        const toolPath = path.join(__dirname, '../../CONFIG/tools', `${libraryName}.json`);
+        const toolPath = getConfigPath(`tools/${libraryName}.json`);
         const toolData = fs.readFileSync(toolPath, 'utf8');
         return JSON.parse(toolData);
     } catch (error) {
@@ -707,7 +746,7 @@ ipcMain.handle('load-optimization-config', async () => {
         
         // If the file doesn't exist in user data, try to copy from app bundle
         if (!fs.existsSync(optimizationPath)) {
-            const appBundlePath = path.join(__dirname, '../../CONFIG/optimization/algorithms.json');
+            const appBundlePath = getConfigPath('optimization/algorithms.json');
             if (fs.existsSync(appBundlePath)) {
                 // Create directory structure
                 const optimizationDir = path.dirname(optimizationPath);
@@ -2071,7 +2110,7 @@ ipcMain.handle('get-dxf-layers', async () => {
 ipcMain.handle('get-internal-line-types', async () => {
     try {
         // Load internal line types from the line types XML configuration
-        const lineTypesPath = path.join(__dirname, '../../CONFIG/LineTypes/line-types.xml');
+        const lineTypesPath = getConfigPath('LineTypes/line-types.xml');
         const lineTypes = [];
         
         console.log('Loading line types from:', lineTypesPath);
@@ -2595,15 +2634,25 @@ ipcMain.handle('add-rule-to-global-import-filter', async (event, rule) => {
 // Update rule in global import filter
 ipcMain.handle('update-rule-in-global-import-filter', async (event, ruleId, updatedRule) => {
     try {
-        console.log('Updating rule in global import filter...');
+        console.log('Updating rule in global import filter...', ruleId);
         const globalFilter = loadGlobalImportFilter();
         
-        const ruleIndex = globalFilter.rules.findIndex(r => r.id === ruleId);
+        // Handle both string and numeric IDs for backward compatibility
+        const ruleIndex = globalFilter.rules.findIndex(r => 
+            r.id === ruleId || r.id === parseInt(ruleId) || r.id.toString() === ruleId
+        );
+        
         if (ruleIndex !== -1) {
-            globalFilter.rules[ruleIndex] = { ...globalFilter.rules[ruleIndex], ...updatedRule };
+            // Preserve the original ID when updating
+            globalFilter.rules[ruleIndex] = { 
+                ...globalFilter.rules[ruleIndex], 
+                ...updatedRule,
+                id: globalFilter.rules[ruleIndex].id // Keep original ID
+            };
             saveGlobalImportFilter(globalFilter);
             return { success: true, data: globalFilter.rules[ruleIndex] };
         } else {
+            console.error('Rule not found with ID:', ruleId);
             return { success: false, error: 'Rule not found' };
         }
     } catch (error) {
@@ -2615,15 +2664,20 @@ ipcMain.handle('update-rule-in-global-import-filter', async (event, ruleId, upda
 // Delete rule from global import filter
 ipcMain.handle('delete-rule-from-global-import-filter', async (event, ruleId) => {
     try {
-        console.log('Deleting rule from global import filter...');
+        console.log('Deleting rule from global import filter...', ruleId);
         const globalFilter = loadGlobalImportFilter();
         
-        const ruleIndex = globalFilter.rules.findIndex(r => r.id === ruleId);
+        // Handle both string and numeric IDs for backward compatibility
+        const ruleIndex = globalFilter.rules.findIndex(r => 
+            r.id === ruleId || r.id === parseInt(ruleId) || r.id.toString() === ruleId
+        );
+        
         if (ruleIndex !== -1) {
             const deletedRule = globalFilter.rules.splice(ruleIndex, 1)[0];
             saveGlobalImportFilter(globalFilter);
             return { success: true, data: deletedRule };
         } else {
+            console.error('Rule not found with ID:', ruleId);
             return { success: false, error: 'Rule not found' };
         }
     } catch (error) {
