@@ -103,6 +103,7 @@ import * as THREE from '../../node_modules/three/build/three.module.js';
 import { DxfViewer } from './src/index.js';
 import { PathOptimizer } from './src/PathOptimizer.js';
 import { DinGenerator } from './src/DinGenerator.js';
+import { AdvancedVisualization } from './src/advanced-visualization.js';
 
 // Global variables
 let viewer = null;
@@ -3402,9 +3403,14 @@ function displayToolPreview(toolConfig) {
 function initializeDinGeneration() {
     const previewDinBtn = document.getElementById('previewDinBtn');
     const generateDinBtn = document.getElementById('generateDinBtn');
+    const advancedPreviewBtn = document.getElementById('advancedPreviewBtn');
     
     previewDinBtn?.addEventListener('click', async () => {
         await previewDinFile();
+    });
+    
+    advancedPreviewBtn?.addEventListener('click', async () => {
+        await showAdvancedVisualization();
     });
     
     generateDinBtn?.addEventListener('click', async () => {
@@ -3456,6 +3462,40 @@ async function previewDinFile() {
     } catch (error) {
         console.error('Error generating DIN preview:', error);
         showStatus(`Failed to generate DIN preview: ${error.message}`, 'error');
+    }
+}
+
+// Show advanced 2D visualization
+async function showAdvancedVisualization() {
+    try {
+        if (!viewer || !viewer.scene || !currentPostprocessorConfig) {
+            showStatus('Load a DXF file and configure postprocessor first', 'warning');
+            return;
+        }
+
+        showStatus('Preparing advanced visualization...', 'info');
+
+        // Extract entities from viewer for visualization
+        const entities = extractEntitiesFromViewer();
+        if (entities.length === 0) {
+            showStatus('No entities found to visualize', 'warning');
+            return;
+        }
+
+        // Get current settings and generate DIN content for reference
+        const settings = getCurrentOptimizationSettings();
+        const metadata = getFileMetadata();
+        const dinContent = dinGenerator.generatePreview(entities, currentPostprocessorConfig, metadata);
+
+        // Create and initialize advanced visualization
+        const advancedViz = new AdvancedVisualization();
+        await advancedViz.initialize(entities, dinContent);
+        
+        showStatus(`Advanced visualization ready with ${entities.length} entities`, 'success');
+
+    } catch (error) {
+        console.error('Error showing advanced visualization:', error);
+        showStatus(`Failed to show advanced visualization: ${error.message}`, 'error');
     }
 }
 

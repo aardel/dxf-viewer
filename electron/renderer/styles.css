@@ -3188,3 +3188,219 @@ body {
     margin-top: 1.5rem;
     color: #ccc;
 }
+
+/* Advanced Visualization Modal Styles */
+.advanced-visualization-modal {
+    z-index: 1000;
+}
+
+.advanced-viz-content {
+    width: 95%;
+    max-width: 1200px;
+    height: 90vh;
+    max-height: 800px;
+    display: flex;
+    flex-direction: column;
+}
+
+.advanced-viz-body {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    padding: 0;
+}
+
+.viz-toolbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem;
+    background: #2a2a2a;
+    border-bottom: 1px solid #444;
+}
+
+.viz-controls {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.viz-speed-control {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-left: 1rem;
+}
+
+.viz-speed-control label {
+    color: #ccc;
+    font-size: 0.9rem;
+}
+
+.viz-speed-control input[type="range"] {
+    width: 100px;
+}
+
+.viz-speed-control span {
+    color: #ccc;
+    font-size: 0.8rem;
+    min-width: 50px;
+}
+
+.viz-info {
+    display: flex;
+    gap: 1rem;
+    color: #ccc;
+    font-size: 0.9rem;
+}
+
+.viz-main {
+    flex: 1;
+    display: flex;
+}
+
+.viz-canvas-container {
+    flex: 1;
+    position: relative;
+    background: #1a1a1a;
+    border-right: 1px solid #444;
+}
+
+.viz-canvas-container canvas {
+    display: block;
+    cursor: grab;
+}
+
+.viz-canvas-container canvas:active {
+    cursor: grabbing;
+}
+
+.viz-canvas-controls {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    background: rgba(0, 0, 0, 0.7);
+    padding: 5px;
+    border-radius: 4px;
+}
+
+.viz-canvas-controls .btn {
+    min-width: 30px;
+    height: 30px;
+    padding: 0;
+    font-size: 0.8rem;
+}
+
+.viz-sidebar {
+    width: 250px;
+    background: #2a2a2a;
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+}
+
+.viz-legend {
+    padding: 1rem;
+    border-bottom: 1px solid #444;
+}
+
+.viz-legend h4 {
+    margin: 0 0 0.5rem 0;
+    color: #fff;
+    font-size: 1rem;
+}
+
+.legend-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 0.25rem;
+    color: #ccc;
+    font-size: 0.9rem;
+}
+
+.legend-color {
+    width: 16px;
+    height: 16px;
+    border-radius: 2px;
+    border: 1px solid #555;
+}
+
+.viz-entity-details {
+    padding: 1rem;
+    flex: 1;
+}
+
+.viz-entity-details h4 {
+    margin: 0 0 0.5rem 0;
+    color: #fff;
+    font-size: 1rem;
+}
+
+.detail-row {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 0.25rem;
+    color: #ccc;
+    font-size: 0.9rem;
+}
+
+.detail-label {
+    font-weight: 500;
+    color: #bbb;
+}
+
+.btn-tertiary {
+    background: rgba(255, 255, 255, 0.1);
+    color: #ccc;
+    border: 1px solid #555;
+}
+
+.btn-tertiary:hover {
+    background: rgba(255, 255, 255, 0.2);
+    border-color: #666;
+}
+
+.btn-small {
+    padding: 0.25rem 0.5rem;
+    font-size: 0.8rem;
+    min-width: auto;
+}
+
+/* Responsive adjustments */
+@media (max-width: 1024px) {
+    .advanced-viz-content {
+        width: 98%;
+        height: 95vh;
+    }
+    
+    .viz-sidebar {
+        width: 200px;
+    }
+}
+
+@media (max-width: 768px) {
+    .viz-main {
+        flex-direction: column;
+    }
+    
+    .viz-sidebar {
+        width: 100%;
+        height: 200px;
+        border-right: none;
+        border-top: 1px solid #444;
+    }
+    
+    .viz-toolbar {
+        flex-direction: column;
+        gap: 0.5rem;
+        align-items: flex-start;
+    }
+    
+    .viz-controls {
+        flex-wrap: wrap;
+    }
+}
