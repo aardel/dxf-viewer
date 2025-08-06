@@ -629,6 +629,15 @@ export class DinGenerator {
      * Get line type name from ID
      */
     getLineTypeNameFromId(lineTypeId) {
+        // Use line types from config if available (CSV data)
+        if (this.config.lineTypes && Array.isArray(this.config.lineTypes)) {
+            const lineType = this.config.lineTypes.find(lt => lt.id === lineTypeId);
+            if (lineType) {
+                return lineType.name;
+            }
+        }
+        
+        // Fallback to hardcoded map if CSV data not available
         const lineTypeMap = {
             '1': '1pt CW',
             '2': '2pt CW',
@@ -829,6 +838,29 @@ export class DinGenerator {
                 movementCommands: lines.filter(line => line.includes('G0') || line.includes('G1')).length
             }
         };
+    }
+
+    /**
+     * Updates the lineType-to-tool mappings in the generator's configuration.
+     * @param {Array} mappings - The array of lineType-to-tool mappings.
+     */
+    updateToolMappings(mappings) {
+        if (!this.config.mappingWorkflow) {
+            this.config.mappingWorkflow = {};
+        }
+        this.config.mappingWorkflow.lineTypeToTool = mappings;
+        console.log('DinGenerator mappings updated:', this.config.mappingWorkflow.lineTypeToTool);
+    }
+
+    /**
+     * Get tool ID for a given line type from the mapping
+     * @param {string} lineType - The line type name (e.g., "Fast Engrave")
+     * @returns {string|null} The tool ID (e.g., "T20") or null if not found
+     */
+    getToolForLineType(lineType) {
+        const mappings = this.config.mappingWorkflow?.lineTypeToTool || [];
+        const mapping = mappings.find(m => m.lineType === lineType);
+        return mapping ? mapping.tool : null;
     }
 }
 

@@ -427,10 +427,6 @@ function populateLayerTable(layers) {
         const addToGlobalButton = !layer.importFilterApplied ? 
             `<button class="btn btn-small btn-primary add-to-global-btn" data-layer-name="${layerName}" data-layer-color="${layer.color}" title="Add to Global Import Filter">+</button>` : '';
         
-        // Add status indicators
-        const mappingStatus = !layer.importFilterApplied && !layer.lineType ? 
-            `<span class="mapping-status unmapped" title="This layer is unmapped and will be skipped">⚠️ UNMAPPED</span>` : '';
-        
         layerRow.innerHTML = `
             <input type="checkbox" 
                    class="layer-checkbox" 
@@ -444,10 +440,9 @@ function populateLayerTable(layers) {
             <div class="layer-info">
                 <div class="layer-header">
                     ${addToGlobalButton}
-                    <div class="layer-name ${layer.importFilterApplied ? 'mapped-layer' : (!layer.lineType ? 'unmapped-layer' : '')}">
+                    <div class="layer-name ${layer.importFilterApplied ? 'mapped-layer' : ''}">
                         ${displayName}
                         ${filterStatus}
-                        ${mappingStatus}
                     </div>
                 </div>
                 <div class="layer-details">
@@ -543,9 +538,6 @@ function updateDrawingDimensions() {
     
     // Also update overall size
     updateOverallSize();
-    
-    // Update layer status summary
-    updateLayerStatus();
 }
 
 function rgbToHex(color) {
@@ -976,7 +968,7 @@ function getLayerObjectCount(layerName) {
     // Fallback: try the viewer's layer system (but this counts rendered objects, not entities)
     if (viewer && viewer.layers.has(layerName)) {
         const layer = viewer.layers.get(layerName);
-        return layer && layer.objects ? layer.objects.length : 0;
+        return layer ? layer.objects.length : 0;
     }
     
     return 0;
@@ -1350,394 +1342,6 @@ function initCanvasControls() {
     }
 }
 
-// Update layer status summary
-function updateLayerStatus() {
-    const layerStatusEl = document.getElementById('layerStatus');
-    const layerCountEl = document.getElementById('layerCount');
-    const mappingStatusEl = document.getElementById('mappingStatus');
-    
-    if (!currentLayerData || !layerStatusEl) return;
-    
-    const totalLayers = currentLayerData.length;
-    const mappedLayers = currentLayerData.filter(layer => layer.importFilterApplied || layer.lineType).length;
-    const unmappedLayers = totalLayers - mappedLayers;
-    
-    layerCountEl.textContent = `${totalLayers} layer${totalLayers !== 1 ? 's' : ''}`;
-    mappingStatusEl.textContent = `${mappedLayers} mapped, ${unmappedLayers} unmapped`;
-    
-    if (unmappedLayers > 0) {
-        mappingStatusEl.style.color = '#ffc107';
-        mappingStatusEl.title = `${unmappedLayers} layers need line type mapping`;
-    } else {
-        mappingStatusEl.style.color = '#28a745';
-        mappingStatusEl.title = 'All layers are properly mapped';
-    }
-    
-    layerStatusEl.style.display = 'block';
-}
-
-// Layer validation and warning functions
-function validateLayerMappings() {
-    if (!currentLayerData) return { valid: true, warnings: [] };
-    
-    // Aggregate layers by name, prioritize unmapped over hidden
-    const layerMap = new Map();
-    const includedLayers = [];
-    
-    currentLayerData.forEach((layer, index) => {
-        const layerName = layer.parentLayer || layer.name;
-        const isVisible = document.getElementById(`layer-${index}`)?.checked || false;
-        const objectCount = layer.objectCount !== undefined ? layer.objectCount : (layer.objects ? layer.objects.length : 0);
-        
-        // If unmapped, add or update in map
-        if (!layer.importFilterApplied && !layer.lineType) {
-            layerMap.set(layerName, {
-                name: layerName,
-                color: layer.color,
-                objectCount,
-                type: 'unmapped'
-            });
-        } else if (!isVisible && !layerMap.has(layerName)) {
-            // Only add hidden if not already unmapped
-            layerMap.set(layerName, {
-                name: layerName,
-                objectCount,
-                type: 'hidden'
-            });
-        } else if (isVisible && (layer.importFilterApplied || layer.lineType)) {
-            // Layer is visible and mapped - will be included in output
-            const existingIncluded = includedLayers.find(l => l.name === layerName);
-            if (existingIncluded) {
-                existingIncluded.objectCount += objectCount;
-            } else {
-                includedLayers.push({
-                    name: layerName,
-                    objectCount,
-                    type: 'included'
-                });
-            }
-        }
-    });
-    
-    // Split back into unmapped and hidden
-    const unmappedLayers = [];
-    const hiddenLayers = [];
-    for (const layer of layerMap.values()) {
-        if (layer.type === 'unmapped') {
-            unmappedLayers.push(layer);
-        } else if (layer.type === 'hidden') {
-            hiddenLayers.push(layer);
-        }
-    }
-    
-    // Generate warnings
-    const warnings = [];
-    if (unmappedLayers.length > 0) {
-        warnings.push({
-            type: 'unmapped',
-            count: unmappedLayers.length,
-            layers: unmappedLayers,
-            message: `${unmappedLayers.length} layer(s) are unmapped and will be skipped during DIN generation`
-        });
-    }
-    if (hiddenLayers.length > 0) {
-        warnings.push({
-            type: 'hidden',
-            count: hiddenLayers.length,
-            layers: hiddenLayers,
-            message: `${hiddenLayers.length} layer(s) are hidden and will be excluded from processing`
-        });
-    }
-    
-    return {
-        valid: unmappedLayers.length === 0 && hiddenLayers.length > 0,
-        warnings,
-        unmappedLayers,
-        hiddenLayers,
-        includedLayers
-    };
-}
-
-function showLayerValidationWarning(validation) {
-    if (validation.warnings.length === 0) return;
-    
-    let warningContent = '';
-    let successContent = '';
-    let totalSkipped = 0;
-    let totalIncluded = 0;
-    
-    // Show layers that will be excluded (warnings)
-    validation.warnings.forEach(warning => {
-        warningContent += `
-            <div class="warning-section">
-                <div class="warning-header">
-                    <span class="warning-icon">⚠️</span>
-                    <span class="warning-title">${warning.message}</span>
-                </div>
-                <div class="warning-details">
-                    ${warning.layers.map(layer => {
-                        totalSkipped += layer.objectCount;
-                        return `<div class="warning-layer">
-                            <span class="layer-name">${layer.name}</span>
-                            <span class="object-count">${layer.objectCount} objects</span>
-                        </div>`;
-                    }).join('')}
-                </div>
-            </div>
-        `;
-    });
-    
-    // Show layers that will be included (success)
-    if (validation.includedLayers && validation.includedLayers.length > 0) {
-        validation.includedLayers.forEach(layer => {
-            totalIncluded += layer.objectCount;
-        });
-        
-        successContent = `
-            <div class="success-section">
-                <div class="success-header">
-                    <span class="success-icon">✅</span>
-                    <span class="success-title">${validation.includedLayers.length} layer(s) will be included in DIN generation</span>
-                </div>
-                <div class="success-details">
-                    ${validation.includedLayers.map(layer => `
-                        <div class="success-layer">
-                            <span class="layer-name">${layer.name}</span>
-                            <span class="object-count">${layer.objectCount} objects</span>
-                        </div>
-                    `).join('')}
-                </div>
-            </div>
-        `;
-    }
-    
-    const modalHTML = `
-        <div id="layerValidationModal" class="modal" style="display: flex;">
-            <div class="modal-content validation-modal">
-                <div class="modal-header">
-                    <h3>Layer Processing Warning</h3>
-                    <button class="modal-close" onclick="closeLayerValidationModal()">&times;</button>
-                </div>
-                <div class="modal-body">
-                    <div class="validation-summary">
-                        <p><strong>${totalSkipped} objects</strong> will be excluded from DIN generation.</p>
-                    </div>
-                    ${warningContent}
-                    ${successContent}
-                    <div class="validation-actions">
-                        <p>Do you want to continue with DIN generation?</p>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button class="btn btn-secondary" onclick="closeLayerValidationModal()">Cancel</button>
-                    <button class="btn btn-primary" onclick="proceedWithDinGeneration()">Continue Anyway</button>
-                    <button class="btn btn-success" onclick="fixLayerMappings()">Fix Mappings</button>
-                </div>
-            </div>
-        </div>
-    `;
-    
-    // Remove existing modal if present
-    const existingModal = document.getElementById('layerValidationModal');
-    if (existingModal) {
-        existingModal.remove();
-    }
-    
-    // Add modal to DOM
-    document.body.insertAdjacentHTML('beforeend', modalHTML);
-}
-
-function showLayerProcessingConfirmation(validation) {
-    let successContent = '';
-    let totalIncluded = 0;
-    
-    // Show layers that will be included
-    if (validation.includedLayers && validation.includedLayers.length > 0) {
-        validation.includedLayers.forEach(layer => {
-            totalIncluded += layer.objectCount;
-        });
-        
-        successContent = `
-            <div class="success-section">
-                <div class="success-header">
-                    <span class="success-icon">✅</span>
-                    <span class="success-title">${validation.includedLayers.length} layer(s) will be processed</span>
-                </div>
-                <div class="success-details">
-                    ${validation.includedLayers.map(layer => `
-                        <div class="success-layer">
-                            <span class="layer-name">${layer.name}</span>
-                            <span class="object-count">${layer.objectCount} objects</span>
-                        </div>
-                    `).join('')}
-                </div>
-            </div>
-        `;
-    }
-    
-    const modalHTML = `
-        <div id="layerValidationModal" class="modal" style="display: flex;">
-            <div class="modal-content validation-modal">
-                <div class="modal-header">
-                    <h3>Generate DIN File</h3>
-                    <button class="modal-close" onclick="closeLayerValidationModal()">&times;</button>
-                </div>
-                <div class="modal-body">
-                    <div class="validation-summary">
-                        <p><strong>${totalIncluded} objects</strong> will be processed for DIN generation.</p>
-                    </div>
-                    ${successContent}
-                    <div class="validation-actions">
-                        <p>Proceed with DIN generation?</p>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button class="btn btn-secondary" onclick="closeLayerValidationModal()">Cancel</button>
-                    <button class="btn btn-primary" onclick="proceedWithDinGeneration()">Generate DIN File</button>
-                </div>
-            </div>
-        </div>
-    `;
-    
-    // Remove existing modal if present
-    const existingModal = document.getElementById('layerValidationModal');
-    if (existingModal) {
-        existingModal.remove();
-    }
-    
-    // Add modal to DOM
-    document.body.insertAdjacentHTML('beforeend', modalHTML);
-}
-
-function closeLayerValidationModal() {
-    const modal = document.getElementById('layerValidationModal');
-    if (modal) {
-        modal.remove();
-    }
-}
-
-function showDinGenerationSuccessDialog(filePath, processedLayers, stats) {
-    let includedContent = '';
-    let totalObjects = 0;
-    
-    if (processedLayers && processedLayers.length > 0) {
-        processedLayers.forEach(layer => {
-            totalObjects += layer.objectCount || 0;
-        });
-        
-        includedContent = `
-            <div class="success-section">
-                <div class="success-header">
-                    <span class="success-icon">✅</span>
-                    <span class="success-title">${processedLayers.length} layer(s) were processed successfully</span>
-                </div>
-                <div class="success-details">
-                    ${processedLayers.map(layer => `
-                        <div class="success-layer">
-                            <span class="layer-name">${layer.name}</span>
-                            <span class="object-count">${layer.objectCount || 0} objects</span>
-                        </div>
-                    `).join('')}
-                </div>
-            </div>
-        `;
-    }
-    
-    const modalHTML = `
-        <div id="dinSuccessModal" class="modal" style="display: flex;">
-            <div class="modal-content validation-modal">
-                <div class="modal-header">
-                    <h3>DIN File Generated Successfully</h3>
-                    <button class="modal-close" onclick="closeDinSuccessModal()">&times;</button>
-                </div>
-                <div class="modal-body">
-                    <div class="validation-summary">
-                        <p><strong>DIN file saved successfully!</strong></p>
-                        <p style="margin-top: 0.5rem; font-size: 0.9rem; word-break: break-all;">${filePath}</p>
-                    </div>
-                    ${includedContent}
-                    ${stats ? `
-                        <div style="margin-top: 1rem; padding: 0.75rem; background: rgba(0, 191, 255, 0.1); border-radius: 6px; text-align: center;">
-                            <p style="margin: 0; color: #00BFFF; font-weight: 500;">
-                                Generated ${stats.totalLines || 0} DIN commands from ${totalObjects} objects
-                            </p>
-                        </div>
-                    ` : ''}
-                </div>
-                <div class="modal-footer">
-                    <button class="btn btn-primary" onclick="closeDinSuccessModal()">OK</button>
-                </div>
-            </div>
-        </div>
-    `;
-    
-    // Remove existing modal if present
-    const existingModal = document.getElementById('dinSuccessModal');
-    if (existingModal) {
-        existingModal.remove();
-    }
-    
-    // Add modal to DOM
-    document.body.insertAdjacentHTML('beforeend', modalHTML);
-}
-
-function closeDinSuccessModal() {
-    const modal = document.getElementById('dinSuccessModal');
-    if (modal) {
-        modal.remove();
-    }
-}
-
-function getProcessedLayersInfo() {
-    if (!currentLayerData) return [];
-    
-    const processedLayers = [];
-    const layerMap = new Map();
-    
-    currentLayerData.forEach((layer, index) => {
-        const layerName = layer.parentLayer || layer.name;
-        const isVisible = document.getElementById(`layer-${index}`)?.checked || false;
-        const objectCount = layer.objectCount !== undefined ? layer.objectCount : (layer.objects ? layer.objects.length : 0);
-        
-        // Only include layers that are visible and mapped
-        if (isVisible && (layer.importFilterApplied || layer.lineType)) {
-            const existingLayer = layerMap.get(layerName);
-            if (existingLayer) {
-                existingLayer.objectCount += objectCount;
-            } else {
-                layerMap.set(layerName, {
-                    name: layerName,
-                    objectCount: objectCount
-                });
-            }
-        }
-    });
-    
-    return Array.from(layerMap.values());
-}
-
-// Make functions globally accessible for HTML onclick attributes
-window.closeLayerValidationModal = closeLayerValidationModal;
-window.proceedWithDinGeneration = proceedWithDinGeneration;
-window.fixLayerMappings = fixLayerMappings;
-window.closeDinSuccessModal = closeDinSuccessModal;
-
-function proceedWithDinGeneration() {
-    closeLayerValidationModal();
-    // Continue with actual DIN generation logic
-    performDinGeneration();
-}
-
-function fixLayerMappings() {
-    closeLayerValidationModal();
-    // Scroll to layer table to help user fix mappings
-    const layerTable = document.getElementById('layerTable');
-    if (layerTable) {
-        layerTable.scrollIntoView({ behavior: 'smooth' });
-        showStatus('Please map the unmapped layers and ensure desired layers are visible.', 'info');
-    }
-}
-
 // DXF Viewer functions
 async function initViewer() {
     try {
@@ -1832,7 +1436,7 @@ async function loadDxfContent(filename, dxfData, filePath = null) {
             });
             
             // Also add default layer if it exists and has objects, but only if it's not already in the layers
-            if (viewer.defaultLayer && viewer.defaultLayer.objects && viewer.defaultLayer.objects.length > 0) {
+            if (viewer.defaultLayer && viewer.defaultLayer.objects.length > 0) {
                 const defaultLayerExists = layersFromMap.some(layer => 
                     layer.name === viewer.defaultLayer.name && 
                     layer.color === viewer.defaultLayer.color
@@ -3408,16 +3012,7 @@ function initializeDinGeneration() {
     });
     
     generateDinBtn?.addEventListener('click', async () => {
-        // Validate layer mappings and visibility before generating
-        const validation = validateLayerMappings();
-        
-        if (validation.warnings.length > 0) {
-            // Show warning modal and let user decide
-            showLayerValidationWarning(validation);
-        } else {
-            // No issues, but still show confirmation dialog with layers that will be processed
-            showLayerProcessingConfirmation(validation);
-        }
+        await generateDinFile();
     });
     
     // Initialize file output settings
@@ -3460,7 +3055,7 @@ async function previewDinFile() {
 }
 
 // Generate and save DIN file
-async function performDinGeneration() {
+async function generateDinFile() {
     try {
         if (!viewer || !viewer.scene || !currentPostprocessorConfig) {
             showStatus('Load a DXF file and configure postprocessor first', 'warning');
@@ -3478,8 +3073,8 @@ async function performDinGeneration() {
             console.warn('Failed to load line types, using fallback:', error);
         }
 
-        // Extract entities from viewer, filtering by visibility and mappings
-        const entities = extractEntitiesFromViewer(true); // true = respect layer visibility
+        // Extract entities from viewer
+        const entities = extractEntitiesFromViewer();
         if (entities.length === 0) {
             showStatus('No entities found to process', 'warning');
             return;
@@ -3510,69 +3105,6 @@ async function performDinGeneration() {
             config: configWithLineTypes,
             metadata: metadata
         });
-        console.log('Current mappingWorkflow:', currentPostprocessorConfig.mappingWorkflow);
-        console.log('lineTypeToTool mappings:', currentPostprocessorConfig.mappingWorkflow?.lineTypeToTool);
-        
-        // Auto-create lineType-to-tool mappings if missing
-        if (!currentPostprocessorConfig.mappingWorkflow) {
-            currentPostprocessorConfig.mappingWorkflow = {};
-        }
-        if (!currentPostprocessorConfig.mappingWorkflow.lineTypeToTool) {
-            currentPostprocessorConfig.mappingWorkflow.lineTypeToTool = [];
-        }
-        
-        // Check for entities with line types but no tool mappings and auto-map by name
-        const usedLineTypes = [...new Set(entities.map(e => e.lineType).filter(Boolean))];
-        const existingMappings = currentPostprocessorConfig.mappingWorkflow.lineTypeToTool.map(m => m.lineType);
-        const unmappedLineTypes = usedLineTypes.filter(lt => !existingMappings.includes(lt));
-        
-        console.log('Used line types:', usedLineTypes);
-        console.log('Existing tool mappings:', existingMappings);
-        console.log('Unmapped line types:', unmappedLineTypes);
-        
-        // Auto-map by name matching with available tools from postprocessor profile
-        if (unmappedLineTypes.length > 0) {
-            console.log('Looking for tools in postprocessor config');
-            console.log('currentPostprocessorConfig.tools:', currentPostprocessorConfig.tools);
-            
-            // Get tools from postprocessor profile (these are the machine tools like T20, T22, etc.)
-            let machineTools = null;
-            if (currentPostprocessorConfig.tools && Array.isArray(currentPostprocessorConfig.tools)) {
-                machineTools = currentPostprocessorConfig.tools;
-            } else if (currentPostprocessorConfig.tools && typeof currentPostprocessorConfig.tools === 'object') {
-                // Convert object to array if tools are stored as object
-                machineTools = Object.values(currentPostprocessorConfig.tools);
-            }
-            
-            console.log('Machine tools found:', machineTools);
-            
-            if (machineTools && machineTools.length > 0) {
-                unmappedLineTypes.forEach(lineTypeName => {
-                    // Stage 2 mapping: Internal line type name → Machine tool
-                    // Find machine tool with matching name (e.g., "Fast Engrave" → T20)
-                    const matchingTool = machineTools.find(tool => 
-                        tool.name === lineTypeName || 
-                        tool.Name === lineTypeName ||  // XML uses capital N
-                        tool.id === lineTypeName ||
-                        tool.ID === lineTypeName      // XML uses capital ID
-                    );
-                    
-                    if (matchingTool) {
-                        const toolId = matchingTool.id || matchingTool.ID;
-                        console.log(`Auto-mapping internal line type "${lineTypeName}" to machine tool "${toolId}"`);
-                        currentPostprocessorConfig.mappingWorkflow.lineTypeToTool.push({
-                            lineType: lineTypeName,
-                            tool: toolId
-                        });
-                    } else {
-                        console.warn(`No matching machine tool found for internal line type "${lineTypeName}"`);
-                        console.log('Available machine tool names:', machineTools.map(t => t.name || t.Name || t.id || t.ID));
-                    }
-                });
-            } else {
-                console.warn('No machine tools found in postprocessor config for auto-mapping');
-            }
-        }
         const dinContent = dinGenerator.generateDin(entities, configWithLineTypes, metadata);
         console.log('DIN generation completed, content length:', dinContent.length);
         
@@ -3587,10 +3119,9 @@ async function performDinGeneration() {
         const defaultFilename = currentFilename ? 
             currentFilename.replace(/\.[^/.]+$/, '.din') : 'output.din';
         
-        await saveDinFile(dinContent, defaultFilename, validation.stats);
+        await saveDinFile(dinContent, defaultFilename);
         
-        // Remove the old status message since we now show a success dialog
-        // showStatus(`Generated DIN file with ${validation.stats.totalLines} lines`, 'success');
+        showStatus(`Generated DIN file with ${validation.stats.totalLines} lines`, 'success');
 
     } catch (error) {
         console.error('Error generating DIN file:', error);
@@ -3727,10 +3258,10 @@ function generateFilename(format, metadata) {
 }
 
 // Extract entities from the DXF viewer
-function extractEntitiesFromViewer(respectVisibility = false) {
+function extractEntitiesFromViewer() {
     const entities = [];
     
-    console.log('extractEntitiesFromViewer called, respectVisibility:', respectVisibility);
+    console.log('extractEntitiesFromViewer called');
     console.log('viewer:', viewer);
     console.log('viewer.parsedDxf:', viewer?.parsedDxf);
     console.log('viewer.parsedDxf.entities:', viewer?.parsedDxf?.entities);
@@ -3738,19 +3269,6 @@ function extractEntitiesFromViewer(respectVisibility = false) {
     if (!viewer || !viewer.parsedDxf || !viewer.parsedDxf.entities) {
         console.warn('No DXF data available for entity extraction');
         return entities;
-    }
-    
-    // Get visibility states if needed
-    let layerVisibility = {};
-    if (respectVisibility && currentLayerData) {
-        currentLayerData.forEach((layer, index) => {
-            const layerName = layer.parentLayer || layer.name;
-            const isVisible = document.getElementById(`layer-${index}`)?.checked || false;
-            const hasMapping = layer.importFilterApplied || layer.lineType;
-            
-            layerVisibility[layerName] = isVisible && hasMapping;
-            console.log(`Layer ${layerName}: visible=${isVisible}, mapped=${hasMapping}, include=${layerVisibility[layerName]}`);
-        });
     }
     
     // Extract actual DXF entities from the viewer
@@ -3761,28 +3279,10 @@ function extractEntitiesFromViewer(respectVisibility = false) {
             // Get the layer object to find the lineTypeId
             const layerName = entity.layer || '0';
             
-            // Check visibility if requested
-            if (respectVisibility) {
-                const includeLayer = layerVisibility[layerName];
-                if (includeLayer === false) {
-                    console.log(`Entity ${index} - skipping due to layer visibility/mapping: ${layerName}`);
-                    return; // Skip this entity
-                }
-            }
-            
             // First try to get from processed layers (with import filter applied)
             let lineTypeId = null;
-            let lineTypeName = null;
-            
-            console.log(`Entity ${index} - trying to match: layer=${layerName}, color=${entity.color}, colorIndex=${entity.colorIndex}`);
-            
             if (window.processedLayersWithLineTypes) {
-                console.log(`Entity ${index} - checking processed layers:`, window.processedLayersWithLineTypes.map(l => `${l.name} (color: ${l.color})`));
-                // Match by both layer name and color for processed layers
-                const processedLayer = window.processedLayersWithLineTypes.find(l => 
-                    l.name === layerName || 
-                    (l.originalLayerName === layerName && l.color === entity.color)
-                );
+                const processedLayer = window.processedLayersWithLineTypes.find(l => l.name === layerName);
                 if (processedLayer) {
                     lineTypeId = processedLayer.lineTypeId;
                     console.log(`Entity ${index} - found in processed layers, lineTypeId: ${lineTypeId}`);
@@ -3798,25 +3298,7 @@ function extractEntitiesFromViewer(respectVisibility = false) {
                 lineTypeId = layerObject?.lineTypeId || entity.lineTypeId || null;
             }
             
-            // Check layer+color-to-line-type mappings from the postprocessor config
-            if (lineTypeId === null && currentPostprocessorConfig?.mappingWorkflow?.layerToLineType) {
-                console.log(`Entity ${index} - checking mappingWorkflow config:`, currentPostprocessorConfig.mappingWorkflow.layerToLineType);
-                const layerMapping = currentPostprocessorConfig.mappingWorkflow.layerToLineType.find(m => m.layer === layerName && m.color === entity.color);
-                if (layerMapping) {
-                    lineTypeName = layerMapping.lineType;
-                    console.log(`Entity ${index} - found layer+color mapping: ${layerName} + ${entity.color} -> ${lineTypeName}`);
-                } else {
-                    console.log(`Entity ${index} - no mapping found for layer=${layerName}, color=${entity.color}`);
-                }
-            }
-            
             console.log(`Entity ${index} - layer: ${layerName}, final lineTypeId: ${lineTypeId}`);
-            
-            // Convert lineTypeId to lineType name for DIN generator, or use directly found line type name
-            if (!lineTypeName) {
-                lineTypeName = lineTypeId ? getLineTypeName(lineTypeId) : null;
-            }
-            console.log(`Entity ${index} - final lineType: ${lineTypeName}`);
             
             const processedEntity = {
                 id: `entity_${index}`,
@@ -3826,7 +3308,6 @@ function extractEntitiesFromViewer(respectVisibility = false) {
                 colorIndex: entity.colorIndex,
                 lineweight: entity.lineweight,
                 lineTypeId: lineTypeId, // Add line type ID from layer
-                lineType: lineTypeName, // Add line type name for DIN generator
                 originalEntity: entity // Keep reference to original for detailed properties
             };
             
@@ -3970,7 +3451,7 @@ function showDinPreview(content) {
 }
 
 // Save DIN file using Electron API
-async function saveDinFile(content, defaultFilename, generationStats = null) {
+async function saveDinFile(content, defaultFilename) {
     try {
         // Get output settings from current configuration
         const outputSettings = currentPostprocessorConfig?.outputSettings || {};
@@ -3987,14 +3468,11 @@ async function saveDinFile(content, defaultFilename, generationStats = null) {
         
         const generatedFilename = generateFilename(filenameFormat, metadata);
         
-        // Get processed layers info for success dialog
-        const processedLayers = getProcessedLayersInfo();
-        
         // If auto-save is enabled and we have a default path, save directly
         if (autoSaveEnabled && defaultSavePath) {
             const result = await window.electronAPI.saveDinFile(content, generatedFilename, defaultSavePath);
             if (result.success) {
-                showDinGenerationSuccessDialog(result.filePath, processedLayers, generationStats);
+                showStatus(`DIN file saved to: ${result.filePath}`, 'success');
             } else {
                 showStatus(`Failed to save DIN file: ${result.error}`, 'error');
             }
@@ -4004,7 +3482,7 @@ async function saveDinFile(content, defaultFilename, generationStats = null) {
         // Otherwise, show save dialog
         const result = await window.electronAPI.saveDinFile(content, generatedFilename, null);
         if (result.success) {
-            showDinGenerationSuccessDialog(result.filePath, processedLayers, generationStats);
+            showStatus(`DIN file saved to: ${result.filePath}`, 'success');
         } else {
             showStatus(`Failed to save DIN file: ${result.error}`, 'error');
         }
@@ -5373,34 +4851,20 @@ function createLayerToLineTypeMapping(layerName, lineTypeName) {
         currentPostprocessorConfig.mappingWorkflow.layerToLineType = [];
     }
     
-    // Extract color from layer data for layer+color mapping
-    let color = null;
-    if (window.currentLayerData) {
-        const found = window.currentLayerData.find(l => l.name === layerName || l.originalLayerName === layerName);
-        if (found) {
-            color = found.color;
-            console.log(`createLayerToLineTypeMapping: found color ${color} for layer ${layerName}`);
-        }
-    }
-    
-    // Remove existing mapping for this layer+color combination
+    // Remove existing mapping for this layer
     currentPostprocessorConfig.mappingWorkflow.layerToLineType = 
-        currentPostprocessorConfig.mappingWorkflow.layerToLineType.filter(m => !(m.layer === layerName && m.color === color));
+        currentPostprocessorConfig.mappingWorkflow.layerToLineType.filter(m => m.layer !== layerName);
     
-    // Add new mapping with color
+    // Add new mapping
     currentPostprocessorConfig.mappingWorkflow.layerToLineType.push({
         layer: layerName,
-        color: color,
         lineType: lineTypeName
     });
-    
-    console.log(`createLayerToLineTypeMapping: added mapping layer=${layerName}, color=${color}, lineType=${lineTypeName}`);
-    console.log('Current mappings:', currentPostprocessorConfig.mappingWorkflow.layerToLineType);
     
     // Update visual indicators
     updateMappingVisuals();
     
-    showStatus(`Mapped layer "${layerName}" (color ${color}) to line type "${lineTypeName}"`, 'success');
+    showStatus(`Mapped layer "${layerName}" to line type "${lineTypeName}"`, 'success');
 }
 
 // Create many-to-one layer mappings (multiple layers to single line type)
@@ -5414,23 +4878,14 @@ function createMultiLayerToLineTypeMapping(layerNames, lineTypeName) {
     
     // Remove existing mappings for these layers
     layerNames.forEach(layerName => {
-        // Extract color from layer data for each layer
-        let color = null;
-        if (window.currentLayerData) {
-            const found = window.currentLayerData.find(l => l.name === layerName || l.originalLayerName === layerName);
-            if (found) {
-                color = found.color;
-            }
-        }
-        
-        // Remove existing mapping for this layer+color
         currentPostprocessorConfig.mappingWorkflow.layerToLineType = 
-            currentPostprocessorConfig.mappingWorkflow.layerToLineType.filter(m => !(m.layer === layerName && m.color === color));
-        
-        // Add new mapping for layer+color
+            currentPostprocessorConfig.mappingWorkflow.layerToLineType.filter(m => m.layer !== layerName);
+    });
+    
+    // Add new mappings for all layers to the same line type
+    layerNames.forEach(layerName => {
         currentPostprocessorConfig.mappingWorkflow.layerToLineType.push({
             layer: layerName,
-            color: color,
             lineType: lineTypeName
         });
     });
@@ -7953,25 +7408,12 @@ async function showAddToGlobalModal(layerName, layerColor) {
                     description: description || `Rule for ${layerName}`,
                     source: 'manual'
                 };
-                // Also update mappingWorkflow config for UI mapping
-                if (!currentPostprocessorConfig.mappingWorkflow) {
-                    currentPostprocessorConfig.mappingWorkflow = { layerToLineType: [] };
-                }
-                if (!currentPostprocessorConfig.mappingWorkflow.layerToLineType) {
-                    currentPostprocessorConfig.mappingWorkflow.layerToLineType = [];
-                }
-                // Remove any previous mapping for this layer+color
-                currentPostprocessorConfig.mappingWorkflow.layerToLineType = currentPostprocessorConfig.mappingWorkflow.layerToLineType.filter(m => !(m.layer === layerName && m.color === layerColor));
-                // Add new mapping
-                currentPostprocessorConfig.mappingWorkflow.layerToLineType.push({
-                    layer: layerName,
-                    color: layerColor,
-                    lineType: lineTypeId
-                });
-                // Save to global filter as before
+                
                 const result = await window.electronAPI.addRuleToGlobalImportFilter(ruleData);
+                
                 if (result.success) {
-                    showStatus(`Added ${layerName} (color ${layerColor}) to global import filter`, 'success');
+                    showStatus(`Added ${layerName} to global import filter`, 'success');
+                    
                     // Refresh the layer table to show the new mapping
                     if (window.currentDxfLayers) {
                         const updatedLayers = await window.electronAPI.applyGlobalImportFilter(window.currentDxfLayers);
@@ -7983,7 +7425,9 @@ async function showAddToGlobalModal(layerName, layerColor) {
                 } else {
                     throw new Error(result.error);
                 }
+                
                 closeAddToGlobalModal();
+                
             } catch (error) {
                 console.error('Error adding to global filter:', error);
                 showStatus('Failed to add to global filter: ' + error.message, 'error');

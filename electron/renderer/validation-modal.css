@@ -1,0 +1,87 @@
+.validation-modal .modal-body {
+    padding-top: 0.5rem;
+}
+
+.validation-summary {
+    background: rgba(255, 193, 7, 0.1);
+    border: 1px solid #ffc107;
+    color: #ffc107;
+    padding: 0.75rem 1rem;
+    border-radius: 6px;
+    margin-bottom: 1rem;
+    text-align: center;
+}
+
+.validation-summary p {
+    margin: 0;
+    font-weight: 500;
+}
+
+.warning-section, .success-section {
+    margin-bottom: 1rem;
+    border-radius: 6px;
+    overflow: hidden;
+    border: 1px solid;
+}
+
+.warning-section {
+    border-color: #ff4d4d;
+    background: rgba(255, 77, 77, 0.1);
+}
+
+.success-section {
+    border-color: #28a745;
+    background: rgba(40, 167, 69, 0.1);
+}
+
+.warning-header, .success-header {
+    padding: 0.5rem 1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.warning-header {
+    background: rgba(255, 77, 77, 0.2);
+    color: #ff4d4d;
+}
+
+.success-header {
+    background: rgba(40, 167, 69, 0.2);
+    color: #28a745;
+}
+
+.warning-icon, .success-icon {
+    font-size: 1.2rem;
+}
+
+.warning-title, .success-title {
+    font-weight: 600;
+    font-size: 0.9rem;
+}
+
+.warning-details, .success-details {
+    padding: 0.5rem 1rem;
+}
+
+.warning-layer, .success-layer {
+    display: flex;
+    justify-content: space-between;
+    padding: 0.25rem 0;
+    font-size: 0.9rem;
+}
+
+.layer-name {
+    color: #e0e0e0;
+}
+
+.object-count {
+    color: #a0a0a0;
+    font-family: monospace;
+}
+
+.validation-actions {
+    text-align: center;
+    margin-top: 1.5rem;
+    color: #ccc;
+}
