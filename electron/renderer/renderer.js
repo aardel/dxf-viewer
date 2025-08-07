@@ -1424,6 +1424,9 @@ function updateLayerStatus() {
     const totalLayers = currentLayerData.length;
     const mappedLayers = currentLayerData.filter(layer => layer.importFilterApplied || layer.lineType).length;
     const unmappedLayers = totalLayers - mappedLayers;
+    const unmappedLayerNames = currentLayerData
+        .filter(layer => !layer.importFilterApplied && !layer.lineType)
+        .map(layer => layer.layer);
     
     layerCountEl.textContent = `${totalLayers} layer${totalLayers !== 1 ? 's' : ''}`;
     mappingStatusEl.textContent = `${mappedLayers} mapped, ${unmappedLayers} unmapped`;
@@ -1437,6 +1440,17 @@ function updateLayerStatus() {
     }
     
     layerStatusEl.style.display = 'block';
+    
+    // Dispatch event for header controls
+    const mappingStatusEvent = new CustomEvent('mappingStatusUpdated', {
+        detail: {
+            totalLayers,
+            mappedLayers,
+            unmappedLayers,
+            unmappedLayerNames
+        }
+    });
+    document.dispatchEvent(mappingStatusEvent);
 }
 
 // Layer validation and warning functions
@@ -2010,6 +2024,16 @@ async function loadDxfContent(filename, dxfData, filePath = null) {
             // Fit to view
             fitToView();
             showStatus(`Successfully loaded: ${filename} (${mappingEntries.length} layers)`, 'success');
+            
+            // Dispatch event for header controls
+            const dxfLoadedEvent = new CustomEvent('dxfLoaded', {
+                detail: {
+                    filename: filename,
+                    layerCount: mappingEntries.length,
+                    filePath: filePath
+                }
+            });
+            document.dispatchEvent(dxfLoadedEvent);
         } catch (error) {
             console.error('Error loading DXF:', error);
             showStatus('Error loading DXF: ' + error.message, 'error');
@@ -3697,6 +3721,10 @@ async function generateDinContentSilently() {
         throw error;
     }
 }
+
+// Make the functions globally available for header controls
+window.generateDinContentSilently = generateDinContentSilently;
+window.saveDinFile = saveDinFile;
 
 // Generate and save DIN file
 async function performDinGeneration() {
