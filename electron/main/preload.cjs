@@ -3,6 +3,8 @@ const { contextBridge, ipcRenderer } = require('electron');
 // Expose protected methods that allow the renderer process to use
 // the ipcRenderer without exposing the entire object
 contextBridge.exposeInMainWorld('electronAPI', {
+    // Batch Monitor API
+    openBatchMonitor: () => ipcRenderer.send('open-batch-monitor'),
     // File operations
     showOpenDialog: () => ipcRenderer.invoke('show-open-dialog'),
     showDirectoryDialog: () => ipcRenderer.invoke('show-directory-dialog'),
@@ -46,6 +48,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
     deleteXmlProfile: (filename) => ipcRenderer.invoke('delete-xml-profile', filename),
 
     // DXF Viewer API
+    parseUnified: (content, filename) => ipcRenderer.invoke('parse-unified', content, filename),
+    clearCache: () => ipcRenderer.invoke('clear-cache'),
 
     // Unified Mapping Window API
     openUnifiedMappingWindow: () => ipcRenderer.invoke('open-unified-mapping-window'),

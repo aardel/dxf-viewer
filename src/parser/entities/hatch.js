@@ -1,6 +1,6 @@
-import * as helpers from "../ParseHelpers.js"
+const helpers = require("../ParseHelpers.js");
 
-export default function EntityParser() {}
+function EntityParser() {}
 
 EntityParser.ForEntityName = 'HATCH';
 
@@ -346,3 +346,5 @@ function ParseSeedPoint(curr, scanner) {
     }
     return helpers.parsePoint(scanner);
 }
+
+module.exports = EntityParser;

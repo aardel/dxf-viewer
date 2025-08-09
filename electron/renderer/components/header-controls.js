@@ -70,9 +70,19 @@ class HeaderControls {
             <span class="btn-status"></span>
         `;
 
+        // Create batch monitor button
+        this.elements.batchMonitorButton = document.createElement('button');
+        this.elements.batchMonitorButton.className = 'batch-monitor-btn';
+        this.elements.batchMonitorButton.innerHTML = `
+            <span class="btn-icon">🔍</span>
+            <span class="btn-text">Batch Monitor</span>
+        `;
+        this.elements.batchMonitorButton.title = 'Open DXF Batch Monitor for automated processing';
+
         // Add elements to container
         headerContainer.appendChild(this.elements.warningIndicator);
         headerContainer.appendChild(this.elements.generateButton);
+        headerContainer.appendChild(this.elements.batchMonitorButton);
 
         // Cache frequently used elements
         this.elements.warningIcon = this.elements.warningIndicator.querySelector('.warning-icon');
@@ -103,6 +113,11 @@ class HeaderControls {
             this.handleGenerateClick();
         });
 
+        // Batch monitor button click
+        this.elements.batchMonitorButton.addEventListener('click', () => {
+            this.handleBatchMonitorClick();
+        });
+
         // Listen for mapping updates from the main application
         document.addEventListener('mappingStatusUpdated', (event) => {
             this.updateMappingStatus(event.detail);
@@ -119,22 +134,25 @@ class HeaderControls {
             totalLayers: statusData.totalLayers || 0,
             mappedLayers: statusData.mappedLayers || 0,
             unmappedLayers: statusData.unmappedLayers || 0,
-            unmappedLayerNames: statusData.unmappedLayerNames || []
+            unmappedLayerNames: statusData.unmappedLayerNames || [],
+            visibleMappedLayers: statusData.visibleMappedLayers || 0,
+            readyForGeneration: statusData.readyForGeneration || false,
+            generationBlockers: statusData.generationBlockers || []
         };
 
         this.updateStatus();
     }
 
     updateStatus() {
-        const { totalLayers, mappedLayers, unmappedLayers, unmappedLayerNames } = this.mappingStatus;
-        const isComplete = unmappedLayers === 0 && totalLayers > 0;
+        const { totalLayers, mappedLayers, unmappedLayers, unmappedLayerNames, readyForGeneration, generationBlockers } = this.mappingStatus;
+        const isComplete = readyForGeneration && totalLayers > 0;  // Use enhanced readiness check
         const hasLayers = totalLayers > 0;
 
         // Update warning indicator
         this.updateWarningIndicator(isComplete, hasLayers, unmappedLayers);
         
         // Update generate button
-        this.updateGenerateButton(isComplete, hasLayers);
+        this.updateGenerateButton(isComplete, hasLayers, generationBlockers);
         
         // Update tooltip content
         this.updateTooltipContent();
@@ -162,13 +180,13 @@ class HeaderControls {
         }
     }
 
-    updateGenerateButton(isComplete, hasLayers) {
+    updateGenerateButton(isComplete, hasLayers, generationBlockers = []) {
         if (!hasLayers) {
             // No DXF loaded
             this.elements.generateButton.className = 'smart-generate-btn disabled';
             this.elements.generateButton.disabled = true;
             this.elements.btnIcon.textContent = '📄';
-            this.elements.btnText.textContent = 'Load DXF First';
+            this.elements.btnText.textContent = 'Load File First';
             this.elements.btnStatus.textContent = '';
         } else if (isComplete) {
             // Ready to generate
@@ -178,17 +196,24 @@ class HeaderControls {
             this.elements.btnText.textContent = 'Generate DIN';
             this.elements.btnStatus.textContent = 'Ready';
         } else {
-            // Missing mappings
+            // Missing mappings or other blockers
             this.elements.generateButton.className = 'smart-generate-btn warning';
             this.elements.generateButton.disabled = true;
             this.elements.btnIcon.textContent = '⚠️';
-            this.elements.btnText.textContent = 'Missing Mappings';
-            this.elements.btnStatus.textContent = `${this.mappingStatus.unmappedLayers} unmapped`;
+            
+            if (generationBlockers.length > 0) {
+                this.elements.btnText.textContent = 'Cannot Generate';
+                this.elements.btnStatus.textContent = generationBlockers[0]; // Show first blocker
+            } else {
+                this.elements.btnText.textContent = 'Missing Mappings';
+                this.elements.btnStatus.textContent = `${this.mappingStatus.unmappedLayers} unmapped`;
+            }
         }
     }
 
     updateTooltipContent() {
-        const { totalLayers, mappedLayers, unmappedLayers, unmappedLayerNames } = this.mappingStatus;
+        const { totalLayers, mappedLayers, unmappedLayers, unmappedLayerNames, 
+                visibleMappedLayers, readyForGeneration, generationBlockers } = this.mappingStatus;
         
         this.elements.totalCount.textContent = totalLayers;
         this.elements.mappedCount.textContent = mappedLayers;
@@ -200,21 +225,82 @@ class HeaderControls {
                 .map(layerName => `<div class="unmapped-layer">• ${layerName}</div>`)
                 .join('');
             this.elements.unmappedList.innerHTML = `
-                <div class="unmapped-header">Unmapped Layers:</div>
+                <div class="unmapped-layers-title">Unmapped Layers:</div>
                 ${listHtml}
             `;
-            this.elements.unmappedList.style.display = 'block';
         } else {
-            this.elements.unmappedList.style.display = 'none';
+            this.elements.unmappedList.innerHTML = '<div class="no-unmapped">All layers mapped!</div>';
+        }
+        
+        // Add generation readiness info
+        if (generationBlockers && generationBlockers.length > 0) {
+            const blockersHtml = generationBlockers
+                .map(blocker => `<div class="generation-blocker">• ${blocker}</div>`)
+                .join('');
+            this.elements.unmappedList.innerHTML += `
+                <div class="generation-blockers-title">Generation Issues:</div>
+                ${blockersHtml}
+            `;
+        }
+        
+        // Add visible layers info if available
+        if (typeof visibleMappedLayers !== 'undefined') {
+            this.elements.unmappedList.innerHTML += `
+                <div class="visible-info">Visible mapped layers: ${visibleMappedLayers}</div>
+            `;
         }
     }
 
     showTooltip() {
         this.elements.tooltip.style.display = 'block';
-        // Position tooltip
+        
+        // Position tooltip below the warning icon, but check for viewport constraints
         const rect = this.elements.warningIcon.getBoundingClientRect();
-        this.elements.tooltip.style.left = `${rect.left}px`;
-        this.elements.tooltip.style.top = `${rect.bottom + 10}px`;
+        const tooltipRect = this.elements.tooltip.getBoundingClientRect();
+        const viewportWidth = window.innerWidth;
+        const viewportHeight = window.innerHeight;
+        
+        // Calculate optimal position
+        let left = rect.left;
+        let top = rect.bottom + 10;
+        
+        // Ensure tooltip doesn't go off the right edge
+        if (left + tooltipRect.width > viewportWidth - 20) {
+            left = viewportWidth - tooltipRect.width - 20;
+        }
+        
+        // If tooltip would overlap with canvas controls area (top-right), move it to the left
+        const canvasControlsArea = {
+            right: viewportWidth - 20,
+            left: viewportWidth - 200, // Approximate canvas controls width
+            top: 120, // Header height + some padding
+            bottom: 300 // Approximate height of controls area
+        };
+        
+        if (left + tooltipRect.width > canvasControlsArea.left && 
+            top < canvasControlsArea.bottom) {
+            // Position to the left of the warning icon instead
+            left = rect.left - tooltipRect.width - 10;
+            
+            // If that goes off screen, position above the warning icon
+            if (left < 20) {
+                left = rect.left;
+                top = rect.top - tooltipRect.height - 10;
+            }
+        }
+        
+        // Ensure tooltip doesn't go off the top
+        if (top < 10) {
+            top = rect.bottom + 10;
+        }
+        
+        // Ensure tooltip doesn't go off the left edge
+        if (left < 10) {
+            left = 10;
+        }
+        
+        this.elements.tooltip.style.left = `${left}px`;
+        this.elements.tooltip.style.top = `${top}px`;
     }
 
     hideTooltip() {
@@ -313,6 +399,18 @@ class HeaderControls {
         // Reset status when new DXF is loaded
         console.log('DXF loaded, updating header controls');
         // The mapping status will be updated by the mapping system
+    }
+
+    handleBatchMonitorClick() {
+        try {
+            if (window.electronAPI && window.electronAPI.openBatchMonitor) {
+                window.electronAPI.openBatchMonitor();
+            } else {
+                console.error('Electron API not available for batch monitor');
+            }
+        } catch (error) {
+            console.error('Failed to open batch monitor:', error);
+        }
     }
 
     // Public method to manually trigger status update

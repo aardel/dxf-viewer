@@ -1,7 +1,6 @@
+const helpers = require("../ParseHelpers.js");
 
-import * as helpers from "../ParseHelpers.js"
-
-export default function EntityParser() {}
+function EntityParser() {}
 
 EntityParser.ForEntityName = 'MTEXT';
 
@@ -55,3 +54,5 @@ EntityParser.prototype.parseEntity = function(scanner, curr) {
     }
     return entity;
 };
+
+module.exports = EntityParser;

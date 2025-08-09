@@ -3,9 +3,9 @@
  * Converts DXF entities to DIN format using optimization algorithms
  */
 
-import { PathOptimizer } from './PathOptimizer.js';
+const PathOptimizer = require('./PathOptimizer.js');
 
-export class DinGenerator {
+class DinGenerator {
     constructor() {
         this.optimizer = new PathOptimizer();
         this.currentTool = null;
@@ -25,7 +25,16 @@ export class DinGenerator {
         this.lineNumber = config.lineNumbers?.startNumber || 10;
         this.currentTool = null;
 
+        // Validate all entities can be mapped before processing
+        const validationResult = this.validateEntityMappings(entities);
+        if (!validationResult.valid) {
+            throw new Error(`Cannot process file: ${validationResult.unmappedLayers.length} layers have no mapping rules: ${validationResult.unmappedLayers.join(', ')}`);
+        }
 
+        console.log(`DinGenerator: Processing ${entities.length} entities`);
+        entities.forEach((entity, index) => {
+            console.log(`Entity ${index}: ${entity.type} on layer '${entity.layer || 'unknown'}'`);
+        });
 
         // Load tools with priority information
         const toolsWithPriority = this.loadToolsFromConfig(config);
@@ -185,6 +194,8 @@ export class DinGenerator {
     generateEntityCommands(entities) {
         const lines = [];
         
+        const shouldHandleBridges = !!this.config?.bridges?.enabled;
+
         entities.forEach(entity => {
             // Check if tool change is needed
             const requiredTool = this.getRequiredTool(entity);
@@ -195,14 +206,24 @@ export class DinGenerator {
                 return; // Skip to next entity
             }
             
+            // If tool is intentionally set to skip, skip this entity
+            if (requiredTool.skip) {
+                console.log(`Skipping entity (${entity.type}) - tool set to 'none' (construction/non-machined)`);
+                return; // Skip to next entity
+            }
+            
             // Check if tool change is needed
             if (requiredTool.id !== this.currentTool?.id) {
                 lines.push(...this.generateToolChange(requiredTool));
                 this.currentTool = requiredTool;
             }
 
-            // Generate entity-specific commands
-            lines.push(...this.generateEntityDin(entity));
+            // Generate entity-specific commands (with bridge splitting if enabled)
+            if (shouldHandleBridges && (entity.type === 'LINE' || entity.type === 'ARC') && (entity.bridgeCount || 0) > 0 && (entity.bridgeWidth || 0) > 0) {
+                lines.push(...this.generateEntityDinWithBridges(entity));
+            } else {
+                lines.push(...this.generateEntityDin(entity));
+            }
         });
 
         return lines;
@@ -268,10 +289,144 @@ export class DinGenerator {
     }
 
     /**
+     * Generate DIN for LINE/ARC entities honoring bridge gaps by splitting motion
+     */
+    generateEntityDinWithBridges(entity) {
+        const lines = [];
+        const laserOnCmd = this.config.laser?.comments?.enabled
+            ? `${this.config.laser.laserOn} { ${this.config.laser.comments.onCommand || 'LASER ON'} }`
+            : this.config.laser.laserOn;
+        const laserOffCmd = this.config.laser?.comments?.enabled
+            ? `${this.config.laser.laserOff} { ${this.config.laser.comments.offCommand || 'LASER OFF'} }`
+            : this.config.laser.laserOff;
+
+        if (entity.type === 'LINE') {
+            const start = entity.start;
+            const end = entity.end;
+            const lineVecX = end.x - start.x;
+            const lineVecY = end.y - start.y;
+            const totalLen = Math.hypot(lineVecX, lineVecY);
+            if (!isFinite(totalLen) || totalLen === 0) return [];
+            const ux = lineVecX / totalLen;
+            const uy = lineVecY / totalLen;
+
+            const bridgeCount = entity.bridgeCount || 0;
+            const bridgeWidth = entity.bridgeWidth || 0;
+            const totalBridgeLength = bridgeCount * bridgeWidth;
+            const drawableLen = totalLen - totalBridgeLength;
+            if (drawableLen <= 0) return [];
+            const segmentLen = drawableLen / (bridgeCount + 1);
+
+            // Move to start
+            lines.push(this.formatLine(`${this.config.gcode.rapidMove} X${start.x.toFixed(3)} Y${start.y.toFixed(3)}`));
+            let cursor = 0;
+
+            for (let i = 0; i <= bridgeCount; i++) {
+                const segStart = cursor;
+                const segEnd = (i < bridgeCount) ? (segStart + segmentLen) : drawableLen;
+                const p1x = start.x + ux * segStart;
+                const p1y = start.y + uy * segStart;
+                const p2x = start.x + ux * segEnd;
+                const p2y = start.y + uy * segEnd;
+
+                // Draw segment
+                lines.push(this.formatLine(laserOnCmd));
+                lines.push(this.formatLine(`${this.config.gcode.linearMove} X${p2x.toFixed(3)} Y${p2y.toFixed(3)}`));
+                lines.push(this.formatLine(laserOffCmd));
+
+                // Skip bridge by rapid move over gap (keep laser off)
+                if (i < bridgeCount) {
+                    const gapStart = segEnd;
+                    const gapEnd = gapStart + bridgeWidth;
+                    const g1x = start.x + ux * gapStart;
+                    const g1y = start.y + uy * gapStart;
+                    const g2x = start.x + ux * gapEnd;
+                    const g2y = start.y + uy * gapEnd;
+                    lines.push(this.formatLine(`${this.config.gcode.rapidMove} X${g2x.toFixed(3)} Y${g2y.toFixed(3)}`));
+                    cursor = gapEnd;
+                }
+            }
+
+            return lines;
+        }
+
+        if (entity.type === 'ARC') {
+            // Approximate splitting along arc length using entity.center, radius, start/end angles
+            const cx = entity.center?.x;
+            const cy = entity.center?.y;
+            if (cx === undefined || cy === undefined || entity.radius === undefined) return [];
+
+            // Derive start/end angles from given start/end points
+            const a0 = Math.atan2(entity.start.y - cy, entity.start.x - cx);
+            const a1 = Math.atan2(entity.end.y - cy, entity.end.x - cx);
+            const ccw = entity.clockwise === false; // clockwise true means CW; ccw if false
+            let sweep = a1 - a0;
+            if (ccw && sweep < 0) sweep += Math.PI * 2;
+            if (!ccw && sweep > 0) sweep -= Math.PI * 2;
+            const totalArcLen = Math.abs(entity.radius) * Math.abs(sweep);
+            if (!isFinite(totalArcLen) || totalArcLen === 0) return [];
+
+            const bridgeCount = entity.bridgeCount || 0;
+            const bridgeWidth = entity.bridgeWidth || 0;
+            const totalBridgeLength = bridgeCount * bridgeWidth;
+            const drawableLen = totalArcLen - totalBridgeLength;
+            if (drawableLen <= 0) return [];
+            const segmentLen = drawableLen / (bridgeCount + 1);
+
+            // Helper to get point at arc length L from start
+            const pointAtLen = (len) => {
+                const dir = ccw ? 1 : -1;
+                const theta = a0 + dir * (len / Math.abs(entity.radius));
+                return { x: cx + Math.abs(entity.radius) * Math.cos(theta), y: cy + Math.abs(entity.radius) * Math.sin(theta) };
+            };
+
+            // Move to start
+            lines.push(this.formatLine(`${this.config.gcode.rapidMove} X${entity.start.x.toFixed(3)} Y${entity.start.y.toFixed(3)}`));
+            let cursor = 0;
+            for (let i = 0; i <= bridgeCount; i++) {
+                const segStart = cursor;
+                const segEnd = (i < bridgeCount) ? (segStart + segmentLen) : drawableLen;
+                const p2 = pointAtLen(segEnd);
+
+                // Draw arc segment from current position to p2 using I/J from center
+                lines.push(this.formatLine(laserOnCmd));
+                // Compute I/J from current point (pointAtLen(segStart))
+                const p1 = pointAtLen(segStart);
+                const iVal = cx - p1.x;
+                const jVal = cy - p1.y;
+                const arcCmd = ccw ? this.config.gcode.ccwArc : this.config.gcode.cwArc;
+                lines.push(this.formatLine(`${arcCmd} X${p2.x.toFixed(3)} Y${p2.y.toFixed(3)} I${iVal.toFixed(3)} J${jVal.toFixed(3)}`));
+                lines.push(this.formatLine(laserOffCmd));
+
+                if (i < bridgeCount) {
+                    // Rapid over the bridge gap along arc
+                    const gapEnd = segEnd + bridgeWidth;
+                    const pg = pointAtLen(gapEnd);
+                    lines.push(this.formatLine(`${this.config.gcode.rapidMove} X${pg.x.toFixed(3)} Y${pg.y.toFixed(3)}`));
+                    cursor = gapEnd;
+                }
+            }
+
+            return lines;
+        }
+
+        // Fallback
+        return this.generateEntityDin(entity);
+    }
+
+    /**
      * Generate DIN for LINE entity
      */
     generateLineDin(entity) {
         const lines = [];
+        
+        // Validate that start and end points exist
+        if (!entity.start || !entity.end || 
+            entity.start.x === undefined || entity.start.y === undefined ||
+            entity.end.x === undefined || entity.end.y === undefined) {
+            console.warn('LINE entity missing start or end coordinates:', entity);
+            return [];
+        }
         
         // Move to start position
         lines.push(this.formatLine(`${this.config.gcode.rapidMove} X${entity.start.x.toFixed(3)} Y${entity.start.y.toFixed(3)}`));
@@ -301,6 +456,13 @@ export class DinGenerator {
      */
     generateArcDin(entity) {
         const lines = [];
+        
+        // Validate that center point and radius exist
+        if (!entity.center || entity.center.x === undefined || entity.center.y === undefined || 
+            entity.radius === undefined) {
+            console.warn('ARC entity missing center coordinates or radius:', entity);
+            return [];
+        }
         
         // Calculate start and end points
         const startAngle = entity.startAngle || 0;
@@ -356,6 +518,13 @@ export class DinGenerator {
     generateCircleDin(entity) {
         const lines = [];
         
+        // Validate that center point and radius exist
+        if (!entity.center || entity.center.x === undefined || entity.center.y === undefined || 
+            entity.radius === undefined) {
+            console.warn('CIRCLE entity missing center coordinates or radius:', entity);
+            return [];
+        }
+        
         // Start at rightmost point of circle
         const startX = entity.center.x + entity.radius;
         const startY = entity.center.y;
@@ -393,11 +562,18 @@ export class DinGenerator {
         const lines = [];
         
         if (!entity.vertices || entity.vertices.length < 2) {
+            console.warn('POLYLINE entity has insufficient vertices:', entity);
+            return lines;
+        }
+
+        // Validate first vertex coordinates
+        const firstVertex = entity.vertices[0];
+        if (!firstVertex || firstVertex.x === undefined || firstVertex.y === undefined) {
+            console.warn('POLYLINE entity has invalid first vertex coordinates:', entity);
             return lines;
         }
 
         // Move to first vertex
-        const firstVertex = entity.vertices[0];
         lines.push(this.formatLine(`${this.config.gcode.rapidMove} X${firstVertex.x.toFixed(3)} Y${firstVertex.y.toFixed(3)}`));
         
         // Laser on
@@ -411,6 +587,12 @@ export class DinGenerator {
         for (let i = 1; i < entity.vertices.length; i++) {
             const prevVertex = entity.vertices[i - 1];
             const vertex = entity.vertices[i];
+            
+            // Validate vertex coordinates
+            if (!vertex || vertex.x === undefined || vertex.y === undefined) {
+                console.warn(`POLYLINE vertex ${i} has invalid coordinates:`, vertex);
+                continue;
+            }
             
             // Check if previous vertex has a bulge value (indicating an arc segment)
             if (prevVertex.bulge && Math.abs(prevVertex.bulge) > 0.001) {
@@ -517,27 +699,32 @@ export class DinGenerator {
         // Step 2: Line Type → Tool
         const toolId = this.getToolFromLineType(lineType);
 
-        
-        if (toolId && toolId !== 'none') {
-            const toolName = this.getToolName(toolId);
-            const toolHCode = this.getToolHCode(toolId);
-            
-
-            
-            if (toolHCode) {
-                return {
-                    id: toolId,
-                    name: toolName,
-                    hCode: toolHCode
-                };
-            } else {
-                console.warn(`No H-code found for tool ${toolId}, skipping entity`);
-                return null;
-            }
+        // Check if no tool mapping was found at all
+        if (!toolId) {
+            console.warn(`No tool mapping found for line type: ${lineType}, skipping entity`);
+            return null; // Skip this entity
         }
         
-        console.warn(`No tool mapping found for line type: ${lineType}, skipping entity`);
-        return null; // Skip this entity
+        // Check if tool is 'none' - this means skip the entity (valid mapping)
+        if (toolId === 'none') {
+            console.log(`Tool mapping is 'none' for line type: ${lineType}, skipping entity as intended`);
+            return { skip: true }; // Special object to indicate intentional skip
+        }
+        
+        // Normal tool mapping
+        const toolName = this.getToolName(toolId);
+        const toolHCode = this.getToolHCode(toolId);
+        
+        if (toolHCode) {
+            return {
+                id: toolId,
+                name: toolName,
+                hCode: toolHCode
+            };
+        } else {
+            console.warn(`No H-code found for tool ${toolId}, skipping entity`);
+            return null;
+        }
     }
 
     /**
@@ -547,17 +734,39 @@ export class DinGenerator {
         console.log(`Determining line type for entity:`, {
             type: entity.type,
             layer: entity.layer,
+            color: entity.color,
             lineType: entity.lineType,
             lineTypeId: entity.lineTypeId
         });
         
-        // Priority 1: Use actual line type from DXF if available
+        // Priority 1: Check global import filter for layer mapping
+        if (entity.layer && this.config.globalImportFilter && this.config.globalImportFilter.rules) {
+            const rules = this.config.globalImportFilter.rules;
+            
+            // Find matching rule by layer name
+            const layerRule = rules.find(rule => 
+                rule.layerName && rule.layerName.toUpperCase() === entity.layer.toUpperCase()
+            );
+            
+            if (layerRule && layerRule.lineTypeId) {
+                // Convert lineTypeId to line type name
+                const lineTypeName = this.getLineTypeNameFromId(layerRule.lineTypeId);
+                if (lineTypeName) {
+                    console.log(`Found global import filter mapping: ${entity.layer} -> lineTypeId: ${layerRule.lineTypeId} -> ${lineTypeName}`);
+                    return lineTypeName;
+                } else {
+                    console.warn(`LineTypeId ${layerRule.lineTypeId} not found in line types library`);
+                }
+            }
+        }
+        
+        // Priority 2: Use actual line type from DXF if available
         if (entity.lineType && entity.lineType !== 'BYLAYER' && entity.lineType !== 'CONTINUOUS') {
             console.log(`Using DXF line type: ${entity.lineType}`);
             return entity.lineType;
         }
         
-        // Priority 2: Convert line type ID to name if available
+        // Priority 3: Convert line type ID to name if available
         if (entity.lineTypeId) {
             const lineTypeName = this.getLineTypeNameFromId(entity.lineTypeId);
             if (lineTypeName) {
@@ -566,7 +775,7 @@ export class DinGenerator {
             }
         }
         
-        // Priority 3: Entity type override for special cases
+        // Priority 4: Entity type override for special cases
         if (entity.type === 'TEXT' || entity.type === 'MTEXT') {
             return 'engraving';
         }
@@ -574,38 +783,49 @@ export class DinGenerator {
             return 'construction';
         }
 
-        // Priority 2: Layer to line type mapping
-        if (entity.layer && this.config.mappingWorkflow?.layerToLineType) {
+        // Priority 5: Fallback to legacy layer mapping (for backward compatibility)
+        if (entity.layer && this.config.mappingWorkflow && this.config.mappingWorkflow.layerToLineType) {
             const layerMappings = this.config.mappingWorkflow.layerToLineType;
             
-            // Check for exact layer name match first
+            // Direct lookup for simple key-value mapping
+            if (layerMappings[entity.layer]) {
+                console.log(`Found legacy layer mapping: ${entity.layer} -> ${layerMappings[entity.layer]}`);
+                return layerMappings[entity.layer];
+            }
+            
+            // Check for exact layer name match in array format (legacy)
             const mappings = Array.isArray(layerMappings) ? layerMappings : Object.values(layerMappings || {});
             for (const mapping of mappings) {
                 if (mapping.layer && mapping.layer.toUpperCase() === entity.layer.toUpperCase()) {
+                    console.log(`Found array layer mapping: ${entity.layer} -> ${mapping.lineType}`);
                     return mapping.lineType;
                 }
             }
-            
-            // No fallback mapping - rely only on configured mappings
         }
 
-        // Priority 3: Color to line type mapping
-        if (entity.color !== undefined && this.config.mappingWorkflow?.colorToLineType) {
+        // Priority 6: Color to line type mapping (fallback)
+        if (entity.color !== undefined && this.config.mappingWorkflow && this.config.mappingWorkflow.colorToLineType) {
             const colorMappings = this.config.mappingWorkflow.colorToLineType;
             
-            // Check configured color mappings
+            // Direct lookup for simple key-value mapping
+            if (colorMappings[entity.color]) {
+                console.log(`Found color mapping: ${entity.color} -> ${colorMappings[entity.color]}`);
+                return colorMappings[entity.color];
+            }
+            
+            // Check configured color mappings in array format (legacy)
             const mappings = Array.isArray(colorMappings) ? colorMappings : Object.values(colorMappings || {});
             for (const mapping of mappings) {
                 if (mapping.color && parseInt(mapping.color) === entity.color) {
+                    console.log(`Found array color mapping: ${entity.color} -> ${mapping.lineType}`);
                     return mapping.lineType;
                 }
             }
-            
-            // No fallback color mappings - rely only on configured mappings
         }
 
-        // No mapping found - this will trigger a user notification
+        // No mapping found - this is intentional, no automatic fallbacks
         console.warn(`No line type mapping found for entity on layer: ${entity.layer}`);
+        console.warn(`Please create an import filter rule for this layer.`);
         return null;
     }
 
@@ -613,22 +833,79 @@ export class DinGenerator {
      * Get tool from line type (Step 2 of workflow)
      */
     getToolFromLineType(lineType) {
-        if (!this.config.mappingWorkflow?.lineTypeToTool) {
-            console.warn('No mappingWorkflow.lineTypeToTool found in config');
-            return null;
+        // Handle Global Import Filter workflow - map line type names to tools
+        const lineTypeToToolMap = {
+            // Engraving tools
+            'Fast Engrave': 'T20',
+            'Nozzle Engrave': 'T33', 
+            'Engrave': 'T20',
+            
+            // Cutting tools
+            '1pt CW': 'T1',
+            '2pt CW': 'T2', 
+            '3pt CW': 'T3',
+            '4pt CW': 'T4',
+            'Fine Cut CW': 'T22',
+            'Fine Cut Pulse': 'T22',
+            'Cut CW': 'T2',
+            
+            // Pulsing tools  
+            '1pt Puls': 'T12',
+            '2pt Puls': 'T12',
+            '3pt Puls': 'T13', 
+            '4pt Puls': 'T14',
+            '1.5pt Puls': 'T12',
+            
+            // Bridge tools
+            '2pt Bridge': 'T2',
+            '3pt Bridge': 'T3',
+            '4pt Bridge': 'T4',
+            
+            // Milling tools
+            'Milling 1': 'T100',
+            'Milling 2': 'T101',
+            'Milling 3': 'T102',
+            'Milling 4': 'T103',
+            'Milling 5': 'T104',
+            'Milling 6': 'T105',
+            'Milling 7': 'T106', 
+            'Milling 8': 'T107',
+            
+            // Special tools
+            'Groove': 'T3',
+            'Pulse_1': 'T12',
+            'Pulse_2': 'T13',
+            'Piercing': 'T35'
+        };
+        
+        console.log(`Looking for tool mapping for line type: "${lineType}"`);
+        
+        // Direct lookup in the line type to tool map
+        if (lineTypeToToolMap[lineType]) {
+            console.log(`Found direct line type mapping: ${lineType} -> ${lineTypeToToolMap[lineType]}`);
+            return lineTypeToToolMap[lineType];
         }
-
-        const lineTypeMappings = this.config.mappingWorkflow.lineTypeToTool;
-        const mappings = Array.isArray(lineTypeMappings) ? lineTypeMappings : Object.values(lineTypeMappings || {});
         
-        console.log(`Looking for line type: "${lineType}"`);
-        console.log(`Available mappings:`, mappings);
-        
-        for (const mapping of mappings) {
-            console.log(`Checking mapping: "${mapping.lineType}" === "${lineType}"`);
-            if (mapping.lineType && mapping.lineType === lineType) {
-                console.log(`Found match! Tool: ${mapping.tool}`);
-                return mapping.tool;
+        // Fallback to legacy mapping workflow if available
+        if (this.config.mappingWorkflow?.lineTypeToTool) {
+            const lineTypeMappings = this.config.mappingWorkflow.lineTypeToTool;
+            
+            console.log(`Trying legacy mappings for: "${lineType}"`);
+            console.log(`Available legacy mappings:`, lineTypeMappings);
+            
+            // Direct lookup for simple key-value mapping
+            if (lineTypeMappings[lineType]) {
+                console.log(`Found legacy direct mapping: ${lineType} -> ${lineTypeMappings[lineType].tool}`);
+                return lineTypeMappings[lineType].tool;
+            }
+            
+            // Legacy support: check array format
+            const mappings = Array.isArray(lineTypeMappings) ? lineTypeMappings : Object.values(lineTypeMappings || {});
+            for (const mapping of mappings) {
+                if (mapping.lineType && mapping.lineType === lineType) {
+                    console.log(`Found legacy array match! Tool: ${mapping.tool}`);
+                    return mapping.tool;
+                }
             }
         }
         
@@ -641,9 +918,10 @@ export class DinGenerator {
      */
     getLineTypeNameFromId(lineTypeId) {
         // Use line types from config if available (CSV data)
-        if (this.config.lineTypes && Array.isArray(this.config.lineTypes)) {
-            const lineType = this.config.lineTypes.find(lt => lt.id === lineTypeId);
+        if (this.config.lineTypesLibrary && Array.isArray(this.config.lineTypesLibrary)) {
+            const lineType = this.config.lineTypesLibrary.find(lt => lt.id === lineTypeId || lt.id === String(lineTypeId));
             if (lineType) {
+                console.log(`Found line type for ID ${lineTypeId}: ${lineType.name}`);
                 return lineType.name;
             }
         }
@@ -850,6 +1128,32 @@ export class DinGenerator {
             }
         };
     }
+
+    /**
+     * Validate that all entities in the file can be mapped to tools
+     * Returns validation result with unmapped layers
+     */
+    validateEntityMappings(entities) {
+        const unmappedLayers = new Set();
+        
+        for (const entity of entities) {
+            const lineType = this.determineLineType(entity);
+            if (!lineType) {
+                unmappedLayers.add(entity.layer || 'unknown');
+                continue;
+            }
+            
+            const tool = this.getToolFromLineType(lineType);
+            if (!tool) {
+                unmappedLayers.add(entity.layer || 'unknown');
+            }
+        }
+        
+        return {
+            valid: unmappedLayers.size === 0,
+            unmappedLayers: Array.from(unmappedLayers)
+        };
+    }
 }
 
-export default DinGenerator;
+module.exports = DinGenerator;

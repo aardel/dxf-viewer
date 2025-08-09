@@ -3,8 +3,10 @@
 .header-controls-inline {
     display: flex;
     align-items: center;
-    gap: 1rem;
+    gap: 8px;
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    position: relative;
+    z-index: 1500; /* Ensure the entire control bar is above canvas controls */
 }
 
 /* Remove the old fixed positioning styles */
@@ -43,6 +45,7 @@ body {
     position: relative;
     display: flex;
     align-items: center;
+    z-index: 1500; /* Higher than canvas controls */
 }
 
 .warning-icon {
@@ -61,7 +64,6 @@ body {
 
 .warning-icon:hover {
     transform: scale(1.05);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
 }
 
 .warning-icon.status-none {
@@ -72,22 +74,20 @@ body {
 .warning-icon.status-complete {
     background: linear-gradient(135deg, #10b981 0%, #059669 100%);
     border-color: #10b981;
-    box-shadow: 0 0 20px rgba(16, 185, 129, 0.3);
 }
 
 .warning-icon.status-warning {
     background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
     border-color: #f59e0b;
-    box-shadow: 0 0 20px rgba(245, 158, 11, 0.3);
     animation: pulse-warning 2s infinite;
 }
 
 @keyframes pulse-warning {
     0%, 100% { 
-        box-shadow: 0 0 20px rgba(245, 158, 11, 0.3);
+        opacity: 1;
     }
     50% { 
-        box-shadow: 0 0 30px rgba(245, 158, 11, 0.5);
+        opacity: 0.8;
     }
 }
 
@@ -111,7 +111,6 @@ body {
     font-size: 0.75rem;
     font-weight: bold;
     border: 2px solid #1a1a1a;
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
 }
 
 /* Tooltip Styles */
@@ -124,11 +123,14 @@ body {
     padding: 1rem;
     min-width: 250px;
     max-width: 350px;
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
-    z-index: 1000;
+    z-index: 2000;
     color: #e5e5e5;
     font-size: 0.875rem;
     backdrop-filter: blur(10px);
+    box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+    /* Add a subtle glow to make it more prominent */
+    border: 2px solid rgba(0, 191, 255, 0.3);
+    background: linear-gradient(135deg, #2d2d2d 0%, #343434 100%);
 }
 
 .tooltip-header {
@@ -166,13 +168,38 @@ body {
     margin-bottom: 0.5rem;
 }
 
+.unmapped-layers-title {
+    font-weight: bold;
+    margin-top: 8px;
+    margin-bottom: 4px;
+    color: #ff6b35;
+}
+
+.generation-blockers-title {
+    font-weight: bold;
+    margin-top: 8px;
+    margin-bottom: 4px;
+    color: #e74c3c;
+}
+
+.generation-blocker {
+    margin: 2px 0;
+    color: #e74c3c;
+    font-size: 11px;
+}
+
+.visible-info {
+    margin-top: 8px;
+    padding-top: 4px;
+    border-top: 1px solid #4a5568;
+    font-size: 10px;
+    color: #a0aec0;
+}
+
 .unmapped-layer {
-    color: #e5e5e5;
-    margin-bottom: 0.25rem;
-    padding: 0.25rem 0.5rem;
-    background: rgba(245, 158, 11, 0.1);
-    border-radius: 4px;
-    border-left: 3px solid #f59e0b;
+    margin: 2px 0;
+    color: #ff6b35;
+    font-size: 11px;
 }
 
 /* Smart Generate Button Styles */
@@ -180,87 +207,65 @@ body {
     display: flex;
     align-items: center;
     gap: 0.5rem;
-    padding: 0.75rem 1.5rem;
+    padding: 8px 16px;
     border: none;
-    border-radius: 8px;
-    font-size: 0.875rem;
-    font-weight: 600;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    font-weight: 500;
     cursor: pointer;
-    transition: all 0.3s ease;
-    min-width: 180px;
+    transition: background-color 0.2s ease;
+    min-width: 140px;
     justify-content: center;
     position: relative;
-    overflow: hidden;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
-}
-
-.smart-generate-btn:before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: -100%;
-    width: 100%;
-    height: 100%;
-    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
-    transition: left 0.5s;
-}
-
-.smart-generate-btn:hover:before {
-    left: 100%;
+    text-transform: none;
+    letter-spacing: 0;
 }
 
 .smart-generate-btn.disabled {
-    background: linear-gradient(135deg, #404040 0%, #2d2d2d 100%);
+    background: #404040;
     color: #9ca3af;
     cursor: not-allowed;
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+    border: 1px solid #555;
 }
 
 .smart-generate-btn.disabled:hover {
     transform: none;
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+    background: #404040;
 }
 
 .smart-generate-btn.ready {
-    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    background: #10b981;
     color: white;
-    box-shadow: 0 4px 20px rgba(16, 185, 129, 0.3);
 }
 
 .smart-generate-btn.ready:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 8px 25px rgba(16, 185, 129, 0.4);
+    background: #059669;
 }
 
 .smart-generate-btn.warning {
-    background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+    background: #f59e0b;
     color: white;
     cursor: not-allowed;
-    box-shadow: 0 4px 20px rgba(245, 158, 11, 0.3);
 }
 
 .smart-generate-btn.processing {
     background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
     color: white;
-    box-shadow: 0 4px 20px rgba(59, 130, 246, 0.3);
     animation: processing-pulse 1.5s infinite;
 }
 
 @keyframes processing-pulse {
     0%, 100% { 
-        box-shadow: 0 4px 20px rgba(59, 130, 246, 0.3);
+        opacity: 1;
     }
     50% { 
-        box-shadow: 0 4px 30px rgba(59, 130, 246, 0.5);
+        opacity: 0.8;
     }
 }
 
 .smart-generate-btn.success {
     background: linear-gradient(135deg, #10b981 0%, #059669 100%);
     color: white;
-    box-shadow: 0 4px 20px rgba(16, 185, 129, 0.4);
     animation: success-bounce 0.6s ease;
 }
 
@@ -272,7 +277,6 @@ body {
 .smart-generate-btn.error {
     background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
     color: white;
-    box-shadow: 0 4px 20px rgba(239, 68, 68, 0.3);
     animation: error-shake 0.5s ease;
 }
 
@@ -326,6 +330,45 @@ body {
         background: #1f1f1f;
         border-color: #333333;
     }
+}
+
+/* Batch Monitor Button Styles */
+.batch-monitor-btn {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 8px 16px;
+    border: none;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    min-width: 130px;
+    justify-content: center;
+    position: relative;
+    text-transform: none;
+    letter-spacing: 0;
+    background: #0066cc;
+    color: white;
+    border: 1px solid #0052a3;
+}
+
+.batch-monitor-btn:hover {
+    background: #0052a3;
+    transform: translateY(-1px);
+}
+
+.batch-monitor-btn:active {
+    transform: translateY(0);
+}
+
+.batch-monitor-btn .btn-icon {
+    font-size: 1rem;
+}
+
+.batch-monitor-btn .btn-text {
+    font-weight: 500;
 }
 
 /* Animation for initial load */

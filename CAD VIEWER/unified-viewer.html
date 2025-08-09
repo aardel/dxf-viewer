@@ -1,0 +1,3069 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline';">
+    <title>Unified CAD Viewer - DDS & CFF2</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            display: flex;
+            height: 100vh;
+            margin: 0;
+            background-color: #f0f0f0;
+        }
+         .context-menu { position:absolute; z-index:10000; background:#fff; border:1px solid #ccc; box-shadow:0 4px 14px rgba(0,0,0,0.15); border-radius:6px; overflow:hidden; min-width:160px; font-size:14px; }
+         .context-menu.hidden { display:none; }
+         .context-menu .item { padding:8px 12px; cursor:pointer; white-space:nowrap; }
+         .context-menu .item:hover { background:#f0f4ff; }
+         .context-menu .separator { height:1px; background:#e5e7eb; margin:4px 0; }
+
+        .container {
+            display: flex;
+            width: 100%;
+            position: relative;
+            gap: 0;
+        }
+
+        .canvas-section {
+            flex: 0 0 50%;
+            display: flex;
+            flex-direction: column;
+            padding: 20px;
+            min-width: 300px;
+            overflow: auto;
+            box-sizing: border-box;
+        }
+
+        .controls-section {
+            flex: 0 0 25%;
+            padding: 20px;
+            background-color: #e8e8e8;
+            overflow-y: auto;
+            min-width: 200px;
+            border-left: 1px solid #ccc;
+            border-right: 1px solid #ccc;
+            box-sizing: border-box;
+        }
+
+        .code-section {
+            flex: 1 1 auto;
+            padding: 20px;
+            background-color: #f8f8f8;
+            overflow-y: auto;
+            min-width: 200px;
+            box-sizing: border-box;
+        }
+
+        .divider {
+            flex: 0 0 6px;
+            background-color: #ccc;
+            cursor: col-resize;
+            position: relative;
+        }
+        .divider:hover { background-color: #999; }
+
+        .resize-handle:hover {
+            background-color: #999;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        .toolbar { display:flex; align-items:center; gap:6px; }
+        .toolbar button { padding:6px 10px; border:1px solid #bbb; background:#fff; border-radius:4px; cursor:pointer; }
+        .toolbar button.active { background:#e3f2fd; border-color:#4a90e2; }
+
+        .file-info {
+            font-size: 14px;
+            color: #666;
+            margin-left: 10px;
+        }
+
+        #canvas-container {
+            flex-grow: 1;
+            border: 1px solid #ccc;
+            background-color: #fff;
+            overflow: hidden;
+            position: relative;
+            width: 100%;
+            height: 100%;
+        }
+
+        #status-bar {
+            margin-top: 6px;
+            font-size: 12px;
+            color: #555;
+            display: flex;
+            gap: 16px;
+        }
+
+        canvas {
+            display: block;
+        }
+
+        h1, h2 {
+            margin-top: 0;
+        }
+
+        .format-indicator {
+            padding: 4px 8px;
+            border-radius: 4px;
+            color: white;
+            font-size: 12px;
+            font-weight: bold;
+        }
+
+        .format-dds {
+            background-color: #e74c3c;
+        }
+
+        .format-cff2 {
+            background-color: #3498db;
+        }
+
+        /* CFF2 specific styles */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th, td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+
+        th {
+            background-color: #f2f2f2;
+            position: sticky;
+            top: 0;
+        }
+
+        th.sortable {
+            cursor: pointer;
+            user-select: none;
+        }
+
+        th.sortable:hover {
+            background-color: #e0e0e0;
+        }
+
+        tbody tr {
+            cursor: pointer;
+        }
+
+        tbody tr:hover {
+            background-color: #fff3cd;
+        }
+
+        tbody tr.highlighted {
+            background-color: #d4edda !important;
+        }
+
+        input[type="color"] {
+            width: 100%;
+            height: 25px;
+            padding: 0;
+            border: none;
+        }
+
+        #code-display {
+            height: calc(100vh - 80px);
+            overflow-y: auto;
+            border: 1px solid #ddd;
+            background-color: #fff;
+        }
+
+        #code-content {
+            margin: 0;
+            padding: 10px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            line-height: 1.4;
+            white-space: pre;
+        }
+
+        .code-line {
+            display: block;
+            padding: 1px 0;
+        }
+
+        .code-line.highlighted {
+            background-color: #ffeb3b;
+            font-weight: bold;
+        }
+
+        .code-line.related {
+            background-color: #e3f2fd;
+        }
+        
+        .code-line:hover {
+            background-color: #f5f5f5 !important;
+        }
+        
+        .code-line {
+            transition: background-color 0.2s ease;
+        }
+
+        /* Draggable headers */
+        th[draggable="true"] {
+            cursor: move;
+        }
+        th.drop-left { box-shadow: inset 3px 0 0 #4a90e2; }
+        th.drop-right { box-shadow: inset -3px 0 0 #4a90e2; }
+        th { position: relative; }
+        .col-resizer {
+            position: absolute;
+            top: 0; right: 0; bottom: 0;
+            width: 8px;
+            cursor: col-resize;
+            user-select: none;
+        }
+
+        .sort-asc::after {
+            content: " ↑";
+        }
+
+        .sort-desc::after {
+            content: " ↓";
+        }
+
+        /* DDS specific styles */
+        .dds-simple-view {
+            text-align: center;
+            color: #666;
+            padding: 20px;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        .error-log {
+            margin-top: 10px;
+            padding: 8px;
+            background: #fff8e1;
+            border: 1px solid #f0d78c;
+            color: #795548;
+            font-size: 12px;
+            max-height: 160px;
+            overflow: auto;
+            white-space: pre-wrap;
+        }
+
+        .inspector {
+            margin-top: 16px;
+            background: #fff;
+            border: 1px solid #ddd;
+            padding: 10px;
+            font-size: 12px;
+        }
+        .inspector h3 {
+            margin: 0 0 8px 0;
+            font-size: 14px;
+        }
+        .inspector dl { display: grid; grid-template-columns: auto 1fr; gap: 4px 10px; margin: 0; }
+        .inspector dt { color: #666; }
+        .inspector dd { margin: 0; font-family: 'Courier New', monospace; }
+
+        .control-bar { display: flex; align-items: center; gap: 8px; margin: 8px 0; }
+        .control-bar label { font-size: 12px; color: #555; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="canvas-section">
+            <div class="header">
+                <div>
+                    <h1>Unified CAD Viewer</h1>
+                    <div class="file-info">
+                        <span id="format-indicator" class="format-indicator hidden">Unknown Format</span>
+                        <span id="file-name"></span>
+                    </div>
+                </div>
+                 <div class="toolbar">
+                    <input type="file" id="fileInput" accept=".dds,.cf2,.cff2">
+                    <button id="resetViewBtn" title="Fit view (0)">Fit</button>
+                    <label style="display:flex;align-items:center;gap:4px;"><input type="checkbox" id="toggleCode" checked> Code</label>
+                    <span style="width:12px;"></span>
+                    <button id="toolSelectBtn" title="Select (V)">Select</button>
+                    <button id="toolPanBtn" title="Pan (Space)">Pan</button>
+                    <button id="toggleMeasureBtn" title="Measure (M)">Measure</button>
+                    <button id="clearMeasureBtn" title="Clear measure">Clear</button>
+                    <button id="toolLineBtn" title="Line (L)">Line</button>
+                    <button id="toolCircleBtn" title="Circle (C)">Circle</button>
+                    <label style="display:flex;align-items:center;gap:4px;"><input type="checkbox" id="toggleSnap" checked> Snap</label>
+                    <label style="display:flex;align-items:center;gap:4px;"><input type="checkbox" id="toggleGrid" checked> Grid</label>
+                    <button id="exportCFF2Btn" title="Export session as CFF2">Export CFF2</button>
+                     <span style="flex:1 1 auto"></span>
+                     <button id="copyConsoleBtn" title="Copy all console messages">Copy Console</button>
+                </div>
+            </div>
+            <div id="canvas-container">
+                <canvas id="mainCanvas"></canvas>
+            </div>
+            <div id="status-bar">
+                <span id="status-coords">x: -, y: -</span>
+                <span id="status-scale">scale: 1.00×</span>
+                <span id="status-length" class="hidden"></span>
+                <span id="status-tool">tool: select</span>
+                <span id="status-snap">snap: on</span>
+            </div>
+        </div>
+        <div class="divider" id="divider-left" title="Drag to resize"></div>
+        
+        <!-- CFF2 Controls Section -->
+        <div class="controls-section" id="cff2-controls">
+            <h2>Line Types</h2>
+            <div class="control-bar">
+                <label><input type="checkbox" id="cff2-render-bridges" checked> Render bridges</label>
+                <label>Units
+                    <select id="cff2-units">
+                        <option value="in">in</option>
+                        <option value="mm">mm</option>
+                    </select>
+                </label>
+                <button id="cff2-export-csv" title="Export CSV">Export CSV</button>
+                <button id="cff2-reset-columns" title="Reset columns">Reset columns</button>
+                <button id="cff2-edit-map" title="Edit process map">Edit process map</button>
+            </div>
+            <div id="controls">
+                <table id="lineTypesTable">
+                    <thead>
+                        <tr>
+                            <th class="sortable" data-column="pen">Pen ↕</th>
+                            <th class="sortable" data-column="layer">Layer ↕</th>
+                            <th data-column="process">Process</th>
+                            <th class="sortable" data-column="count">Count ↕</th>
+                            <th class="sortable" data-column="pt">Pt ↕</th>
+                            <th class="sortable" data-column="length">Length ↕</th>
+                            <th data-column="color">Color</th>
+                            <th data-column="visible">Visible</th>
+                        </tr>
+                    </thead>
+                    <tbody id="controls-table-body">
+                    </tbody>
+                </table>
+            </div>
+            <div class="inspector" id="cff2-inspector">
+                <h3>Entity Inspector (CFF2)</h3>
+                <dl id="cff2-inspector-dl">
+                    <dt>Line</dt><dd>-</dd>
+                    <dt>Type</dt><dd>-</dd>
+                    <dt>Pen</dt><dd>-</dd>
+                    <dt>Layer</dt><dd>-</dd>
+                    <dt>Bridges</dt><dd>-</dd>
+                    <dt>Length</dt><dd>-</dd>
+                    <dt>Coords</dt><dd>-</dd>
+                    <dt>Arc Ctr/Dir</dt><dd>-</dd>
+                </dl>
+            </div>
+        </div>
+
+        <!-- DDS Controls Section -->
+        <div class="controls-section hidden" id="dds-controls">
+            <h2>Line Types</h2>
+            <div id="dds-controls-content">
+                <div class="control-bar">
+                    <label><input type="checkbox" id="dds-render-bridges" checked> Render bridges</label>
+                    <label><input type="checkbox" id="dds-kerf-in-pt"> Kerf in pt</label>
+                    <label>Units
+                        <select id="dds-units">
+                            <option value="in">in</option>
+                            <option value="mm">mm</option>
+                        </select>
+                    </label>
+                    <button id="dds-export-csv" title="Export CSV">Export CSV</button>
+                    <button id="dds-reset-columns" title="Reset columns">Reset columns</button>
+                </div>
+                <table id="ddsLineTypesTable">
+                    <thead>
+                        <tr>
+                            <th class="sortable" data-column="color">Color ↕</th>
+                            <th class="sortable" data-column="type">Type ↕</th>
+                            <th class="sortable" data-column="count">Count ↕</th>
+                            <th class="sortable" data-column="kerf">Kerf ↕</th>
+                            <th class="sortable" data-column="length">Length ↕</th>
+                            <th class="sortable" data-column="bridgePercent">Bridge % ↕</th>
+                            <th data-column="displayColor">Display Color</th>
+                            <th data-column="visible">Visible</th>
+                        </tr>
+                    </thead>
+                    <tbody id="dds-controls-table-body">
+                    </tbody>
+                </table>
+            </div>
+            <div class="inspector" id="dds-inspector">
+                <h3>Entity Inspector (DDS)</h3>
+                <dl id="dds-inspector-dl">
+                    <dt>Line</dt><dd>-</dd>
+                    <dt>Type</dt><dd>-</dd>
+                    <dt>Color Code</dt><dd>-</dd>
+                    <dt>Kerf (in)</dt><dd>-</dd>
+                    <dt>Bridges</dt><dd>-</dd>
+                    <dt>Length</dt><dd>-</dd>
+                    <dt>Coords</dt><dd>-</dd>
+                </dl>
+            </div>
+        </div>
+        <div class="divider" id="divider-right" title="Drag to resize"></div>
+        
+        <!-- Code/Content Section -->
+        <div class="code-section" id="code-section">
+            <h2 id="code-section-title">File Content</h2>
+            <div class="control-bar">
+                <input id="code-filter" type="text" placeholder="Filter code (e.g., LINE, ARC, 100)" style="flex:1; padding:6px;">
+                <button id="clear-filter" title="Clear filter">Clear</button>
+            </div>
+            <div id="code-display">
+                <pre id="code-content">Load a CAD file to see the content...</pre>
+            </div>
+            <div id="error-log" class="error-log hidden"></div>
+        </div>
+    </div>
+
+    <!-- Context menu for Electron copy operations -->
+    <div id="contextMenu" class="context-menu hidden">
+        <div class="item" data-action="copy">Copy</div>
+        <div class="item" data-action="copy-all">Copy All</div>
+        <div class="separator"></div>
+        <div class="item" data-action="select-all">Select All</div>
+    </div>
+
+    <script src="js/utils.js"></script>
+    <script src="js/dds.js"></script>
+    <script>
+        // Electron integration (optional)
+        if (window.electronAPI) {
+            try {
+                window.electronAPI.onOpenFile(({ filePath, baseName, data }) => {
+                    try {
+                        const ext = (baseName || '').toLowerCase().split('.').pop();
+                        fileName.textContent = baseName;
+                        if (ext === 'dds') { currentFormat = 'dds'; formatIndicator.textContent = 'DDS'; formatIndicator.className = 'format-indicator format-dds'; setupDDSMode(); parseDDS(data); }
+                        else if (ext === 'cf2' || ext === 'cff2') { currentFormat = 'cff2'; formatIndicator.textContent = 'CFF2'; formatIndicator.className = 'format-indicator format-cff2'; setupCFF2Mode(); parseCFF2(data); }
+                        formatIndicator.classList.remove('hidden');
+                        resizeCanvas(); draw();
+                        window.electronAPI.log('info', `Opened ${baseName}`);
+                    } catch (err) { window.electronAPI.log('error', `Open failed: ${err?.message||err}`); }
+                });
+                window.electronAPI.onMenuToggleMeasure(() => {
+                    const btn = document.getElementById('toggleMeasureBtn');
+                    btn?.click();
+                });
+                window.electronAPI.onMenuFit(() => {
+                    if (currentFormat === 'dds') fitDDSView(); else if (currentFormat === 'cff2') fitCFF2View();
+                    draw();
+                });
+                 // Native-like context menu for copy actions in Electron
+                 (function setupElectronContextMenu(){
+                     const menu = document.getElementById('contextMenu');
+                     let menuShown = false;
+                     function hideMenu(){ menu.classList.add('hidden'); menuShown = false; }
+                     function showMenu(x,y){ menu.style.left = x+"px"; menu.style.top = y+"px"; menu.classList.remove('hidden'); menuShown = true; }
+
+                     document.addEventListener('contextmenu', (e) => {
+                         const isInCopyable = e.target.closest('#code-content, #dds-controls, #cff2-controls, pre, textarea, input');
+                         if (!isInCopyable) return; // allow default elsewhere
+                         e.preventDefault();
+                         showMenu(e.clientX, e.clientY);
+                     });
+                     document.addEventListener('click', (e) => {
+                         if (menuShown && !e.target.closest('#contextMenu')) hideMenu();
+                     });
+                     menu.addEventListener('click', async (e) => {
+                         const item = e.target.closest('.item');
+                         if (!item) return;
+                         const action = item.dataset.action;
+                         const sel = window.getSelection();
+                         const codeEl = document.getElementById('code-content');
+                         try {
+                             if (action === 'copy') {
+                                 const text = sel && String(sel).length ? String(sel) : (codeEl?.innerText||'');
+                                 if (text) await navigator.clipboard.writeText(text);
+                             } else if (action === 'copy-all') {
+                                 const text = codeEl?.innerText || '';
+                                 if (text) await navigator.clipboard.writeText(text);
+                             } else if (action === 'select-all') {
+                                 const range = document.createRange();
+                                 range.selectNodeContents(codeEl);
+                                 sel.removeAllRanges();
+                                 sel.addRange(range);
+                             }
+                             hideMenu();
+                             window.electronAPI?.log?.('info', `context-menu ${action}`);
+                         } catch (err) {
+                             window.electronAPI?.log?.('error', `copy failed: ${err?.message||err}`);
+                         }
+                     });
+                 })();
+                window.electronAPI.log('info', 'Renderer booted');
+            } catch (_) {}
+        }
+        // Global variables
+        const fileInput = document.getElementById('fileInput');
+        let canvas = document.getElementById('mainCanvas');
+        let ctx = canvas.getContext('2d');
+        const canvasContainer = document.getElementById('canvas-container');
+        const formatIndicator = document.getElementById('format-indicator');
+        const fileName = document.getElementById('file-name');
+        const cff2Controls = document.getElementById('cff2-controls');
+        const ddsControls = document.getElementById('dds-controls');
+        const codeSection = document.getElementById('code-section');
+        const codeSectionTitle = document.getElementById('code-section-title');
+        const codeContent = document.getElementById('code-content');
+        const statusCoords = document.getElementById('status-coords');
+        const statusScale = document.getElementById('status-scale');
+        const statusLength = document.getElementById('status-length');
+        const statusTool = document.getElementById('status-tool');
+        const statusSnap = document.getElementById('status-snap');
+
+         // Collect console logs in renderer (fallback if electronAPI.getConsoleMessages not provided)
+         (function captureConsole(){
+             const origLog = console.log; const origWarn = console.warn; const origErr = console.error; const origInfo = console.info;
+             window._collectedConsoleLogs = [];
+             function push(kind, args){
+                 try {
+                     const ts = new Date().toISOString();
+                     const line = `[${ts}] ${kind}: ` + Array.from(args).map(a=>{
+                         if (typeof a === 'string') return a;
+                         try { return JSON.stringify(a); } catch { return String(a); }
+                     }).join(' ');
+                     window._collectedConsoleLogs.push(line);
+                     if (window._collectedConsoleLogs.length > 2000) window._collectedConsoleLogs.shift();
+                 } catch {}
+             }
+             console.log = function(){ push('log', arguments); return origLog.apply(console, arguments); };
+             console.warn = function(){ push('warn', arguments); return origWarn.apply(console, arguments); };
+             console.error = function(){ push('error', arguments); return origErr.apply(console, arguments); };
+             console.info = function(){ push('info', arguments); return origInfo.apply(console, arguments); };
+         })();
+
+        // Measurement tool state
+        let measureMode = false;
+        let measureStart = null;
+        let measureEnd = null;
+
+        let currentFormat = null;
+        let currentData = null;
+        const STORAGE_KEY = 'unifiedViewerSettings';
+        let viewerSettings = null;
+
+        // Basic tool state
+        let activeTool = 'select'; // select | pan | measure | line | circle
+        let snapEnabled = true;
+        let gridEnabled = true;
+        // Session edits and creation preview state (shared between DDS and CFF2)
+        let sessionEntities = [];
+        let createStartModel = null;
+        let creationPreviewCanvas = null;
+
+        function getDefaultSettings() {
+            return {
+                dds: {
+                    units: 'in',
+                    showPercent: false,
+                    renderBridges: true,
+                    buckets: {}
+                },
+                cff2: {
+                    units: 'in',
+                    buckets: {}
+                }
+            };
+        }
+
+        function loadSettings() {
+            try {
+                const raw = localStorage.getItem(STORAGE_KEY);
+                const parsed = raw ? JSON.parse(raw) : null;
+                viewerSettings = parsed && typeof parsed === 'object' ? parsed : getDefaultSettings();
+            } catch (_) {
+                viewerSettings = getDefaultSettings();
+            }
+            viewerSettings.processMap = viewerSettings.processMap || { cff2: {}, dds: {} };
+        }
+
+        function saveSettings() {
+            try {
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(viewerSettings || getDefaultSettings()));
+            } catch (_) {
+                // ignore quota errors
+            }
+        }
+
+        // File input handler
+        fileInput.addEventListener('change', handleFileSelect, false);
+
+        function handleFileSelect(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            // Detect file format
+            const extension = file.name.toLowerCase().split('.').pop();
+            
+            fileName.textContent = file.name;
+            
+            if (extension === 'dds') {
+                currentFormat = 'dds';
+                formatIndicator.textContent = 'DDS';
+                formatIndicator.className = 'format-indicator format-dds';
+                setupDDSMode();
+            } else if (extension === 'cf2' || extension === 'cff2') {
+                currentFormat = 'cff2';
+                formatIndicator.textContent = 'CFF2';
+                formatIndicator.className = 'format-indicator format-cff2';
+                setupCFF2Mode();
+            } else {
+                alert('Unsupported file format. Please select a .dds or .cf2/.cff2 file.');
+                return;
+            }
+
+            formatIndicator.classList.remove('hidden');
+
+            // Reset per-file state so previous drawings are cleared
+            sessionEntities = [];
+            createStartModel = null;
+            creationPreviewCanvas = null;
+            selectedEntity = null;
+            hoveredEntity = null;
+            ddsSelectedEntity = null;
+            ddsHoveredEntity = null;
+            view.scale = 1; view.offsetX = 0; view.offsetY = 0;
+            ddsView.scale = 1; ddsView.offsetX = 0; ddsView.offsetY = 0;
+
+            // Read file
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const contents = e.target.result;
+                currentData = contents;
+                
+                if (currentFormat === 'dds') {
+                    parseDDS(contents);
+                } else if (currentFormat === 'cff2') {
+                    parseCFF2(contents);
+                }
+                
+                resizeCanvas();
+                draw();
+            };
+            reader.readAsText(file);
+        }
+
+        function setupDDSMode() {
+            // Show DDS controls, hide CFF2 controls
+            cff2Controls.classList.add('hidden');
+            ddsControls.classList.remove('hidden');
+            codeSectionTitle.textContent = 'DDS Code';
+        }
+
+        function setupCFF2Mode() {
+            // Show CFF2 controls, hide DDS controls  
+            ddsControls.classList.add('hidden');
+            cff2Controls.classList.remove('hidden');
+            codeSectionTitle.textContent = 'CFF2 Code';
+        }
+
+        function resizeCanvas() {
+            const { width, height } = canvasContainer.getBoundingClientRect();
+            canvas.width = width;
+            canvas.height = height;
+        }
+
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            if (currentFormat === 'dds' && (typeof ddsData !== 'undefined') && ddsData) {
+                drawDDS();
+            } else if (currentFormat === 'cff2' && (typeof cff2Data !== 'undefined') && cff2Data) {
+                drawCFF2();
+            }
+        }
+
+        window.addEventListener('resize', resizeCanvas);
+        
+        // Initialize
+        resizeCanvas();
+        // Observe container resize (pane resize) and adjust canvas
+        const canvasResizeObserver = new ResizeObserver(() => { resizeCanvas(); draw(); });
+        canvasResizeObserver.observe(canvasContainer);
+
+        // Load persisted settings and apply UI defaults
+        loadSettings();
+        (function applySettingsToUI() {
+            const unitsSel = document.getElementById('dds-units');
+            const bridgesChk = document.getElementById('dds-render-bridges');
+            const kerfInPtChk = document.getElementById('dds-kerf-in-pt');
+            if (unitsSel && viewerSettings?.dds?.units) unitsSel.value = viewerSettings.dds.units;
+            if (bridgesChk) bridgesChk.checked = viewerSettings?.dds?.renderBridges !== false;
+            if (kerfInPtChk) kerfInPtChk.checked = !!viewerSettings?.dds?.kerfInPt;
+
+            const cff2UnitsSel = document.getElementById('cff2-units');
+            if (cff2UnitsSel && viewerSettings?.cff2?.units) cff2UnitsSel.value = viewerSettings.cff2.units;
+        })();
+
+        // Toolbar wiring
+        (function attachToolbar(){
+            const selectBtn = document.getElementById('toolSelectBtn');
+            const panBtn = document.getElementById('toolPanBtn');
+            const lineBtn = document.getElementById('toolLineBtn');
+            const circleBtn = document.getElementById('toolCircleBtn');
+            const snapChk = document.getElementById('toggleSnap');
+            const gridChk = document.getElementById('toggleGrid');
+            const exportBtn = document.getElementById('exportCFF2Btn');
+            const copyConsoleBtn = document.getElementById('copyConsoleBtn');
+
+            function setTool(tool){
+                activeTool = tool;
+                [selectBtn, panBtn, lineBtn, circleBtn].forEach(b=>b?.classList.remove('active'));
+                if (tool==='select') selectBtn?.classList.add('active');
+                if (tool==='pan') panBtn?.classList.add('active');
+                if (tool==='line') lineBtn?.classList.add('active');
+                if (tool==='circle') circleBtn?.classList.add('active');
+                statusTool.textContent = `tool: ${tool}`;
+            }
+            selectBtn?.addEventListener('click', ()=>setTool('select'));
+            panBtn?.addEventListener('click', ()=>setTool('pan'));
+            lineBtn?.addEventListener('click', ()=>setTool('line'));
+            circleBtn?.addEventListener('click', ()=>setTool('circle'));
+            setTool('select');
+
+            snapChk?.addEventListener('change', ()=>{ snapEnabled = !!snapChk.checked; statusSnap.textContent = `snap: ${snapEnabled?'on':'off'}`; });
+            gridChk?.addEventListener('change', ()=>{ gridEnabled = !!gridChk.checked; draw(); });
+            snapEnabled = !!snapChk?.checked; statusSnap.textContent = `snap: ${snapEnabled?'on':'off'}`;
+
+            exportBtn?.addEventListener('click', ()=>{
+                // Minimal CFF2 export: only CFF2 current data if present
+                if (!cff2Data || !Array.isArray(cff2Data)) { alert('Nothing to export. Load a CFF2 first.'); return; }
+                const lines = [];
+                lines.push('$BOF');
+                lines.push('V2');
+                lines.push('MAIN,DESIGN');
+                const bb = cff2Data.boundingBox || { lowerLeft:{x:0,y:0}, upperRight:{x:1,y:1} };
+                lines.push(`LL,${bb.lowerLeft.x.toFixed(3)},${bb.lowerLeft.y.toFixed(3)}`);
+                lines.push(`UR,${bb.upperRight.x.toFixed(3)},${bb.upperRight.y.toFixed(3)}`);
+                lines.push('SCALE,1,1');
+                cff2Data.forEach(e=>{
+                    if (e.type==='L') {
+                        const tail = [e.bridgeCount||0,(e.bridgeWidth||0).toFixed(4)].join(',');
+                        lines.push(`L,${e.pen},${e.layer},0,${e.x1.toFixed(6)},${e.y1.toFixed(6)},${e.x2.toFixed(6)},${e.y2.toFixed(6)},${tail}`);
+                    } else if (e.type==='A') {
+                        const tail = [e.bridgeCount||0,(e.bridgeWidth||0).toFixed(4)].join(',');
+                        lines.push(`A,${e.pen},${e.layer},0,${e.x1.toFixed(6)},${e.y1.toFixed(6)},${e.x2.toFixed(6)},${e.y2.toFixed(6)},${e.cx.toFixed(6)},${e.cy.toFixed(6)},${e.dir},${tail}`);
+                    }
+                });
+                lines.push('END');
+                lines.push('$EOF');
+                const blob = new Blob([lines.join('\n')], { type:'text/plain;charset=utf-8' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a'); a.href=url; a.download='export.cf2'; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+            });
+
+            // Copy all console output (Electron only; falls back to page-collected logs)
+            copyConsoleBtn?.addEventListener('click', async ()=>{
+                try {
+                    let text = '';
+                    if (window.electronAPI?.getConsoleMessages) {
+                        // Preferred: ask main/preload to provide captured console lines
+                        const lines = await window.electronAPI.getConsoleMessages();
+                        text = Array.isArray(lines) ? lines.join('\n') : String(lines||'');
+                    } else if (window._collectedConsoleLogs?.length) {
+                        text = window._collectedConsoleLogs.join('\n');
+                    } else {
+                        text = 'No console messages captured. To enable, expose electronAPI.getConsoleMessages in preload.';
+                    }
+                    if (text) await navigator.clipboard.writeText(text);
+                    window.electronAPI?.log?.('info','Copied console messages');
+                } catch (err) {
+                    window.electronAPI?.log?.('error', `Copy console failed: ${err?.message||err}`);
+                }
+            });
+        })();
+
+        // Re-render immediately when DDS bridges toggle changes & persist
+        (function attachDDSBridgeToggle() {
+            const toggle = document.getElementById('dds-render-bridges');
+            if (!toggle) return;
+            toggle.addEventListener('change', () => {
+                if (viewerSettings) { viewerSettings.dds.renderBridges = !!toggle.checked; saveSettings(); }
+                if (currentFormat === 'dds') draw();
+            });
+        })();
+
+        // React to kerf display controls
+        (function attachKerfControls() {
+            const kerfInPt = document.getElementById('dds-kerf-in-pt');
+            const units = document.getElementById('dds-units');
+            const rerender = () => { if (currentFormat === 'dds') { setupDDSControls(); draw(); } };
+            kerfInPt?.addEventListener('change', () => { if (viewerSettings) { viewerSettings.dds.kerfInPt = !!kerfInPt.checked; saveSettings(); } rerender(); });
+            units?.addEventListener('change', () => {
+                if (viewerSettings) { viewerSettings.dds.units = units.value; saveSettings(); }
+                // Also refresh inspector units
+                if (ddsSelectedEntity) updateDDSInspector(ddsSelectedEntity);
+                updateDDSHeaderUnits();
+                rerender();
+            });
+        })();
+
+        // Export CSV of current DDS buckets
+        (function attachDDSExport() {
+            const btn = document.getElementById('dds-export-csv');
+            if (!btn) return;
+            btn.addEventListener('click', () => {
+                if (currentFormat !== 'dds' || !ddsLineTypes) return;
+                const headers = ['Color','Kerf(in)','Type','Count','Length(in)','Bridge(in)','Bridge%'];
+                const rows = [headers.join(',')];
+                Object.keys(ddsLineTypes).forEach(key => {
+                    const g = ddsLineTypes[key];
+                    const typeStr = (g.lineCount && g.arcCount) ? 'MIXED' : (g.lineCount ? 'LINE' : 'ARC');
+                    const len = Number(g.totalLength||0);
+                    const br = Number(g.totalBridge||0);
+                    const bp = len>0 ? (br/len)*100 : 0;
+                    rows.push([g.color, (g.kerf||0).toFixed(4), typeStr, g.count, len.toFixed(3), br.toFixed(4), bp.toFixed(1)].join(','));
+                });
+                const blob = new Blob([rows.join('\n')], { type: 'text/csv;charset=utf-8;' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'dds_line_types.csv';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+            });
+        })();
+
+        // Column reorder (DDS and CFF2)
+        function makeHeadersDraggable(tableId, storageKey) {
+            const table = document.getElementById(tableId);
+            if (!table) return;
+            const headRow = table.querySelector('thead tr');
+            const ths = Array.from(headRow.children);
+            // Ensure each th has a data-column key
+            ths.forEach((th, i) => {
+                if (!th.dataset.column) th.dataset.column = `col_${i}`;
+            });
+            // Load saved order
+            try {
+                const saved = JSON.parse(localStorage.getItem(storageKey) || 'null');
+                if (Array.isArray(saved) && saved.length) {
+                    saved.forEach((key, targetIdx) => {
+                        const thsNow = Array.from(headRow.children);
+                        const fromIdx = thsNow.findIndex(t => t.dataset.column === key);
+                        if (fromIdx >= 0 && fromIdx !== targetIdx) {
+                            moveColumn(table, fromIdx, targetIdx);
+                        }
+                    });
+                }
+            } catch {}
+            // Persist widths
+            try {
+                const widths = JSON.parse(localStorage.getItem(storageKey + '_widths') || 'null');
+                if (widths && typeof widths === 'object') {
+                    Array.from(headRow.children).forEach((th, i) => {
+                        const w = widths[i];
+                        if (w) th.style.width = w;
+                    });
+                }
+            } catch {}
+            // Enable drag
+            Array.from(headRow.children).forEach((th, idx) => {
+                th.setAttribute('draggable', 'true');
+                th.addEventListener('dragstart', (e) => {
+                    e.dataTransfer.setData('text/plain', String(idx));
+                });
+                th.addEventListener('dragover', (e) => e.preventDefault());
+                th.addEventListener('dragover', (e) => {
+                    e.preventDefault();
+                    const rect = th.getBoundingClientRect();
+                    const mid = rect.left + rect.width / 2;
+                    th.classList.toggle('drop-left', e.clientX < mid);
+                    th.classList.toggle('drop-right', e.clientX >= mid);
+                });
+                th.addEventListener('dragleave', () => {
+                    th.classList.remove('drop-left', 'drop-right');
+                });
+                th.addEventListener('drop', (e) => {
+                    e.preventDefault();
+                    th.classList.remove('drop-left', 'drop-right');
+                    const from = parseInt(e.dataTransfer.getData('text/plain'), 10);
+                    const rect = th.getBoundingClientRect();
+                    const mid = rect.left + rect.width / 2;
+                    let to = Array.from(headRow.children).indexOf(th);
+                    if (e.clientX >= mid) to += 1; // drop to right half inserts after
+                    if (from === to || from < 0 || to < 0) return;
+                    moveColumn(table, from, to);
+                    // Save order by data-column keys
+                    const orderKeys = Array.from(headRow.children).map(h => h.dataset.column);
+                    localStorage.setItem(storageKey, JSON.stringify(orderKeys));
+                });
+                // Persist width on double-click to auto-fit current width
+                th.addEventListener('dblclick', () => {
+                    const widths = {};
+                    Array.from(headRow.children).forEach((h, i) => widths[i] = h.offsetWidth + 'px');
+                    localStorage.setItem(storageKey + '_widths', JSON.stringify(widths));
+                });
+                // Add resizer handle
+                const resizer = document.createElement('div');
+                resizer.className = 'col-resizer';
+                th.appendChild(resizer);
+                let startX = 0; let startW = 0;
+                resizer.addEventListener('mousedown', (e) => {
+                    startX = e.clientX;
+                    startW = th.offsetWidth;
+                    document.body.style.cursor = 'col-resize';
+                    const onMove = (ev) => {
+                        const dx = ev.clientX - startX;
+                        const newW = Math.max(40, startW + dx);
+                        th.style.width = newW + 'px';
+                    };
+                    const onUp = () => {
+                        document.removeEventListener('mousemove', onMove);
+                        document.removeEventListener('mouseup', onUp);
+                        document.body.style.cursor = '';
+                        // Persist widths
+                        const widths = {};
+                        Array.from(headRow.children).forEach((h, i) => widths[i] = h.offsetWidth + 'px');
+                        localStorage.setItem(storageKey + '_widths', JSON.stringify(widths));
+                    };
+                    document.addEventListener('mousemove', onMove);
+                    document.addEventListener('mouseup', onUp);
+                });
+            });
+        }
+
+        function moveColumn(table, fromIdx, toIdx) {
+            const theadRows = table.tHead ? Array.from(table.tHead.rows) : [];
+            const rows = [...theadRows, ...Array.from(table.tBodies[0]?.rows || [])];
+            rows.forEach(row => {
+                const cells = Array.from(row.children);
+                if (fromIdx >= cells.length || toIdx >= cells.length) return;
+                const fromCell = cells[fromIdx];
+                const reference = cells[toIdx];
+                row.insertBefore(fromCell, (toIdx > fromIdx) ? reference.nextSibling : reference);
+            });
+        }
+
+        // Apply draggable headers
+        makeHeadersDraggable('ddsLineTypesTable', 'dds_column_order');
+        makeHeadersDraggable('lineTypesTable', 'cff2_column_order');
+
+        // Reset columns buttons
+        (function attachResetColumns() {
+            const ddsBtn = document.getElementById('dds-reset-columns');
+            const cff2Btn = document.getElementById('cff2-reset-columns');
+            ddsBtn?.addEventListener('click', () => {
+                localStorage.removeItem('dds_column_order');
+                localStorage.removeItem('dds_column_order_widths');
+                setupDDSControls();
+            });
+            cff2Btn?.addEventListener('click', () => {
+                localStorage.removeItem('cff2_column_order');
+                localStorage.removeItem('cff2_column_order_widths');
+                setupCFF2Controls();
+            });
+        })();
+
+        // Show/Hide code panel
+        (function attachToggleCode() {
+            const chk = document.getElementById('toggleCode');
+            if (!chk) return;
+            const dividerRight = document.getElementById('divider-right');
+            const apply = () => {
+                const activeControls = getActiveControlsSection();
+                if (chk.checked) {
+                    codeSection.classList.remove('hidden');
+                    dividerRight?.classList.remove('hidden');
+                    // restore default flex layout
+                    const cs = document.querySelector('.canvas-section');
+                    if (cs) cs.style.flex = '0 0 50%';
+                    if (activeControls) activeControls.style.flex = '0 0 25%';
+                } else {
+                    codeSection.classList.add('hidden');
+                    dividerRight?.classList.add('hidden');
+                    // expand canvas to occupy freed space
+                    const cs = document.querySelector('.canvas-section');
+                    if (cs) cs.style.flex = '1 1 auto';
+                    if (activeControls) activeControls.style.flex = '0 0 25%';
+                }
+                resizeCanvas(); draw();
+            };
+            chk.addEventListener('change', apply);
+            apply();
+        })();
+
+        // Minimal process map editor (prompt-based)
+        (function attachProcessMapEditor() {
+            const btn = document.getElementById('cff2-edit-map');
+            btn?.addEventListener('click', () => {
+                const key = prompt('Enter mapping key as pen-layer (e.g., 2-1):');
+                if (!key) return;
+                const name = prompt('Enter process name (e.g., cut, crease, perf):', viewerSettings?.processMap?.cff2?.[key]?.name || '');
+                const color = prompt('Enter hex color (e.g., #ff0000):', viewerSettings?.processMap?.cff2?.[key]?.color || '#ff0000');
+                viewerSettings.processMap.cff2[key] = { name, color };
+                saveSettings();
+                setupCFF2Controls();
+                draw();
+            });
+        })();
+
+        // Drag-to-resize dividers with min widths and sticky right code panel
+        const dividerLeft = document.getElementById('divider-left');
+        const dividerRight = document.getElementById('divider-right');
+        const canvasSection = document.querySelector('.canvas-section');
+        const cff2Section = document.getElementById('cff2-controls');
+        const ddsSection = document.getElementById('dds-controls');
+        const codeSectionEl = document.getElementById('code-section');
+
+        const minCanvasWidth = 320;
+        const minControlsWidth = 220;
+        const minCodeWidth = 260;
+
+        function getActiveControlsSection() {
+            // Use controls elements that are initialized earlier to avoid TDZ
+            return currentFormat === 'dds' ? ddsControls : cff2Controls;
+        }
+
+        function clamp(val, min, max) { return Math.max(min, Math.min(max, val)); }
+
+        function attachDivider(divider, side) {
+            let isDragging = false;
+            let startX = 0;
+            let startCanvas = 0;
+            let startControls = 0;
+            let startCode = 0;
+
+            divider.addEventListener('mousedown', (e) => {
+                isDragging = true;
+                startX = e.clientX;
+                startCanvas = canvasSection.getBoundingClientRect().width;
+                startControls = getActiveControlsSection().getBoundingClientRect().width;
+                startCode = codeSectionEl.getBoundingClientRect().width;
+                document.body.style.cursor = 'col-resize';
+                e.preventDefault();
+            });
+
+            window.addEventListener('mousemove', (e) => {
+                if (!isDragging) return;
+                const dx = e.clientX - startX;
+                const containerWidth = document.querySelector('.container').getBoundingClientRect().width;
+
+                if (side === 'left') {
+                    // Adjust canvas and controls together; code panel sticks to right
+                    const newCanvas = clamp(startCanvas + dx, minCanvasWidth, containerWidth - minControlsWidth - minCodeWidth - 20);
+                    canvasSection.style.flexBasis = `${newCanvas}px`;
+                } else if (side === 'right') {
+                    // Adjust controls width; code expands/contracts but stays attached to right edge automatically via flex
+                    const newControls = clamp(startControls + dx, minControlsWidth, containerWidth - minCanvasWidth - minCodeWidth - 20);
+                    getActiveControlsSection().style.flexBasis = `${newControls}px`;
+                }
+                resizeCanvas();
+                draw();
+            });
+
+            window.addEventListener('mouseup', () => {
+                if (!isDragging) return;
+                isDragging = false;
+                document.body.style.cursor = '';
+            });
+        }
+
+        attachDivider(dividerLeft, 'left');
+        attachDivider(dividerRight, 'right');
+    </script>
+
+    <!-- DDS Parser and Renderer -->
+    <script>
+        let ddsData = null;
+        let ddsLineTypes = {};
+        let ddsRawCodeLines = [];
+        let ddsSortColumn = null;
+        let ddsSortDirection = 'asc';
+        let ddsHighlightedLineType = null;
+        let ddsSelectedEntity = null;
+        let ddsHoveredEntity = null;
+        
+        // DDS zoom and pan state (separate from CFF2)
+        let ddsView = {
+            scale: 1,
+            offsetX: 0,
+            offsetY: 0,
+            minScale: 0.1,
+            maxScale: 20,
+        };
+        let ddsIsPanning = false;
+        let ddsPanStart = { x: 0, y: 0 };
+        let ddsPanOffsetStart = { x: 0, y: 0 };
+
+        function parseDDS(text) {
+            const lines = text.split(/\r?\n/);
+            const entities = [];
+            ddsLineTypes = {};
+            ddsRawCodeLines = lines;
+            
+            lines.forEach((line, lineIndex) => {
+                if (line.trim() === '' || line.startsWith('\\') || line.startsWith('*') || line.startsWith('SUB')) {
+                    return;
+                }
+                
+                const entityData = {
+                    lineIndex: lineIndex,
+                    originalLine: line
+                };
+                
+                if (line.startsWith('LINE')) {
+                    const parts = line.split(/\s+/);
+                    if (parts.length >= 5) {
+                        entityData.type = 'LINE';
+                        entityData.x1 = parseFloat(parts[1]);
+                        entityData.y1 = parseFloat(parts[2]);
+                        entityData.x2 = parseFloat(parts[3]);
+                        entityData.y2 = parseFloat(parts[4]);
+                        entityData.color = parts[5] || '0';
+                        entityData.width = parseFloat(parts[6] || '0.0280');
+                        entityData.lineType = parseInt(parts[7] || '0');
+                        entityData.weight = parseFloat(parts[8] || '0.0000');
+                        // Bridge data for laser cutting
+                        entityData.kerfWidth = parseFloat(parts[6] || '0.0280');
+                        entityData.bridgeCount = parseInt(parts[7] || '0');
+                        entityData.bridgeWidth = parseFloat(parts[8] || '0.0000');
+                        
+                        // Create grouping key by color + kerf (rounded). This avoids averaging mixed kerf values.
+                        const kerfRounded = roundKerf(entityData.kerfWidth);
+                        const key = `${entityData.color}|${kerfRounded}`;
+                        
+                        if (!ddsLineTypes[key]) {
+                            ddsLineTypes[key] = {
+                                color: entityData.color,
+                                kerf: kerfRounded,
+                                displayColor: colorFromCode(entityData.color),
+                                visible: true,
+                                count: 0,
+                                lineCount: 0,
+                                arcCount: 0,
+                                totalLength: 0,
+                                totalBridge: 0,
+                                entities: []
+                            };
+                            // restore persisted color/visibility if available
+                            const persisted = viewerSettings?.dds?.buckets?.[key];
+                            if (persisted) {
+                                if (persisted.displayColor) ddsLineTypes[key].displayColor = persisted.displayColor;
+                                if (typeof persisted.visible === 'boolean') ddsLineTypes[key].visible = persisted.visible;
+                            }
+                        }
+                        
+                        entities.push(entityData);
+                        const group = ddsLineTypes[key];
+                        group.count++;
+                        group.lineCount++;
+                        const len = Math.hypot(entityData.x2 - entityData.x1, entityData.y2 - entityData.y1);
+                        group.totalLength += len;
+                        group.totalBridge += (entityData.bridgeCount || 0) * (entityData.bridgeWidth || 0);
+                        group.entities.push(entities.length - 1);
+                    }
+                } else if (line.startsWith('ARC')) {
+                    const parts = line.split(/\s+/);
+                    if (parts.length >= 7) {
+                        entityData.type = 'ARC';
+                        entityData.sx = parseFloat(parts[1]);
+                        entityData.sy = parseFloat(parts[2]);
+                        entityData.ex = parseFloat(parts[3]);
+                        entityData.ey = parseFloat(parts[4]);
+                        entityData.cx = parseFloat(parts[5]);
+                        entityData.cy = parseFloat(parts[6]);
+                        entityData.radius = parseFloat(parts[7]);
+                        entityData.color = parts[8] || '0';
+                        entityData.width = parseFloat(parts[9] || '0.0280');
+                        entityData.lineType = parseInt(parts[10] || '0');
+                        entityData.weight = parseFloat(parts[11] || '0.0000');
+                        // Kerf/bridges parity with LINE
+                        entityData.kerfWidth = parseFloat(parts[9] || '0.0280');
+                        entityData.bridgeCount = parseInt(parts[10] || '0');
+                        entityData.bridgeWidth = parseFloat(parts[11] || '0.0000');
+                        
+                        // Create grouping key by color + kerf (rounded). This avoids averaging mixed kerf values.
+                        const kerfRounded = roundKerf(entityData.kerfWidth);
+                        const key = `${entityData.color}|${kerfRounded}`;
+                        
+                        if (!ddsLineTypes[key]) {
+                            ddsLineTypes[key] = {
+                                color: entityData.color,
+                                kerf: kerfRounded,
+                                displayColor: colorFromCode(entityData.color),
+                                visible: true,
+                                count: 0,
+                                lineCount: 0,
+                                arcCount: 0,
+                                totalLength: 0,
+                                totalBridge: 0,
+                                entities: []
+                            };
+                            const persisted = viewerSettings?.dds?.buckets?.[key];
+                            if (persisted) {
+                                if (persisted.displayColor) ddsLineTypes[key].displayColor = persisted.displayColor;
+                                if (typeof persisted.visible === 'boolean') ddsLineTypes[key].visible = persisted.visible;
+                            }
+                        }
+                        
+                        entities.push(entityData);
+                        const group = ddsLineTypes[key];
+                        group.count++;
+                        group.arcCount++;
+                        // Arc length = radius * sweep angle
+                        const r = Math.abs(entityData.radius);
+                        const startAngle = Math.atan2(entityData.sy - entityData.cy, entityData.sx - entityData.cx);
+                        const endAngle = Math.atan2(entityData.ey - entityData.cy, entityData.ex - entityData.cx);
+                        let sweep = endAngle - startAngle;
+                        if (entityData.radius < 0 && sweep > 0) sweep -= 2 * Math.PI;
+                        if (entityData.radius >= 0 && sweep < 0) sweep += 2 * Math.PI;
+                        const arcLen = r * Math.abs(sweep);
+                        if (isFinite(arcLen)) group.totalLength += arcLen;
+                        group.totalBridge += (entityData.bridgeCount || 0) * (entityData.bridgeWidth || 0);
+                        group.entities.push(entities.length - 1);
+                    }
+                }
+            });
+
+            ddsData = entities;
+            setupDDSControls();
+            displayDDSCode(text);
+            fitDDSView();
+        }
+
+        // moved to js/dds.js: roundKerf, getDDSGroupKey
+
+        function getDDSSortedKeys() {
+            const keys = Object.keys(ddsLineTypes);
+            if (!ddsSortColumn) return keys;
+            return keys.sort((a, b) => {
+                const ta = ddsLineTypes[a];
+                const tb = ddsLineTypes[b];
+                let va, vb;
+                switch (ddsSortColumn) {
+                    case 'color':
+                        va = ta.color; vb = tb.color; break;
+                    case 'type': {
+                        const typeRank = (t) => (t.lineCount && t.arcCount) ? 1 : (t.lineCount ? 0 : 2);
+                        va = typeRank(ta); vb = typeRank(tb); break;
+                    }
+                    case 'count':
+                        va = ta.count; vb = tb.count; break;
+                    case 'kerf':
+                        va = ta.kerf ?? averageKerfForKey(a);
+                        vb = tb.kerf ?? averageKerfForKey(b);
+                        break;
+                    case 'length':
+                        va = ta.totalLength || 0; vb = tb.totalLength || 0; break;
+                    case 'bridgePercent': {
+                        const ap = (ta.totalLength ? (ta.totalBridge || 0) / ta.totalLength : 0);
+                        const bp = (tb.totalLength ? (tb.totalBridge || 0) / tb.totalLength : 0);
+                        va = ap; vb = bp; break;
+                    }
+                    default:
+                        return 0;
+                }
+                if (va < vb) return ddsSortDirection === 'asc' ? -1 : 1;
+                if (va > vb) return ddsSortDirection === 'asc' ? 1 : -1;
+                return 0;
+            });
+        }
+
+        function updateDDSSortIndicators() {
+            const headerCells = document.querySelectorAll('#ddsLineTypesTable th.sortable');
+            headerCells.forEach(th => {
+                th.classList.remove('sort-asc', 'sort-desc');
+                if (th.dataset.column === ddsSortColumn) {
+                    th.classList.add(ddsSortDirection === 'asc' ? 'sort-asc' : 'sort-desc');
+                }
+            });
+        }
+
+        function setupDDSControls() {
+            const ddsControlsTableBody = document.getElementById('dds-controls-table-body');
+            const ddsLineTypesTable = document.getElementById('ddsLineTypesTable');
+            
+            ddsControlsTableBody.innerHTML = '';
+            
+            const keys = getDDSSortedKeys();
+            keys.forEach(key => {
+                const type = ddsLineTypes[key];
+                const row = document.createElement('tr');
+                row.dataset.lineType = key;
+
+                row.addEventListener('mouseenter', () => {
+                    ddsHighlightedLineType = key;
+                    draw();
+                });
+                row.addEventListener('mouseleave', () => {
+                    ddsHighlightedLineType = null;
+                    draw();
+                });
+
+                const colorCell = document.createElement('td');
+                colorCell.textContent = type.color;
+                row.appendChild(colorCell);
+
+                const typeCell = document.createElement('td');
+                typeCell.textContent = (type.lineCount && type.arcCount) ? 'MIXED' : (type.lineCount ? 'LINE' : 'ARC');
+                row.appendChild(typeCell);
+
+                const countCell = document.createElement('td');
+                countCell.textContent = type.count;
+                row.appendChild(countCell);
+
+                // Kerf cell (avg or % based on settings)
+                const kerfCell = document.createElement('td');
+                kerfCell.textContent = formatKerfFixed(type.kerf);
+                row.appendChild(kerfCell);
+
+                // Length column (units aware)
+                const lengthCell = document.createElement('td');
+                lengthCell.textContent = formatLength(type.totalLength || 0);
+                row.appendChild(lengthCell);
+
+                // Bridge percent column
+                const bridgePctCell = document.createElement('td');
+                bridgePctCell.textContent = formatBridgePercent(type.totalBridge, type.totalLength);
+                row.appendChild(bridgePctCell);
+
+                const displayColorCell = document.createElement('td');
+                const colorInput = document.createElement('input');
+                colorInput.type = 'color';
+                colorInput.value = type.displayColor;
+                colorInput.addEventListener('input', (e) => {
+                    type.displayColor = e.target.value;
+                    if (viewerSettings) {
+                        viewerSettings.dds.buckets[key] = viewerSettings.dds.buckets[key] || {};
+                        viewerSettings.dds.buckets[key].displayColor = type.displayColor;
+                        saveSettings();
+                    }
+                    draw();
+                });
+                displayColorCell.appendChild(colorInput);
+                row.appendChild(displayColorCell);
+
+                const visibleCell = document.createElement('td');
+                const visibleInput = document.createElement('input');
+                visibleInput.type = 'checkbox';
+                // restore persisted visibility if present
+                const persisted = viewerSettings?.dds?.buckets?.[key]?.visible;
+                if (typeof persisted === 'boolean') type.visible = persisted;
+                visibleInput.checked = type.visible;
+                visibleInput.addEventListener('change', (e) => {
+                    type.visible = e.target.checked;
+                    if (viewerSettings) {
+                        viewerSettings.dds.buckets[key] = viewerSettings.dds.buckets[key] || {};
+                        viewerSettings.dds.buckets[key].visible = type.visible;
+                        saveSettings();
+                    }
+                    draw();
+                });
+                visibleCell.appendChild(visibleInput);
+                row.appendChild(visibleCell);
+
+                ddsControlsTableBody.appendChild(row);
+            });
+
+            updateDDSSortIndicators();
+            updateDDSHeaderUnits();
+        }
+
+        // DDS table sorting handler
+        (function attachDDSSortHandler() {
+            const tableEl = document.getElementById('ddsLineTypesTable');
+            if (!tableEl) return;
+            tableEl.addEventListener('click', (e) => {
+                const target = e.target;
+                if (!(target instanceof Element)) return;
+                if (!target.classList.contains('sortable')) return;
+                const column = target.getAttribute('data-column');
+                if (!column) return;
+                if (ddsSortColumn === column) {
+                    ddsSortDirection = ddsSortDirection === 'asc' ? 'desc' : 'asc';
+                } else {
+                    ddsSortColumn = column;
+                    ddsSortDirection = 'asc';
+                }
+                setupDDSControls();
+                draw();
+            });
+        })();
+
+        // Helpers for kerf formatting/sorting
+        function averageKerfForKey(key) {
+            const indices = ddsLineTypes[key]?.entities || [];
+            if (!indices.length) return 0;
+            let sum = 0;
+            for (const idx of indices) sum += ddsData[idx]?.kerfWidth || 0;
+            return sum / indices.length;
+        }
+
+        function formatKerfCell(key) {
+            const kerfInPt = document.getElementById('dds-kerf-in-pt')?.checked;
+            const units = document.getElementById('dds-units')?.value || 'in';
+            const avgKerfIn = averageKerfForKey(key) || 0;
+            if (kerfInPt) {
+                const pt = avgKerfIn * 72; // 1 in = 72 pt
+                return `${pt.toFixed(2)}`;
+            }
+            if (units === 'mm') {
+                return `${(avgKerfIn * 25.4).toFixed(3)}`;
+            }
+            return `${avgKerfIn.toFixed(4)}`;
+        }
+
+        function formatKerfFixed(kerfIn) {
+            const kerfInPt = document.getElementById('dds-kerf-in-pt')?.checked;
+            const units = document.getElementById('dds-units')?.value || 'in';
+            const v = Number(kerfIn) || 0;
+            if (kerfInPt) return `${(v * 72).toFixed(2)}`;
+            if (units === 'mm') return `${(v * 25.4).toFixed(3)}`;
+            return `${v.toFixed(4)}`;
+        }
+
+        function formatLength(lenIn) {
+            const units = document.getElementById('dds-units')?.value || 'in';
+            const v = Number(lenIn) || 0;
+            if (units === 'mm') return `${(v * 25.4).toFixed(2)}`;
+            return `${v.toFixed(3)}`;
+        }
+
+        function updateDDSHeaderUnits() {
+            const table = document.getElementById('ddsLineTypesTable');
+            if (!table) return;
+            const kerfInPt = document.getElementById('dds-kerf-in-pt')?.checked;
+            const units = document.getElementById('dds-units')?.value || 'in';
+            const ths = table.querySelectorAll('thead th');
+            // headers: Color, Type, Count, Kerf, Length, Bridge %, Display Color, Visible
+            if (ths[3]) ths[3].textContent = kerfInPt ? 'Kerf (pt)' : `Kerf (${units})`;
+            if (ths[4]) ths[4].textContent = `Length (${units})`;
+            if (ths[5] && ths[5].textContent.indexOf('Bridge') !== -1) {
+                ths[5].textContent = 'Bridge %';
+            }
+        }
+
+        function formatBridgePercent(totalBridgeIn, totalLenIn) {
+            const len = Number(totalLenIn) || 0;
+            const br = Number(totalBridgeIn) || 0;
+            if (len <= 0) return '0.0%';
+            return `${((br / len) * 100).toFixed(1)}%`;
+        }
+
+        function displayDDSCode(text) {
+            codeContent.innerHTML = '';
+            const filter = (document.getElementById('code-filter')?.value || '').toLowerCase();
+            ddsRawCodeLines.forEach((line, index) => {
+                if (filter && !line.toLowerCase().includes(filter)) return;
+                const lineElement = document.createElement('span');
+                lineElement.className = 'code-line';
+                lineElement.textContent = `${(index + 1).toString().padStart(3, ' ')}: ${line}\n`;
+                lineElement.dataset.lineIndex = index;
+                
+                // Add click handler for code-to-graphic highlighting
+                lineElement.style.cursor = 'pointer';
+                lineElement.addEventListener('click', () => {
+                    handleCodeLineClick(index, line.trim());
+                });
+                
+                // Add hover effect
+                lineElement.addEventListener('mouseenter', () => {
+                    if (!lineElement.classList.contains('highlighted')) {
+                        lineElement.style.backgroundColor = '#f0f0f0';
+                    }
+                });
+                lineElement.addEventListener('mouseleave', () => {
+                    if (!lineElement.classList.contains('highlighted')) {
+                        lineElement.style.backgroundColor = '';
+                    }
+                });
+                
+                codeContent.appendChild(lineElement);
+            });
+        }
+        
+        function handleCodeLineClick(lineIndex, lineContent) {
+            // Find the corresponding entity in ddsData
+            const entity = ddsData.find(e => e.lineIndex === lineIndex);
+            
+            if (entity) {
+                // Set as selected entity
+                ddsSelectedEntity = { ...entity, idx: ddsData.indexOf(entity) };
+                updateDDSInspector(ddsSelectedEntity);
+                
+                // Highlight the code line
+                highlightDDSCodeForEntity(entity);
+                
+                // Highlight the corresponding table row
+                highlightDDSTableRowForEntity(entity);
+                
+                // Redraw to show the selected entity
+                draw();
+                
+                console.log('Code line clicked:', lineIndex, 'Entity:', entity);
+            } else if (lineContent.startsWith('LINE') || lineContent.startsWith('ARC')) {
+                // This might be a line that was filtered out or has parsing issues
+                console.log('Code line clicked but no corresponding entity found:', lineIndex, lineContent);
+                
+                // Still highlight the code line for visual feedback
+                document.querySelectorAll('.code-line').forEach(line => {
+                    line.classList.remove('highlighted', 'related');
+                });
+                
+                const targetLine = document.querySelector(`[data-line-index="${lineIndex}"]`);
+                if (targetLine) {
+                    targetLine.classList.add('highlighted');
+                }
+            }
+        }
+
+        function updateDDSInspector(entity) {
+            const dl = document.getElementById('dds-inspector-dl');
+            if (!dl || !entity) return;
+            const pairs = Array.from(dl.querySelectorAll('dd'));
+            const labels = Array.from(dl.querySelectorAll('dt'));
+            const fmt = (n) => typeof n === 'number' ? n.toFixed(4) : String(n ?? '-');
+            if (pairs[0]) pairs[0].textContent = String(entity.lineIndex + 1);
+            if (pairs[1]) pairs[1].textContent = entity.type || '-';
+            if (pairs[2]) pairs[2].textContent = String(entity.color ?? '-');
+            // Kerf label/value respecting kerf-in-pt and units
+            const kerfInPt = document.getElementById('dds-kerf-in-pt')?.checked;
+            const units = document.getElementById('dds-units')?.value || 'in';
+            if (labels[3]) labels[3].textContent = kerfInPt ? 'Kerf (pt)' : `Kerf (${units})`;
+            if (pairs[3]) {
+                let kv = Number(entity.kerfWidth) || 0;
+                if (kerfInPt) kv = kv * 72; else if (units === 'mm') kv = kv * 25.4;
+                pairs[3].textContent = kerfInPt ? kv.toFixed(2) : (units === 'mm' ? kv.toFixed(3) : kv.toFixed(4));
+            }
+            if (labels[4]) labels[4].textContent = `Bridges (${units})`;
+            if (pairs[4]) {
+                let bw = Number(entity.bridgeWidth) || 0;
+                if (units === 'mm') bw = bw * 25.4;
+                pairs[4].textContent = `${entity.bridgeCount ?? 0} × ${units === 'mm' ? bw.toFixed(3) : bw.toFixed(4)}`;
+            }
+            if (pairs[5]) {
+                // Length
+                let len = 0;
+                if (entity.type === 'LINE') {
+                    len = Math.hypot(entity.x2 - entity.x1, entity.y2 - entity.y1);
+                } else if (entity.type === 'ARC') {
+                    const r = Math.abs(entity.radius);
+                    const a0 = Math.atan2(entity.sy - entity.cy, entity.sx - entity.cx);
+                    const a1 = Math.atan2(entity.ey - entity.cy, entity.ex - entity.cx);
+                    let sweep = a1 - a0;
+                    if (entity.radius < 0 && sweep > 0) sweep -= 2 * Math.PI;
+                    if (entity.radius >= 0 && sweep < 0) sweep += 2 * Math.PI;
+                    len = r * Math.abs(sweep);
+                }
+                const u = document.getElementById('dds-units')?.value || 'in';
+                const lenStr = u === 'mm' ? `${(len * 25.4).toFixed(2)} mm` : `${len.toFixed(3)} in`;
+                pairs[5].textContent = lenStr;
+            }
+            if (pairs[6]) {
+                if (entity.type === 'LINE') {
+                    pairs[6].textContent = `(${fmt(entity.x1)}, ${fmt(entity.y1)}) → (${fmt(entity.x2)}, ${fmt(entity.y2)})`;
+                } else if (entity.type === 'ARC') {
+                    pairs[6].textContent = `S(${fmt(entity.sx)}, ${fmt(entity.sy)}) E(${fmt(entity.ex)}, ${fmt(entity.ey)}) C(${fmt(entity.cx)}, ${fmt(entity.cy)}) r=${fmt(entity.radius)}`;
+                } else {
+                    pairs[6].textContent = '-';
+                }
+            }
+        }
+        
+        function highlightDDSCodeForEntity(entity) {
+            // Clear previous highlights
+            document.querySelectorAll('.code-line').forEach(line => {
+                line.classList.remove('highlighted', 'related');
+            });
+
+            // Highlight the specific line
+            const targetLine = document.querySelector(`[data-line-index="${entity.lineIndex}"]`);
+            if (targetLine) {
+                targetLine.classList.add('highlighted');
+                targetLine.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+
+            // Highlight related lines of the same type
+            const key = getDDSGroupKey(entity);
+            const group = ddsLineTypes[key];
+            if (!group) return;
+            const relatedEntities = group.entities || [];
+            relatedEntities.forEach(entityIndex => {
+                const relatedEntity = ddsData[entityIndex];
+                const relatedLine = document.querySelector(`[data-line-index="${relatedEntity.lineIndex}"]`);
+                if (relatedLine && relatedEntity.lineIndex !== entity.lineIndex) {
+                    relatedLine.classList.add('related');
+                }
+            });
+        }
+        
+        function highlightDDSTableRowForEntity(entity) {
+            // Clear previous table row highlights
+            document.querySelectorAll('#dds-controls tbody tr').forEach(row => {
+                row.classList.remove('highlighted');
+            });
+
+            // Highlight the corresponding table row
+            const key = getDDSGroupKey(entity);
+            const targetRow = document.querySelector(`#dds-controls tbody tr[data-line-type="${key}"]`);
+            if (targetRow) {
+                targetRow.classList.add('highlighted');
+                targetRow.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+        }
+        
+        function fitDDSView() {
+            ddsView.scale = 1;
+            ddsView.offsetX = 0;
+            ddsView.offsetY = 0;
+        }
+
+        // moved to js/utils.js: getBounds
+
+        function colorFromCode(code) {
+            // Convert to string in case it's a number
+            const colorStr = String(code);
+            
+            if (colorStr === '100') return '#e74c3c';  // Red
+            if (colorStr === '166') return '#3498db';  // Blue  
+            if (colorStr === '0') return '#2ecc71';    // Green
+            if (colorStr === '90') return '#9b59b6';   // Purple
+            if (colorStr === '163') return '#34495e';  // Dark gray
+            if (colorStr === '101') return '#f39c12';  // Orange
+            if (colorStr === '200') return '#1abc9c';  // Turquoise
+            if (colorStr === '164') return '#e67e22';  // Dark orange
+            
+            // Default for unknown colors
+            console.log('Unknown color code:', colorStr);
+            return '#888';
+        }
+
+        // Overlay bridge gaps for lines (generic for DDS/CFF2 line entities)
+        function overlayBridgeGaps(entity, context, baseLineWidth) {
+            const n = Number(entity.bridgeCount) || 0;
+            const w = Number(entity.bridgeWidth) || 0;
+            if (n <= 0 || w <= 0) return;
+            const x1 = entity.x1, y1 = entity.y1, x2 = entity.x2, y2 = entity.y2;
+            const totalLen = Math.hypot(x2 - x1, y2 - y1);
+            const gapLen = w;
+            const cutLen = totalLen - n * gapLen;
+            if (cutLen <= 0) return;
+            const segmentCount = n + 1;
+            const segmentLen = cutLen / segmentCount;
+            const dx = (x2 - x1) / totalLen;
+            const dy = (y2 - y1) / totalLen;
+            const prev = context.globalCompositeOperation;
+            context.save();
+            context.globalCompositeOperation = 'destination-out';
+            context.lineWidth = baseLineWidth + 0.5 * baseLineWidth; // a bit wider to ensure full punch
+            let cursor = 0;
+            for (let i = 0; i < segmentCount - 1; i++) {
+                cursor += segmentLen;
+                const sx = x1 + dx * cursor;
+                const sy = y1 + dy * cursor;
+                const ex = x1 + dx * (cursor + gapLen);
+                const ey = y1 + dy * (cursor + gapLen);
+                context.beginPath();
+                context.moveTo(sx, sy);
+                context.lineTo(ex, ey);
+                context.stroke();
+                cursor += gapLen;
+            }
+            context.restore();
+            context.globalCompositeOperation = prev;
+        }
+
+        function overlayBridgeGapsOnArc(arc, context, baseLineWidth) {
+            const n = Number(arc.bridgeCount) || 0;
+            const w = Number(arc.bridgeWidth) || 0;
+            if (n <= 0 || w <= 0) return;
+            const r = Math.abs(arc.radius);
+            const isFullCircle = Math.abs(arc.sx - arc.ex) < 1e-6 && Math.abs(arc.sy - arc.ey) < 1e-6;
+            let arcLen;
+            let startAngle, endAngle, anticlockwise;
+            if (isFullCircle) {
+                arcLen = 2 * Math.PI * r;
+                startAngle = 0; endAngle = 2 * Math.PI; anticlockwise = false;
+            } else {
+                const a0 = Math.atan2(arc.sy - arc.cy, arc.sx - arc.cx);
+                const a1 = Math.atan2(arc.ey - arc.cy, arc.ex - arc.cx);
+                let sweep = a1 - a0;
+                if (arc.radius < 0 && sweep > 0) sweep -= 2 * Math.PI;
+                if (arc.radius >= 0 && sweep < 0) sweep += 2 * Math.PI;
+                arcLen = r * Math.abs(sweep);
+                startAngle = a0;
+                endAngle = a1;
+                anticlockwise = arc.radius < 0;
+            }
+            const gapLen = w;
+            const cutLen = arcLen - n * gapLen;
+            if (cutLen <= 0) return;
+            const segmentCount = n + 1;
+            const segmentLen = cutLen / segmentCount;
+            const prev = context.globalCompositeOperation;
+            context.save();
+            context.globalCompositeOperation = 'destination-out';
+            context.lineWidth = baseLineWidth + 0.5 * baseLineWidth;
+            let cursor = 0;
+            for (let i = 0; i < segmentCount - 1; i++) {
+                cursor += segmentLen;
+                const startS = cursor / r;
+                const endS = (cursor + gapLen) / r;
+                let as = startAngle + (anticlockwise ? -startS : startS);
+                let ae = startAngle + (anticlockwise ? -(endS) : endS);
+                if (isFullCircle) { as = startS; ae = endS; }
+                context.beginPath();
+                context.arc(arc.cx, arc.cy, r, as, ae, anticlockwise);
+                context.stroke();
+                cursor += gapLen;
+            }
+            context.restore();
+            context.globalCompositeOperation = prev;
+        }
+
+        function drawDDSTooltip() {
+            if (!ddsHoveredEntity) return;
+            const { x, y } = mouseCanvasPos;
+            const text = `${ddsHoveredEntity.type}: Color ${ddsHoveredEntity.color}`;
+            ctx.save();
+            ctx.setTransform(1, 0, 0, 1, 0, 0);
+            ctx.font = '14px sans-serif';
+            ctx.fillStyle = '#222';
+            ctx.strokeStyle = '#fff';
+            ctx.lineWidth = 3;
+            ctx.strokeText(text, x + 12, y + 8);
+            ctx.fillText(text, x + 12, y + 8);
+            ctx.restore();
+        }
+
+        function findDDSEntityAt(canvasX, canvasY) {
+            if (!ddsData || !ddsData.length) return null;
+            const t = getDDSFit();
+            if (!t) return null;
+            const x = (canvasX - ddsView.offsetX - t.fitOffsetX) / (ddsView.scale * t.fitScale);
+            const y = -(canvasY - ddsView.offsetY - t.fitOffsetY) / (ddsView.scale * t.fitScale);
+            let minDist = 0.05 * (1 / ddsView.scale);
+            let found = null;
+            ddsData.forEach((entity, idx) => {
+                const key = getDDSGroupKey(entity);
+                if (!ddsLineTypes[key]?.visible) return;
+                let dist = Infinity;
+                if (entity.type === 'LINE') {
+                    dist = pointToSegmentDist(x, y, entity.x1, entity.y1, entity.x2, entity.y2);
+                } else if (entity.type === 'ARC') {
+                    dist = pointToArcDist(x, y, entity);
+                }
+                if (dist < minDist) { minDist = dist; found = { ...entity, idx }; }
+            });
+            return found;
+        }
+
+        function getDDSFit() {
+            const bounds = getBounds(ddsData || []);
+            const pad = 40;
+            const fitScaleX = (canvas.width - 2 * pad) / (bounds.maxX - bounds.minX);
+            const fitScaleY = (canvas.height - 2 * pad) / (bounds.maxY - bounds.minY);
+            const fitScale = Math.min(fitScaleX, fitScaleY) * 0.95;
+            const fitOffsetX = (canvas.width - (bounds.maxX - bounds.minX) * fitScale) / 2 - bounds.minX * fitScale;
+            const fitOffsetY = (canvas.height + (bounds.maxY - bounds.minY) * fitScale) / 2 + bounds.minY * fitScale;
+            return { fitScale, fitOffsetX, fitOffsetY };
+        }
+
+        // Coordinate transform helpers (DDS)
+        function canvasToModelDDS(cx, cy) {
+            const t = getDDSFit();
+            if (!t) return { x: cx, y: cy };
+            const x = (cx - ddsView.offsetX - t.fitOffsetX) / (ddsView.scale * t.fitScale);
+            const y = -(cy - ddsView.offsetY - t.fitOffsetY) / (ddsView.scale * t.fitScale);
+            return { x, y };
+        }
+
+        function modelToCanvasDDS(x, y) {
+            const t = getDDSFit();
+            if (!t) return { x, y };
+            const cx = ddsView.offsetX + t.fitOffsetX + x * (ddsView.scale * t.fitScale);
+            const cy = ddsView.offsetY + t.fitOffsetY + (-y) * (ddsView.scale * t.fitScale);
+            return { x: cx, y: cy };
+        }
+
+        // Coordinate transform helpers (CFF2)
+        function getCFF2FitTransform() {
+            if (!cff2Data || !cff2Data.boundingBox) return null;
+            const bb = cff2Data.boundingBox;
+            const geoWidth = bb.upperRight.x - bb.lowerLeft.x;
+            const geoHeight = bb.upperRight.y - bb.lowerLeft.y;
+            if (geoWidth <= 0 || geoHeight <= 0) return null;
+            const fitScaleX = canvas.width / geoWidth;
+            const fitScaleY = canvas.height / geoHeight;
+            const fitScale = Math.min(fitScaleX, fitScaleY) * 0.95;
+            const fitOffsetX = (canvas.width - geoWidth * fitScale) / 2 - bb.lowerLeft.x * fitScale;
+            const fitOffsetY = (canvas.height + geoHeight * fitScale) / 2 + bb.lowerLeft.y * fitScale;
+            return { fitScale, fitOffsetX, fitOffsetY };
+        }
+
+        function canvasToModelCFF2(cx, cy) {
+            const t = getCFF2FitTransform();
+            if (!t) return { x: cx, y: cy };
+            const x = (cx - view.offsetX - t.fitOffsetX) / (view.scale * t.fitScale);
+            const y = -(cy - view.offsetY - t.fitOffsetY) / (view.scale * t.fitScale);
+            return { x, y };
+        }
+
+        function modelToCanvasCFF2(x, y) {
+            const t = getCFF2FitTransform();
+            if (!t) return { x, y };
+            const cx = view.offsetX + t.fitOffsetX + x * (view.scale * t.fitScale);
+            const cy = view.offsetY + t.fitOffsetY + (-y) * (view.scale * t.fitScale);
+            return { x: cx, y: cy };
+        }
+
+        // Snapping helpers
+        function snapCanvasPointToNearestEndpoint(cx, cy) {
+            // Extend snapping to include endpoints, midpoints, centers, and quadrants
+            if (currentFormat === 'cff2') {
+                const ent = findCFF2EntityAt(cx, cy);
+                if (!ent) return { x: cx, y: cy };
+                const p = canvasToModelCFF2(cx, cy);
+                const candidates = [];
+                if (ent.type === 'L') {
+                    candidates.push({ x: ent.x1, y: ent.y1 });
+                    candidates.push({ x: ent.x2, y: ent.y2 });
+                    candidates.push({ x: (ent.x1 + ent.x2) / 2, y: (ent.y1 + ent.y2) / 2 });
+                } else if (ent.type === 'A') {
+                    const r = Math.hypot(ent.x1 - ent.cx, ent.y1 - ent.cy);
+                    const start = Math.atan2(ent.y1 - ent.cy, ent.x1 - ent.cx);
+                    const end = Math.atan2(ent.y2 - ent.cy, ent.x2 - ent.cx);
+                    const isFullCircle = Math.abs(ent.x1 - ent.x2) < 1e-6 && Math.abs(ent.y1 - ent.y2) < 1e-6;
+                    const within = (ang) => {
+                        if (isFullCircle) return true;
+                        if (ent.dir === -1) {
+                            return (start > end) ? (ang <= start && ang >= end) : (ang <= start || ang >= end);
+                        }
+                        return (end > start) ? (ang >= start && ang <= end) : (ang >= start || ang <= end);
+                    };
+                    // center and endpoints
+                    candidates.push({ x: ent.cx, y: ent.cy });
+                    candidates.push({ x: ent.x1, y: ent.y1 });
+                    candidates.push({ x: ent.x2, y: ent.y2 });
+                    // quadrant points
+                    const quad = [0, Math.PI/2, Math.PI, 3*Math.PI/2];
+                    quad.forEach(a => {
+                        if (within(a)) candidates.push({ x: ent.cx + r * Math.cos(a), y: ent.cy + r * Math.sin(a) });
+                    });
+                }
+                if (!candidates.length) return { x: cx, y: cy };
+                let best = candidates[0];
+                let bestD = Math.hypot(p.x - best.x, p.y - best.y);
+                for (let i = 1; i < candidates.length; i++) {
+                    const c = candidates[i];
+                    const d = Math.hypot(p.x - c.x, p.y - c.y);
+                    if (d < bestD) { best = c; bestD = d; }
+                }
+                return modelToCanvasCFF2(best.x, best.y);
+            } else if (currentFormat === 'dds') {
+                const ent = ddsHoveredEntity || findDDSEntityAt(cx, cy);
+                if (!ent) return { x: cx, y: cy };
+                const p = canvasToModelDDS(cx, cy);
+                const candidates = [];
+                if (ent.type === 'LINE') {
+                    candidates.push({ x: ent.x1, y: ent.y1 });
+                    candidates.push({ x: ent.x2, y: ent.y2 });
+                    candidates.push({ x: (ent.x1 + ent.x2) / 2, y: (ent.y1 + ent.y2) / 2 });
+                } else if (ent.type === 'ARC') {
+                    const r = Math.abs(ent.radius);
+                    const start = Math.atan2(ent.sy - ent.cy, ent.sx - ent.cx);
+                    const end = Math.atan2(ent.ey - ent.cy, ent.ex - ent.cx);
+                    const isFullCircle = Math.abs(ent.sx - ent.ex) < 1e-6 && Math.abs(ent.sy - ent.ey) < 1e-6;
+                    const within = (ang) => {
+                        if (isFullCircle) return true;
+                        if (ent.radius < 0) { // anticlockwise in our renderer
+                            return (start > end) ? (ang <= start && ang >= end) : (ang <= start || ang >= end);
+                        }
+                        return (end > start) ? (ang >= start && ang <= end) : (ang >= start || ang <= end);
+                    };
+                    candidates.push({ x: ent.cx, y: ent.cy });
+                    candidates.push({ x: ent.sx, y: ent.sy });
+                    candidates.push({ x: ent.ex, y: ent.ey });
+                    const quad = [0, Math.PI/2, Math.PI, 3*Math.PI/2];
+                    quad.forEach(a => {
+                        if (within(a)) candidates.push({ x: ent.cx + r * Math.cos(a), y: ent.cy + r * Math.sin(a) });
+                    });
+                }
+                if (!candidates.length) return { x: cx, y: cy };
+                let best = candidates[0];
+                let bestD = Math.hypot(p.x - best.x, p.y - best.y);
+                for (let i = 1; i < candidates.length; i++) {
+                    const c = candidates[i];
+                    const d = Math.hypot(p.x - c.x, p.y - c.y);
+                    if (d < bestD) { best = c; bestD = d; }
+                }
+                return modelToCanvasDDS(best.x, best.y);
+            }
+            return { x: cx, y: cy };
+        }
+
+        function snapModelToGrid(pt, units) {
+            const spacing = units === 'mm' ? (10/25.4) : 0.25;
+            return { x: Math.round(pt.x / spacing) * spacing, y: Math.round(pt.y / spacing) * spacing };
+        }
+
+        function pointToArcDist(px, py, arc) {
+            const r = Math.abs(arc.radius);
+            const angle = Math.atan2(py - arc.cy, px - arc.cx);
+            const start = Math.atan2(arc.sy - arc.cy, arc.sx - arc.cx);
+            const end = Math.atan2(arc.ey - arc.cy, arc.ex - arc.cx);
+            let inArc = false;
+            if (arc.radius < 0) {
+                inArc = (start > end) ? (angle <= start && angle >= end) : (angle <= start || angle >= end);
+            } else {
+                inArc = (end > start) ? (angle >= start && angle <= end) : (angle >= start || angle <= end);
+            }
+            const distToCirc = Math.abs(Math.hypot(px - arc.cx, py - arc.cy) - r);
+            if (!inArc) return Infinity;
+            return distToCirc;
+        }
+
+        function drawDDS() {
+            if (!ddsData || !ddsData.length) return;
+            ctx.save();
+            const t = getDDSFit();
+            const fitScale = t.fitScale; const fitOffsetX = t.fitOffsetX; const fitOffsetY = t.fitOffsetY;
+            ctx.translate(ddsView.offsetX + fitOffsetX, ddsView.offsetY + fitOffsetY);
+            ctx.scale(ddsView.scale * fitScale, -ddsView.scale * fitScale);
+            ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.setLineDash([]);
+
+            ddsData.forEach((entity, idx) => {
+                const key = getDDSGroupKey(entity);
+                const group = ddsLineTypes[key];
+                if (!group || !group.visible) return;
+                ctx.save();
+                let strokeColor = group.displayColor || colorFromCode(entity.color);
+                let lineWidth = Math.max(1 / (ddsView.scale * fitScale), (entity.kerfWidth || 0) / 2);
+                if (ddsSelectedEntity && ddsSelectedEntity.idx === idx) { strokeColor = '#FF0000'; lineWidth = 4 / (ddsView.scale * fitScale); }
+                else if (ddsHoveredEntity && ddsHoveredEntity.idx === idx) { strokeColor = '#FF0'; lineWidth = 3 / (ddsView.scale * fitScale); }
+                else if (ddsHighlightedLineType === key) { strokeColor = '#00FF00'; lineWidth = 2 / (ddsView.scale * fitScale); }
+                ctx.strokeStyle = strokeColor; ctx.lineWidth = lineWidth;
+                ctx.beginPath();
+                if (entity.type === 'LINE') {
+                    ctx.moveTo(entity.x1, entity.y1); ctx.lineTo(entity.x2, entity.y2);
+                } else if (entity.type === 'ARC') {
+                    const a0 = Math.atan2(entity.sy - entity.cy, entity.sx - entity.cx);
+                    const a1 = Math.atan2(entity.ey - entity.cy, entity.ex - entity.cx);
+                    const isFullCircle = Math.abs(entity.sx - entity.ex) < 1e-6 && Math.abs(entity.sy - entity.ey) < 1e-6;
+                    if (isFullCircle) { ctx.arc(entity.cx, entity.cy, Math.abs(entity.radius), 0, 2 * Math.PI, false); }
+                    else { ctx.arc(entity.cx, entity.cy, Math.abs(entity.radius), a0, a1, entity.radius < 0); }
+                }
+                ctx.stroke();
+                const renderBridges = document.getElementById('dds-render-bridges');
+                const shouldOverlay = renderBridges ? renderBridges.checked : true;
+                if (shouldOverlay) {
+                    if (entity.type === 'LINE') overlayBridgeGaps(entity, ctx, lineWidth);
+                    else if (entity.type === 'ARC') overlayBridgeGapsOnArc(entity, ctx, lineWidth);
+                }
+                ctx.restore();
+            });
+
+            // Session entities in DDS space
+            sessionEntities.forEach(ent => {
+                if (ent.fmt !== 'dds') return;
+                ctx.save(); ctx.strokeStyle = '#1abc9c'; ctx.lineWidth = 2 / (ddsView.scale * fitScale);
+                ctx.beginPath();
+                if (ent.type === 'LINE') { ctx.moveTo(ent.x1, ent.y1); ctx.lineTo(ent.x2, ent.y2); }
+                else if (ent.type === 'ARC') { ctx.arc(ent.cx, ent.cy, Math.abs(ent.radius), 0, 2 * Math.PI); }
+                ctx.stroke(); ctx.restore();
+            });
+
+            // Creation preview (convert canvas to model coords)
+            if (createStartModel && creationPreviewCanvas && currentFormat === 'dds') {
+                const endM = canvasToModelDDS(creationPreviewCanvas.x, creationPreviewCanvas.y);
+                ctx.save(); ctx.strokeStyle = '#4a90e2'; ctx.setLineDash([4,4]); ctx.lineWidth = 1 / (ddsView.scale * fitScale);
+                ctx.beginPath();
+                if (activeTool === 'line') { ctx.moveTo(createStartModel.x, createStartModel.y); ctx.lineTo(endM.x, endM.y); }
+                else if (activeTool === 'circle') { const r = Math.hypot(endM.x - createStartModel.x, endM.y - createStartModel.y); ctx.arc(createStartModel.x, createStartModel.y, r, 0, 2*Math.PI); }
+                ctx.stroke(); ctx.restore();
+            }
+
+            // Grid (drawn in screen space)
+            if (gridEnabled) drawGridDDS(fitScale, fitOffsetX, fitOffsetY);
+
+            ctx.restore();
+            drawDDSTooltip();
+            drawMeasureOverlay();
+        }
+        
+        // moved to js/utils.js: pointToSegmentDist
+        
+        // moved to js/utils.js: pointToArcDist
+        
+        // moved to js/dds.js: drawDDSTooltip
+        // Measurement overlay (screen-space simple)
+        function drawMeasureOverlay() {
+            if (!measureMode || !measureStart) return;
+            // Snap both points visually to nearest entity endpoints (canvas space)
+            const snappedStart = snapCanvasPointToNearestEndpoint(measureStart.x, measureStart.y);
+            const snappedEnd = snapCanvasPointToNearestEndpoint((measureEnd||measureStart).x, (measureEnd||measureStart).y);
+            const start = snappedStart;
+            const end = snappedEnd;
+            ctx.save();
+            ctx.setTransform(1,0,0,1,0,0);
+            ctx.strokeStyle = '#ff4081';
+            ctx.lineWidth = 1.5;
+            ctx.setLineDash([6,4]);
+            ctx.beginPath();
+            ctx.moveTo(start.x, start.y);
+            ctx.lineTo(end.x, end.y);
+            ctx.stroke();
+            ctx.setLineDash([]);
+            const dx = end.x - start.x, dy = end.y - start.y;
+            const pxLen = Math.hypot(dx, dy);
+            // Convert pixel distance to model distance based on current format and transforms
+            let modelLen = 0;
+            if (currentFormat === 'cff2') {
+                const a = canvasToModelCFF2(start.x, start.y);
+                const b = canvasToModelCFF2(end.x, end.y);
+                modelLen = Math.hypot(b.x - a.x, b.y - a.y);
+                const units = document.getElementById('cff2-units')?.value || 'in';
+                const val = units === 'mm' ? (modelLen * 25.4).toFixed(2) + ' mm' : modelLen.toFixed(3) + ' in';
+                statusLength.classList.remove('hidden');
+                statusLength.textContent = `measure: ${val}`;
+            } else if (currentFormat === 'dds') {
+                const a = canvasToModelDDS(start.x, start.y);
+                const b = canvasToModelDDS(end.x, end.y);
+                modelLen = Math.hypot(b.x - a.x, b.y - a.y);
+                const units = document.getElementById('dds-units')?.value || 'in';
+                const val = units === 'mm' ? (modelLen * 25.4).toFixed(2) + ' mm' : modelLen.toFixed(3) + ' in';
+                statusLength.classList.remove('hidden');
+                statusLength.textContent = `measure: ${val}`;
+            } else {
+                statusLength.classList.remove('hidden');
+                statusLength.textContent = `measure: ${pxLen.toFixed(1)} px`;
+            }
+            ctx.restore();
+        }
+
+        // (helpers moved to js/utils.js)
+    </script>
+
+    <!-- CFF2 Parser and Renderer -->
+    <script>
+        let cff2Data = null;
+        let lineTypes = {};
+        let rawCodeLines = [];
+        let sortColumn = null;
+        let sortDirection = 'asc';
+        let highlightedLineType = null;
+        let selectedEntity = null;
+        let hoveredEntity = null;
+        let mouseCanvasPos = { x: 0, y: 0 };
+
+        // CFF2 zoom and pan state
+        let view = {
+            scale: 1,
+            offsetX: 0,
+            offsetY: 0,
+            minScale: 0.1,
+            maxScale: 20,
+        };
+        let isPanning = false;
+        let panStart = { x: 0, y: 0 };
+        let panOffsetStart = { x: 0, y: 0 };
+
+        // Basic tool state and session edits (declared earlier in first script block)
+
+        function parseCFF2(data) {
+            const lines = data.split('\n');
+            cff2Data = [];
+            lineTypes = {};
+            rawCodeLines = lines;
+            let lowerLeft = { x: 0, y: 0 };
+            let upperRight = { x: 0, y: 0 };
+            let bucketTotals = {}; // key: pen-layer → {length}
+
+            lines.forEach((line, lineIndex) => {
+                const parts = line.trim().split(/,/).map(p => p.trim());
+                const type = parts[0];
+
+                if (type === 'LL') {
+                    lowerLeft = { x: parseFloat(parts[1]), y: parseFloat(parts[2]) };
+                } else if (type === 'UR') {
+                    upperRight = { x: parseFloat(parts[1]), y: parseFloat(parts[2]) };
+                } else if (type === 'L' || type === 'A') {
+                    const pen = parts[1];
+                    const layer = parts[2];
+                    const key = `${pen}-${layer}`;
+
+                    if (!lineTypes[key]) {
+                        lineTypes[key] = {
+                            pen: pen,
+                            layer: layer,
+                            color: getRandomColor(),
+                            visible: true,
+                            count: 0,
+                            entities: []
+                        };
+                    }
+
+                    const entityData = {
+                        type: type,
+                        pen: pen,
+                        layer: layer,
+                        lineIndex: lineIndex
+                    };
+
+                    if (type === 'L') {
+                        entityData.x1 = parseFloat(parts[4]);
+                        entityData.y1 = parseFloat(parts[5]);
+                        entityData.x2 = parseFloat(parts[6]);
+                        entityData.y2 = parseFloat(parts[7]);
+                        // Optional bridge info in trailing fields
+                        entityData.bridgeCount = parseInt(parts[8] || '0', 10);
+                        entityData.bridgeWidth = parseFloat(parts[9] || '0');
+                        const len = Math.hypot(entityData.x2 - entityData.x1, entityData.y2 - entityData.y1);
+                        bucketTotals[key] = bucketTotals[key] || { length: 0 };
+                        bucketTotals[key].length += isFinite(len) ? len : 0;
+                    } else if (type === 'A') {
+                        entityData.x1 = parseFloat(parts[4]);
+                        entityData.y1 = parseFloat(parts[5]);
+                        entityData.x2 = parseFloat(parts[6]);
+                        entityData.y2 = parseFloat(parts[7]);
+                        entityData.cx = parseFloat(parts[8]);
+                        entityData.cy = parseFloat(parts[9]);
+                        entityData.dir = parseInt(parts[10], 10);
+                        entityData.bridgeCount = parseInt(parts[11] || '0', 10);
+                        entityData.bridgeWidth = parseFloat(parts[12] || '0');
+                        const rUnsigned = Math.hypot(entityData.x1 - entityData.cx, entityData.y1 - entityData.cy);
+                        entityData.radius = (entityData.dir === -1 ? -rUnsigned : rUnsigned);
+                        const r = Math.hypot(entityData.x1 - entityData.cx, entityData.y1 - entityData.cy);
+                        const a0 = Math.atan2(entityData.y1 - entityData.cy, entityData.x1 - entityData.cx);
+                        const a1 = Math.atan2(entityData.y2 - entityData.cy, entityData.x2 - entityData.cx);
+                        let sweep = a1 - a0;
+                        if (entityData.dir === -1 && sweep > 0) sweep -= 2 * Math.PI;
+                        if (entityData.dir !== -1 && sweep < 0) sweep += 2 * Math.PI;
+                        const len = r * Math.abs(sweep);
+                        bucketTotals[key] = bucketTotals[key] || { length: 0 };
+                        bucketTotals[key].length += isFinite(len) ? len : 0;
+                    }
+
+                    cff2Data.push(entityData);
+                    lineTypes[key].count++;
+                    lineTypes[key].entities.push(cff2Data.length - 1);
+                }
+            });
+
+            cff2Data.boundingBox = { lowerLeft, upperRight };
+            // attach totals to lineTypes
+            Object.keys(bucketTotals).forEach(k => {
+                if (lineTypes[k]) lineTypes[k].totalLength = bucketTotals[k].length || 0;
+            });
+            setupCFF2Controls();
+            displayCFF2Code();
+            fitCFF2View();
+            setupCFF2Events();
+        }
+
+        function getRandomColor() {
+            const letters = '0123456789ABCDEF';
+            let color = '#';
+            for (let i = 0; i < 6; i++) {
+                color += letters[Math.floor(Math.random() * 16)];
+            }
+            return color;
+        }
+
+        function setupCFF2Controls() {
+            const controlsTableBody = document.getElementById('controls-table-body');
+            const lineTypesTable = document.getElementById('lineTypesTable');
+            
+            controlsTableBody.innerHTML = '';
+            const keys = getCFF2SortedKeys();
+            keys.forEach(key => {
+                const type = lineTypes[key];
+                const row = document.createElement('tr');
+                row.dataset.lineType = key;
+
+                row.addEventListener('mouseenter', () => {
+                    highlightedLineType = key;
+                    draw();
+                });
+                row.addEventListener('mouseleave', () => {
+                    highlightedLineType = null;
+                    draw();
+                });
+
+                const penCell = document.createElement('td');
+                penCell.textContent = type.pen;
+                row.appendChild(penCell);
+
+                const layerCell = document.createElement('td');
+                layerCell.textContent = type.layer;
+                row.appendChild(layerCell);
+
+                // process cell from map
+                const procCell = document.createElement('td');
+                const procKey = `${type.pen}-${type.layer}`;
+                const proc = viewerSettings?.processMap?.cff2?.[procKey]?.name || '';
+                procCell.textContent = proc;
+                row.appendChild(procCell);
+
+                const countCell = document.createElement('td');
+                countCell.textContent = type.count;
+                row.appendChild(countCell);
+
+                const ptCell = document.createElement('td');
+                ptCell.textContent = `${(Number(type.pen) || 0).toFixed(2)} pt`;
+                row.appendChild(ptCell);
+
+                // length per pen-layer bucket
+                const lengthCell = document.createElement('td');
+                lengthCell.textContent = formatCFF2Length(type.totalLength || 0);
+                row.appendChild(lengthCell);
+
+                const colorCell = document.createElement('td');
+                const colorInput = document.createElement('input');
+                colorInput.type = 'color';
+                // override color by process mapping if present
+                const mappedColor = viewerSettings?.processMap?.cff2?.[procKey]?.color;
+                if (mappedColor) type.color = mappedColor;
+                colorInput.value = type.color;
+                colorInput.addEventListener('input', (e) => {
+                    type.color = e.target.value;
+                    draw();
+                });
+                colorCell.appendChild(colorInput);
+                row.appendChild(colorCell);
+
+                const visibleCell = document.createElement('td');
+                const visibleInput = document.createElement('input');
+                visibleInput.type = 'checkbox';
+                visibleInput.checked = type.visible;
+                visibleInput.addEventListener('change', (e) => {
+                    type.visible = e.target.checked;
+                    draw();
+                });
+                visibleCell.appendChild(visibleInput);
+                row.appendChild(visibleCell);
+
+                controlsTableBody.appendChild(row);
+            });
+            updateCFF2SortIndicators();
+        }
+
+        function getCFF2SortedKeys() {
+            const keys = Object.keys(lineTypes);
+            if (!sortColumn) return keys;
+            return keys.sort((a, b) => {
+                const at = lineTypes[a];
+                const bt = lineTypes[b];
+                let av, bv;
+                switch (sortColumn) {
+                    case 'pen':
+                        av = parseFloat(at.pen);
+                        bv = parseFloat(bt.pen);
+                        if (isNaN(av) || isNaN(bv)) { av = at.pen; bv = bt.pen; }
+                        break;
+                    case 'layer':
+                        av = parseInt(at.layer);
+                        bv = parseInt(bt.layer);
+                        if (isNaN(av) || isNaN(bv)) { av = at.layer; bv = bt.layer; }
+                        break;
+                    case 'count':
+                        av = at.count; bv = bt.count; break;
+                    case 'pt':
+                        av = parseFloat(at.pen) || 0; bv = parseFloat(bt.pen) || 0; break;
+                    case 'length':
+                        av = at.totalLength || 0; bv = bt.totalLength || 0; break;
+                    default:
+                        return 0;
+                }
+                if (av < bv) return sortDirection === 'asc' ? -1 : 1;
+                if (av > bv) return sortDirection === 'asc' ? 1 : -1;
+                return 0;
+            });
+        }
+
+        function updateCFF2SortIndicators() {
+            const headerCells = document.querySelectorAll('#lineTypesTable th.sortable');
+            headerCells.forEach(th => {
+                th.classList.remove('sort-asc', 'sort-desc');
+                if (th.getAttribute('data-column') === sortColumn) {
+                    th.classList.add(sortDirection === 'asc' ? 'sort-asc' : 'sort-desc');
+                }
+            });
+        }
+
+        // CFF2 table sorting handler
+        (function attachCFF2SortHandler() {
+            const tableEl = document.getElementById('lineTypesTable');
+            if (!tableEl) return;
+            tableEl.addEventListener('click', (e) => {
+                const target = e.target;
+                if (!(target instanceof Element)) return;
+                if (!target.classList.contains('sortable')) return;
+                const column = target.getAttribute('data-column');
+                if (!column) return;
+                if (sortColumn === column) {
+                    sortDirection = sortDirection === 'asc' ? 'desc' : 'asc';
+                } else {
+                    sortColumn = column;
+                    sortDirection = 'asc';
+                }
+                setupCFF2Controls();
+                draw();
+            });
+        })();
+
+        function formatCFF2Length(lenIn) {
+            const units = document.getElementById('cff2-units')?.value || (viewerSettings?.cff2?.units || 'in');
+            const v = Number(lenIn) || 0;
+            if (units === 'mm') return `${(v * 25.4).toFixed(2)} mm`;
+            return `${v.toFixed(3)} in`;
+        }
+
+        function formatCFF2Kerf(pen) {
+            const kerfInPt = document.getElementById('cff2-kerf-in-pt')?.checked;
+            const penVal = Number(pen) || 0; // pen is presumed in pt
+            if (kerfInPt) return `${penVal.toFixed(2)} pt`;
+            const inches = penVal / 72;
+            const units = document.getElementById('cff2-units')?.value || 'in';
+            if (units === 'mm') return `${(inches * 25.4).toFixed(3)} mm`;
+            return `${inches.toFixed(4)} in`;
+        }
+
+        function displayCFF2Code() {
+            codeContent.innerHTML = '';
+            const filter = (document.getElementById('code-filter')?.value || '').toLowerCase();
+            rawCodeLines.forEach((line, index) => {
+                if (filter && !line.toLowerCase().includes(filter)) return;
+                const lineElement = document.createElement('span');
+                lineElement.className = 'code-line';
+                lineElement.textContent = `${(index + 1).toString().padStart(3, ' ')}: ${line}\n`;
+                lineElement.dataset.lineIndex = index;
+                
+                // Add click handler for code-to-graphic highlighting
+                lineElement.style.cursor = 'pointer';
+                lineElement.addEventListener('click', () => {
+                    handleCFF2CodeLineClick(index, line.trim());
+                });
+                
+                // Add hover effect
+                lineElement.addEventListener('mouseenter', () => {
+                    if (!lineElement.classList.contains('highlighted')) {
+                        lineElement.style.backgroundColor = '#f0f0f0';
+                    }
+                });
+                lineElement.addEventListener('mouseleave', () => {
+                    if (!lineElement.classList.contains('highlighted')) {
+                        lineElement.style.backgroundColor = '';
+                    }
+                });
+                
+                codeContent.appendChild(lineElement);
+            });
+        }
+
+        // Code filter events
+        (function attachCodeFilter() {
+            const filterInput = document.getElementById('code-filter');
+            const clearBtn = document.getElementById('clear-filter');
+            if (!filterInput || !clearBtn) return;
+            const applyFilter = () => {
+                if (currentFormat === 'dds') displayDDSCode('');
+                else if (currentFormat === 'cff2') displayCFF2Code();
+            };
+            filterInput.addEventListener('input', applyFilter);
+            clearBtn.addEventListener('click', () => { filterInput.value = ''; applyFilter(); });
+        })();
+        
+        function handleCFF2CodeLineClick(lineIndex, lineContent) {
+            // Find the corresponding entity in cff2Data
+            const entity = cff2Data.find(e => e.lineIndex === lineIndex);
+            
+            if (entity) {
+                // Set as selected entity
+                selectedEntity = { ...entity, idx: cff2Data.indexOf(entity) };
+                updateCFF2Inspector(selectedEntity);
+                
+                // Highlight the code line
+                highlightCFF2CodeForEntity(entity);
+                
+                // Highlight the corresponding table row
+                highlightCFF2TableRowForEntity(entity);
+                
+                // Redraw to show the selected entity
+                draw();
+                
+                console.log('CFF2 Code line clicked:', lineIndex, 'Entity:', entity);
+            } else if (lineContent.startsWith('L,') || lineContent.startsWith('A,')) {
+                // This might be a line that was filtered out or has parsing issues
+                console.log('CFF2 Code line clicked but no corresponding entity found:', lineIndex, lineContent);
+                
+                // Still highlight the code line for visual feedback
+                document.querySelectorAll('.code-line').forEach(line => {
+                    line.classList.remove('highlighted', 'related');
+                });
+                
+                const targetLine = document.querySelector(`[data-line-index="${lineIndex}"]`);
+                if (targetLine) {
+                    targetLine.classList.add('highlighted');
+                }
+            }
+        }
+
+        function updateCFF2Inspector(entity) {
+            const dl = document.getElementById('cff2-inspector-dl');
+            if (!dl || !entity) return;
+            const pairs = Array.from(dl.querySelectorAll('dd'));
+            const fmt = (n) => typeof n === 'number' ? n.toFixed(4) : String(n ?? '-');
+            if (pairs[0]) pairs[0].textContent = String(entity.lineIndex + 1);
+            if (pairs[1]) pairs[1].textContent = entity.type || '-';
+            if (pairs[2]) pairs[2].textContent = String(entity.pen ?? '-');
+            if (pairs[3]) pairs[3].textContent = String(entity.layer ?? '-');
+            if (pairs[4]) {
+                const units = document.getElementById('cff2-units')?.value || 'in';
+                let bw = Number(entity.bridgeWidth) || 0;
+                if (units === 'mm') bw = bw * 25.4;
+                pairs[4].textContent = `${entity.bridgeCount ?? 0} × ${units === 'mm' ? bw.toFixed(3) : bw.toFixed(4)} ${units}`;
+            }
+            if (pairs[5]) {
+                if (entity.type === 'L') {
+                    const len = Math.hypot(entity.x2 - entity.x1, entity.y2 - entity.y1);
+                    const units = document.getElementById('cff2-units')?.value || 'in';
+                    pairs[5].textContent = units === 'mm' ? `${(len * 25.4).toFixed(2)} mm` : `${len.toFixed(3)} in`;
+                } else if (entity.type === 'A') {
+                    const r = Math.hypot(entity.x1 - entity.cx, entity.y1 - entity.cy);
+                    const a0 = Math.atan2(entity.y1 - entity.cy, entity.x1 - entity.cx);
+                    const a1 = Math.atan2(entity.y2 - entity.cy, entity.x2 - entity.cx);
+                    let sweep = a1 - a0;
+                    if (entity.dir === -1 && sweep > 0) sweep -= 2 * Math.PI;
+                    if (entity.dir !== -1 && sweep < 0) sweep += 2 * Math.PI;
+                    const isFull = Math.abs(entity.x1 - entity.x2) < 1e-6 && Math.abs(entity.y1 - entity.y2) < 1e-6;
+                    const len = isFull ? (2 * Math.PI * r) : (r * Math.abs(sweep));
+                    const units = document.getElementById('cff2-units')?.value || 'in';
+                    pairs[5].textContent = units === 'mm' ? `${(len * 25.4).toFixed(2)} mm` : `${len.toFixed(3)} in`;
+                } else { pairs[5].textContent = '-'; }
+            }
+            // Coords line
+            if (pairs[6]) {
+                if (entity.type === 'L') {
+                    pairs[6].textContent = `(${fmt(entity.x1)}, ${fmt(entity.y1)}) → (${fmt(entity.x2)}, ${fmt(entity.y2)})`;
+                } else if (entity.type === 'A') {
+                    pairs[6].textContent = `S(${fmt(entity.x1)}, ${fmt(entity.y1)}) E(${fmt(entity.x2)}, ${fmt(entity.y2)})`;
+                } else { pairs[6].textContent = '-'; }
+            }
+            // Arc center / direction line
+            if (pairs[7]) {
+                if (entity.type === 'A') {
+                    pairs[7].textContent = `C(${fmt(entity.cx)}, ${fmt(entity.cy)}), dir=${entity.dir}`;
+                } else { pairs[7].textContent = '-'; }
+            }
+        }
+        
+        function highlightCFF2CodeForEntity(entity) {
+            // Clear previous highlights
+            document.querySelectorAll('.code-line').forEach(line => {
+                line.classList.remove('highlighted', 'related');
+            });
+
+            // Highlight the specific line
+            const targetLine = document.querySelector(`[data-line-index="${entity.lineIndex}"]`);
+            if (targetLine) {
+                targetLine.classList.add('highlighted');
+                targetLine.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+
+            // Highlight related lines of the same type
+            const key = `${entity.pen}-${entity.layer}`;
+            const relatedEntities = lineTypes[key].entities;
+            relatedEntities.forEach(entityIndex => {
+                const relatedEntity = cff2Data[entityIndex];
+                const relatedLine = document.querySelector(`[data-line-index="${relatedEntity.lineIndex}"]`);
+                if (relatedLine && relatedEntity.lineIndex !== entity.lineIndex) {
+                    relatedLine.classList.add('related');
+                }
+            });
+        }
+        
+        function highlightCFF2TableRowForEntity(entity) {
+            // Clear previous table row highlights
+            document.querySelectorAll('#cff2-controls tbody tr').forEach(row => {
+                row.classList.remove('highlighted');
+            });
+
+            // Highlight the corresponding table row
+            const key = `${entity.pen}-${entity.layer}`;
+            const targetRow = document.querySelector(`#cff2-controls tbody tr[data-line-type="${key}"]`);
+            if (targetRow) {
+                targetRow.classList.add('highlighted');
+                targetRow.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+        }
+
+        function setupCFF2Events() {
+            // Events are already set up globally - no need to recreate them
+        }
+
+        // React to CFF2 units and render-bridges toggle
+        (function attachCFF2Controls() {
+            const unitsSel = document.getElementById('cff2-units');
+            const bridges = document.getElementById('cff2-render-bridges');
+            if (unitsSel) {
+                unitsSel.addEventListener('change', () => {
+                    if (viewerSettings) { viewerSettings.cff2.units = unitsSel.value; saveSettings(); }
+                    // refresh inspector units
+                    if (selectedEntity) updateCFF2Inspector(selectedEntity);
+                    setupCFF2Controls(); draw();
+                });
+            }
+            if (bridges) {
+                bridges.addEventListener('change', () => { draw(); });
+            }
+        })();
+
+        // Global canvas event handlers (work for both formats)
+        canvas.addEventListener('mousedown', (e) => {
+            if (e.button === 0) {
+                const rect = canvas.getBoundingClientRect();
+                let x = e.clientX - rect.left;
+                let y = e.clientY - rect.top;
+                if (measureMode) {
+                    // Snap start to nearest endpoint
+                    const snapped = snapCanvasPointToNearestEndpoint(x, y);
+                    x = snapped.x; y = snapped.y;
+                    measureStart = { x, y };
+                    measureEnd = null;
+                    draw();
+                    return;
+                }
+                // Creation tools
+                if (activeTool === 'line' || activeTool === 'circle') {
+                    if (currentFormat === 'cff2') {
+                        const model = canvasToModelCFF2(x, y);
+                        // Optional snap to grid
+                        if (snapEnabled) {
+                            const snap = snapModelToGrid(model, document.getElementById('cff2-units')?.value || 'in');
+                            createStartModel = snap;
+                        } else {
+                            createStartModel = model;
+                        }
+                    } else if (currentFormat === 'dds') {
+                        const model = canvasToModelDDS(x, y);
+                        if (snapEnabled) {
+                            const snap = snapModelToGrid(model, document.getElementById('dds-units')?.value || 'in');
+                            createStartModel = snap;
+                        } else {
+                            createStartModel = model;
+                        }
+                    }
+                    draw();
+                    return;
+                }
+                if (currentFormat === 'cff2') {
+                    if (activeTool === 'pan') {
+                        isPanning = true;
+                    }
+                    panStart = { x: e.clientX, y: e.clientY };
+                    panOffsetStart = { x: view.offsetX, y: view.offsetY };
+                } else if (currentFormat === 'dds') {
+                    if (activeTool === 'pan') {
+                        ddsIsPanning = true;
+                    }
+                    ddsPanStart = { x: e.clientX, y: e.clientY };
+                    ddsPanOffsetStart = { x: ddsView.offsetX, y: ddsView.offsetY };
+                }
+            }
+        });
+
+        canvas.addEventListener('mousemove', (e) => {
+            const rect = canvas.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            mouseCanvasPos = { x, y };
+            
+            if (measureMode) {
+                if (measureStart) {
+                    measureEnd = { x, y };
+                } else {
+                    // Suppress hover highlighting while idle in measure mode
+                    if (currentFormat === 'cff2') hoveredEntity = null; else ddsHoveredEntity = null;
+                }
+                draw();
+                return;
+            }
+
+            // Creation preview
+            if ((activeTool === 'line' || activeTool === 'circle') && createStartModel) {
+                creationPreviewCanvas = { x, y };
+                draw();
+                return;
+            }
+
+            if (currentFormat === 'cff2') {
+                if (isPanning) {
+                    view.offsetX = panOffsetStart.x + (e.clientX - panStart.x);
+                    view.offsetY = panOffsetStart.y + (e.clientY - panStart.y);
+                    draw();
+                } else if (cff2Data && cff2Data.length > 0) {
+                    hoveredEntity = findCFF2EntityAt(x, y);
+                    draw();
+                }
+                statusCoords.textContent = `x: ${x.toFixed(0)}, y: ${y.toFixed(0)}`;
+                statusScale.textContent = `scale: ${view.scale.toFixed(2)}×`;
+            } else if (currentFormat === 'dds') {
+                if (ddsIsPanning) {
+                    ddsView.offsetX = ddsPanOffsetStart.x + (e.clientX - ddsPanStart.x);
+                    ddsView.offsetY = ddsPanOffsetStart.y + (e.clientY - ddsPanStart.y);
+                    draw();
+                } else if (ddsData && ddsData.length > 0) {
+                    ddsHoveredEntity = findDDSEntityAt(x, y);
+                    draw();
+                }
+                statusCoords.textContent = `x: ${x.toFixed(0)}, y: ${y.toFixed(0)}`;
+                statusScale.textContent = `scale: ${ddsView.scale.toFixed(2)}×`;
+            }
+        });
+
+        canvas.addEventListener('mouseup', (e) => { 
+            if (measureMode) return;
+            // Finalize creation
+            if ((activeTool === 'line' || activeTool === 'circle') && createStartModel) {
+                const rect = canvas.getBoundingClientRect();
+                let x = e.clientX - rect.left;
+                let y = e.clientY - rect.top;
+                // Convert to model and snap
+                if (currentFormat === 'cff2') {
+                    let endModel = canvasToModelCFF2(x, y);
+                    if (snapEnabled) endModel = snapModelToGrid(endModel, document.getElementById('cff2-units')?.value || 'in');
+                    if (activeTool === 'line') {
+                        sessionEntities.push({ fmt:'cff2', type:'L', x1:createStartModel.x, y1:createStartModel.y, x2:endModel.x, y2:endModel.y, pen:'99', layer:'99', bridgeCount:0, bridgeWidth:0 });
+                    } else if (activeTool === 'circle') {
+                        const cx = createStartModel.x, cy = createStartModel.y;
+                        const r = Math.hypot(endModel.x - cx, endModel.y - cy);
+                        sessionEntities.push({ fmt:'cff2', type:'A', x1:cx+r, y1:cy, x2:cx+r, y2:cy, cx, cy, dir:1, bridgeCount:0, bridgeWidth:0 });
+                    }
+                } else if (currentFormat === 'dds') {
+                    let endModel = canvasToModelDDS(x, y);
+                    if (snapEnabled) endModel = snapModelToGrid(endModel, document.getElementById('dds-units')?.value || 'in');
+                    if (activeTool === 'line') {
+                        sessionEntities.push({ fmt:'dds', type:'LINE', x1:createStartModel.x, y1:createStartModel.y, x2:endModel.x, y2:endModel.y, color:'200', kerfWidth:0.01, bridgeCount:0, bridgeWidth:0 });
+                    } else if (activeTool === 'circle') {
+                        const cx = createStartModel.x, cy = createStartModel.y;
+                        const r = Math.hypot(endModel.x - cx, endModel.y - cy);
+                        sessionEntities.push({ fmt:'dds', type:'ARC', sx:cx+r, sy:cy, ex:cx+r, ey:cy, cx, cy, radius:r, color:'200', kerfWidth:0.01, bridgeCount:0, bridgeWidth:0 });
+                    }
+                }
+                createStartModel = null;
+                creationPreviewCanvas = null;
+                draw();
+                return;
+            }
+            if (currentFormat === 'cff2') {
+                isPanning = false;
+            } else if (currentFormat === 'dds') {
+                ddsIsPanning = false;
+            }
+        });
+
+        canvas.addEventListener('mouseleave', () => { 
+            if (currentFormat === 'cff2') {
+                isPanning = false;
+                hoveredEntity = null;
+            } else if (currentFormat === 'dds') {
+                ddsIsPanning = false;
+                ddsHoveredEntity = null;
+            }
+            draw(); 
+        });
+
+        canvas.addEventListener('click', (e) => {
+            if (measureMode) return; // prevent selection while measuring
+            const rect = canvas.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            
+            if (currentFormat === 'dds') {
+                const clickedEntity = findDDSEntityAt(x, y);
+                if (clickedEntity) {
+                    ddsSelectedEntity = clickedEntity;
+                    updateDDSInspector(clickedEntity);
+                    highlightDDSCodeForEntity(clickedEntity);
+                    highlightDDSTableRowForEntity(clickedEntity);
+                    draw();
+                } else {
+                    // Clear selection when clicking empty area
+                    ddsSelectedEntity = null;
+                    document.querySelectorAll('.code-line').forEach(line => line.classList.remove('highlighted','related'));
+                    document.querySelectorAll('#dds-controls tbody tr').forEach(row => row.classList.remove('highlighted'));
+                    const dl = document.getElementById('dds-inspector-dl');
+                    dl?.querySelectorAll('dd').forEach(dd => dd.textContent = '-');
+                    draw();
+                }
+            } else if (currentFormat === 'cff2') {
+                const clickedEntity = findCFF2EntityAt(x, y);
+                if (clickedEntity) {
+                    selectedEntity = clickedEntity;
+                    updateCFF2Inspector(clickedEntity);
+                    highlightCFF2CodeForEntity(clickedEntity);
+                    highlightCFF2TableRowForEntity(clickedEntity);
+                    draw();
+                } else {
+                    // Clear selection when clicking empty area
+                    selectedEntity = null;
+                    document.querySelectorAll('.code-line').forEach(line => line.classList.remove('highlighted','related'));
+                    document.querySelectorAll('#cff2-controls tbody tr').forEach(row => row.classList.remove('highlighted'));
+                    const dl = document.getElementById('cff2-inspector-dl');
+                    dl?.querySelectorAll('dd').forEach(dd => dd.textContent = '-');
+                    draw();
+                }
+            }
+        });
+
+        canvas.addEventListener('wheel', (e) => {
+            e.preventDefault();
+            const rect = canvas.getBoundingClientRect();
+            const mouseX = e.clientX - rect.left;
+            const mouseY = e.clientY - rect.top;
+            
+            if (currentFormat === 'cff2') {
+                const prevScale = view.scale;
+                const scaleAmount = e.deltaY < 0 ? 1.1 : 0.9;
+                view.scale = Math.max(view.minScale, Math.min(view.maxScale, view.scale * scaleAmount));
+                view.offsetX = mouseX - (mouseX - view.offsetX) * (view.scale / prevScale);
+                view.offsetY = mouseY - (mouseY - view.offsetY) * (view.scale / prevScale);
+            } else if (currentFormat === 'dds') {
+                const prevScale = ddsView.scale;
+                const scaleAmount = e.deltaY < 0 ? 1.1 : 0.9;
+                ddsView.scale = Math.max(ddsView.minScale, Math.min(ddsView.maxScale, ddsView.scale * scaleAmount));
+                ddsView.offsetX = mouseX - (mouseX - ddsView.offsetX) * (ddsView.scale / prevScale);
+                ddsView.offsetY = mouseY - (mouseY - ddsView.offsetY) * (ddsView.scale / prevScale);
+            }
+            statusScale.textContent = `scale: ${(currentFormat==='cff2'?view.scale:ddsView.scale).toFixed(2)}×`;
+            draw();
+        }, { passive: false });
+
+        // Reset view button and keyboard shortcuts
+        const resetBtn = document.getElementById('resetViewBtn');
+        if (resetBtn) {
+            resetBtn.addEventListener('click', () => {
+                if (currentFormat === 'dds') {
+                    fitDDSView();
+                } else if (currentFormat === 'cff2') {
+                    fitCFF2View();
+                }
+                draw();
+            });
+        }
+
+        // Measurement buttons
+        (function attachMeasureButtons(){
+            const btn = document.getElementById('toggleMeasureBtn');
+            const clr = document.getElementById('clearMeasureBtn');
+            btn?.addEventListener('click', () => {
+                measureMode = !measureMode;
+                btn.classList.toggle('active', measureMode);
+                btn.textContent = measureMode ? 'Measure (On)' : 'Measure';
+                if (!measureMode){ measureStart=null; measureEnd=null; statusLength.classList.add('hidden'); }
+                draw();
+            });
+            clr?.addEventListener('click', () => { measureStart=null; measureEnd=null; statusLength.classList.add('hidden'); draw(); });
+            if (btn) { btn.classList.toggle('active', measureMode); btn.textContent = measureMode ? 'Measure (On)' : 'Measure'; }
+        })();
+
+        window.addEventListener('keydown', (e) => {
+            // 0 to reset view
+            if (e.key === '0') {
+                if (currentFormat === 'dds') {
+                    fitDDSView();
+                } else if (currentFormat === 'cff2') {
+                    fitCFF2View();
+                }
+                draw();
+            }
+            if (e.key === 'Escape') {
+                measureMode = false; measureStart = null; measureEnd = null; statusLength.classList.add('hidden');
+                const btn = document.getElementById('toggleMeasureBtn');
+                if (btn) { btn.classList.remove('active'); btn.textContent = 'Measure'; }
+                draw();
+            }
+        });
+
+        function fitCFF2View() {
+            view.scale = 1;
+            view.offsetX = 0;
+            view.offsetY = 0;
+        }
+
+        function findCFF2EntityAt(canvasX, canvasY) {
+            if (!cff2Data || !cff2Data.boundingBox) return null;
+
+            // Inverse transform to model coordinates
+            const bb = cff2Data.boundingBox;
+            const geoWidth = bb.upperRight.x - bb.lowerLeft.x;
+            const geoHeight = bb.upperRight.y - bb.lowerLeft.y;
+            const fitScaleX = canvas.width / geoWidth;
+            const fitScaleY = canvas.height / geoHeight;
+            const fitScale = Math.min(fitScaleX, fitScaleY) * 0.95;
+            const fitOffsetX = (canvas.width - geoWidth * fitScale) / 2 - bb.lowerLeft.x * fitScale;
+            const fitOffsetY = (canvas.height + geoHeight * fitScale) / 2 + bb.lowerLeft.y * fitScale;
+
+            // Undo pan/zoom
+            const x = (canvasX - view.offsetX - fitOffsetX) / (view.scale * fitScale);
+            const y = -(canvasY - view.offsetY - fitOffsetY) / (view.scale * fitScale);
+
+            // Find closest entity within a threshold
+            let minDist = 0.05 * (1 / view.scale); // threshold in model units
+            let found = null;
+
+            cff2Data.forEach((item, idx) => {
+                const key = `${item.pen}-${item.layer}`;
+                if (!lineTypes[key]?.visible) return;
+                
+                let dist = Infinity;
+                if (item.type === 'L') {
+                    dist = pointToSegmentDist(x, y, item.x1, item.y1, item.x2, item.y2);
+                } else if (item.type === 'A') {
+                    dist = pointToCFF2ArcDist(x, y, item);
+                }
+                
+                if (dist < minDist) {
+                    minDist = dist;
+                    found = { ...item, idx };
+                }
+            });
+
+            return found;
+        }
+
+        function pointToCFF2ArcDist(px, py, arc) {
+            const r = Math.sqrt((arc.x1 - arc.cx) ** 2 + (arc.y1 - arc.cy) ** 2);
+            const angle = Math.atan2(py - arc.cy, px - arc.cx);
+            const start = Math.atan2(arc.y1 - arc.cy, arc.x1 - arc.cx);
+            const end = Math.atan2(arc.y2 - arc.cy, arc.x2 - arc.cx);
+            
+            let inArc = false;
+            if (arc.dir === -1) {
+                inArc = (start > end) ? (angle <= start && angle >= end) : (angle <= start || angle >= end);
+            } else {
+                inArc = (end > start) ? (angle >= start && angle <= end) : (angle >= start || angle <= end);
+            }
+            
+            const distToCirc = Math.abs(Math.hypot(px - arc.cx, py - arc.cy) - r);
+            if (!inArc) return Infinity;
+            return distToCirc;
+        }
+
+        function drawCFF2() {
+            if (!cff2Data || !cff2Data.boundingBox) return;
+
+            ctx.save();
+            const bb = cff2Data.boundingBox;
+            const geoWidth = bb.upperRight.x - bb.lowerLeft.x;
+            const geoHeight = bb.upperRight.y - bb.lowerLeft.y;
+
+            if (geoWidth <= 0 || geoHeight <= 0) {
+                ctx.restore();
+                return;
+            }
+
+            const fitScaleX = canvas.width / geoWidth;
+            const fitScaleY = canvas.height / geoHeight;
+            const fitScale = Math.min(fitScaleX, fitScaleY) * 0.95;
+            
+            const fitOffsetX = (canvas.width - geoWidth * fitScale) / 2 - bb.lowerLeft.x * fitScale;
+            const fitOffsetY = (canvas.height + geoHeight * fitScale) / 2 + bb.lowerLeft.y * fitScale;
+
+            ctx.translate(view.offsetX + fitOffsetX, view.offsetY + fitOffsetY);
+            ctx.scale(view.scale * fitScale, -view.scale * fitScale);
+
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+            ctx.setLineDash([]);
+
+            cff2Data.forEach((item, idx) => {
+                const key = `${item.pen}-${item.layer}`;
+                const typeInfo = lineTypes[key];
+                if (!typeInfo || !typeInfo.visible) return;
+
+                ctx.save();
+
+                let strokeColor = typeInfo.color;
+                let lineWidth = 1 / (view.scale * fitScale);
+
+                if (selectedEntity && selectedEntity.idx === idx) {
+                    strokeColor = '#FF0000';
+                    lineWidth = 4 / (view.scale * fitScale);
+                } else if (hoveredEntity && hoveredEntity.idx === idx) {
+                    strokeColor = '#FF0';
+                    lineWidth = 3 / (view.scale * fitScale);
+                } else if (highlightedLineType === key) {
+                    strokeColor = '#00FF00';
+                    lineWidth = 2 / (view.scale * fitScale);
+                }
+
+                ctx.strokeStyle = strokeColor;
+                ctx.lineWidth = lineWidth;
+                ctx.beginPath();
+
+                if (item.type === 'L') {
+                    ctx.moveTo(item.x1, item.y1);
+                    ctx.lineTo(item.x2, item.y2);
+                } else if (item.type === 'A') {
+                    const radius = Math.sqrt(Math.pow(item.x1 - item.cx, 2) + Math.pow(item.y1 - item.cy, 2));
+                    const startAngle = Math.atan2(item.y1 - item.cy, item.x1 - item.cx);
+                    const endAngle = Math.atan2(item.y2 - item.cy, item.x2 - item.cx);
+                    
+                    // Check if this is a full circle (start and end points are the same)
+                    const isFullCircle = Math.abs(item.x1 - item.x2) < 1e-6 && Math.abs(item.y1 - item.y2) < 1e-6;
+                    
+                    if (isFullCircle) {
+                        // Draw a complete circle
+                        ctx.arc(item.cx, item.cy, radius, 0, 2 * Math.PI, false);
+                    } else {
+                        // Draw an arc segment
+                        ctx.arc(item.cx, item.cy, radius, startAngle, endAngle, item.dir === -1);
+                    }
+                }
+                ctx.stroke();
+                // Overlay gap bridges similar to DDS if present
+                const cff2BridgeToggle = document.getElementById('cff2-render-bridges');
+                const shouldOverlay = cff2BridgeToggle ? cff2BridgeToggle.checked : true;
+                if (shouldOverlay) {
+                    if (item.type === 'L' && (item.bridgeCount || 0) > 0 && (item.bridgeWidth || 0) > 0) {
+                        overlayBridgeGaps(item, ctx, lineWidth);
+                    } else if (item.type === 'A' && (item.bridgeCount || 0) > 0 && (item.bridgeWidth || 0) > 0) {
+                        const arcEntity = {
+                            cx: item.cx, cy: item.cy,
+                            radius: Math.hypot(item.x1 - item.cx, item.y1 - item.cy) * (item.dir === -1 ? -1 : 1),
+                            sx: item.x1, sy: item.y1, ex: item.x2, ey: item.y2,
+                            bridgeCount: item.bridgeCount, bridgeWidth: item.bridgeWidth
+                        };
+                        overlayBridgeGapsOnArc(arcEntity, ctx, lineWidth);
+                    }
+                }
+                ctx.restore();
+            });
+
+            // Draw session entities (edits) in CFF2 space
+            sessionEntities.forEach(ent => {
+                if (ent.fmt !== 'cff2') return;
+                ctx.save();
+                ctx.strokeStyle = '#1abc9c';
+                ctx.lineWidth = 2 / (view.scale * fitScale);
+                ctx.beginPath();
+                if (ent.type === 'L') {
+                    ctx.moveTo(ent.x1, ent.y1);
+                    ctx.lineTo(ent.x2, ent.y2);
+                } else if (ent.type === 'A') {
+                    const r = Math.hypot(ent.x1 - ent.cx, ent.y1 - ent.cy);
+                    ctx.arc(ent.cx, ent.cy, r, 0, 2 * Math.PI);
+                }
+                ctx.stroke();
+                ctx.restore();
+            });
+
+            // Creation preview for CFF2
+            if (createStartModel && creationPreviewCanvas && currentFormat === 'cff2') {
+                const endM = canvasToModelCFF2(creationPreviewCanvas.x, creationPreviewCanvas.y);
+                ctx.save();
+                ctx.strokeStyle = '#4a90e2';
+                ctx.setLineDash([4,4]);
+                ctx.lineWidth = 1 / (view.scale * fitScale);
+                ctx.beginPath();
+                if (activeTool === 'line') { ctx.moveTo(createStartModel.x, createStartModel.y); ctx.lineTo(endM.x, endM.y); }
+                else if (activeTool === 'circle') { const r = Math.hypot(endM.x - createStartModel.x, endM.y - createStartModel.y); ctx.arc(createStartModel.x, createStartModel.y, r, 0, 2*Math.PI); }
+                ctx.stroke();
+                ctx.restore();
+            }
+
+            // Grid (drawn in screen space)
+            if (gridEnabled) drawGridCFF2(fitScale, fitOffsetX, fitOffsetY);
+
+            ctx.restore();
+            drawCFF2Tooltip();
+            drawMeasureOverlay();
+        }
+
+        function drawGridCFF2(fitScale, fitOffsetX, fitOffsetY) {
+            const units = document.getElementById('cff2-units')?.value || 'in';
+            const spacingModel = units === 'mm' ? (10/25.4) : 0.25; // 10mm or 0.25in
+            const bb = cff2Data.boundingBox;
+            ctx.save();
+            ctx.setTransform(1,0,0,1,0,0);
+            ctx.strokeStyle = '#eee';
+            ctx.lineWidth = 1;
+            const scale = view.scale * fitScale;
+            const ox = view.offsetX + fitOffsetX;
+            const oy = view.offsetY + fitOffsetY;
+            const minX = Math.floor(bb.lowerLeft.x / spacingModel) * spacingModel;
+            const maxX = Math.ceil(bb.upperRight.x / spacingModel) * spacingModel;
+            const minY = Math.floor(bb.lowerLeft.y / spacingModel) * spacingModel;
+            const maxY = Math.ceil(bb.upperRight.y / spacingModel) * spacingModel;
+            ctx.beginPath();
+            for (let x = minX; x <= maxX; x += spacingModel) {
+                const cx = ox + x * scale;
+                ctx.moveTo(cx, 0);
+                ctx.lineTo(cx, canvas.height);
+            }
+            for (let y = minY; y <= maxY; y += spacingModel) {
+                const cy = oy + (-y) * scale;
+                ctx.moveTo(0, cy);
+                ctx.lineTo(canvas.width, cy);
+            }
+            ctx.stroke();
+            ctx.restore();
+        }
+
+        function drawCFF2Tooltip() {
+            if (!hoveredEntity) return;
+            const { x, y } = mouseCanvasPos;
+            const text = `Pen: ${hoveredEntity.pen}, Layer: ${hoveredEntity.layer}`;
+            ctx.save();
+            ctx.setTransform(1, 0, 0, 1, 0, 0);
+            ctx.font = '14px sans-serif';
+            ctx.fillStyle = '#222';
+            ctx.strokeStyle = '#fff';
+            ctx.lineWidth = 3;
+            ctx.strokeText(text, x + 12, y + 8);
+            ctx.fillText(text, x + 12, y + 8);
+            ctx.restore();
+        }
+
+        // Draw DDS grid in screen space so it remains crisp and overlays geometry
+        function drawGridDDS(fitScale, fitOffsetX, fitOffsetY) {
+            const units = document.getElementById('dds-units')?.value || 'in';
+            const spacingModel = units === 'mm' ? (10/25.4) : 0.25;
+            const bounds = getBounds(ddsData || []);
+            ctx.save();
+            ctx.setTransform(1,0,0,1,0,0);
+            ctx.strokeStyle = '#eee';
+            ctx.lineWidth = 1;
+            const scale = ddsView.scale * fitScale;
+            const ox = ddsView.offsetX + fitOffsetX;
+            const oy = ddsView.offsetY + fitOffsetY;
+            const minX = Math.floor(bounds.minX / spacingModel) * spacingModel;
+            const maxX = Math.ceil(bounds.maxX / spacingModel) * spacingModel;
+            const minY = Math.floor(bounds.minY / spacingModel) * spacingModel;
+            const maxY = Math.ceil(bounds.maxY / spacingModel) * spacingModel;
+            ctx.beginPath();
+            for (let x = minX; x <= maxX; x += spacingModel) {
+                const cx = ox + x * scale;
+                ctx.moveTo(cx, 0);
+                ctx.lineTo(cx, canvas.height);
+            }
+            for (let y = minY; y <= maxY; y += spacingModel) {
+                const cy = oy + (-y) * scale;
+                ctx.moveTo(0, cy);
+                ctx.lineTo(canvas.width, cy);
+            }
+            ctx.stroke();
+            ctx.restore();
+        }
+    </script>
+</body>
+</html>

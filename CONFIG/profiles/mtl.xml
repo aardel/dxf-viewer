@@ -173,8 +173,10 @@
         </LineTypeToTool>
     </MappingWorkflow>
     
+        
+    
         <OutputSettings>
-            <DefaultSavePath>/Volumes/Public/Lasercomb
+            <DefaultSavePath>/Users/aarondelia/Downloads
             </DefaultSavePath>
             <FilenameFormat>{original_name}.din
             </FilenameFormat>

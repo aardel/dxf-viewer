@@ -49,6 +49,10 @@
       "toolChange": "{tool_name}"
     }
   },
+  "bridges": {
+    "enabled": true,
+    "laserOffAcrossGaps": true
+  },
   "lineNumbers": {
     "enabled": true,
     "startNumber": 1,

@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Lasercomb DXF Studio</title>
+    <title>Lasercomb Studio</title>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" href="styles.css">
@@ -9,29 +9,39 @@
 </head>
 <body>
     <div class="header">
-        <div class="header-left">
-            <button class="btn btn-primary" id="openBtn">Open DXF File</button>
-            <div id="fileInfo" class="file-info hidden">
-                <div class="file-name" id="fileName">147926.dxf</div>
-                <div class="file-size" id="fileSize">81.12 kB</div>
+        <!-- Row 1: Branding and File Info -->
+        <div class="header-row header-row-1">
+            <div class="brand-section">
+                <span class="app-title">Lasercomb Studio</span>
+                <span class="app-version">V1.0.0</span>
             </div>
-            <div class="app-info">
-                <div class="app-title">Lasercomb DXF Studio</div>
-                <div class="app-version">V1.0.0</div>
-            </div>
-        </div>
-        <div class="header-right">
-            <!-- Header Controls will be inserted here -->
-            <div id="header-controls" class="header-controls-inline">
-                <!-- Will be populated by header-controls.js -->
+            <div id="fileInfo" class="file-info-compact hidden">
+                <span class="file-name" id="fileName">147926.dxf</span>
+                <span class="file-size" id="fileSize">81.12 kB</span>
             </div>
         </div>
-        <div class="controls">
-            <button class="btn btn-secondary" id="clearBtn">Clear</button>
-            <button class="btn btn-secondary" id="fitBtn">Fit to View</button>
-            <button class="btn btn-secondary" id="togglePanelBtn">
-                <span id="panelToggleIcon">◀</span>
-            </button>
+        
+        <!-- Row 2: Controls and Status -->
+        <div class="header-row header-row-2">
+            <div class="controls-section">
+                <button class="btn btn-primary" id="openBtn">Open File</button>
+                <button class="btn btn-secondary" id="clearBtn">Clear</button>
+                <button class="btn btn-secondary" id="fitBtn">Fit View</button>
+            </div>
+            <div class="status-section">
+                <!-- Header Controls will be inserted here -->
+                <div id="header-controls" class="header-controls-inline">
+                    <!-- Will be populated by header-controls.js -->
+                </div>
+                <div id="formatIndicator" class="format-indicator" style="display:none;"></div>
+                <label id="showBridgesContainer" style="display:none; align-items:center; gap:6px; margin-left:8px;">
+                    <input type="checkbox" id="showBridgesToggle" checked>
+                    <span>Show Bridges Overlay</span>
+                </label>
+                <button class="btn btn-secondary btn-toggle" id="togglePanelBtn">
+                    <span id="panelToggleIcon">◀</span>
+                </button>
+            </div>
         </div>
     </div>
     
@@ -81,15 +91,15 @@
             <div id="dropZone" class="drop-zone">
                 <div class="drop-content">
                     <div class="drop-icon">📁</div>
-                    <div class="drop-text">Drop DXF file here</div>
-                    <div class="drop-subtext">or use File → Open DXF File</div>
+                    <div class="drop-text">Drop DXF / DDS / CFF2 file here</div>
+                    <div class="drop-subtext">or use File → Open File</div>
                 </div>
             </div>
             <div id="loading" class="loading">
                 <div class="spinner"></div>
-                <div>Loading DXF file...</div>
+                <div>Loading file...</div>
             </div>
-            <div id="status" class="status">Ready - Open a DXF file to begin</div>
+            <div id="status" class="status">Ready - Open a file to begin</div>
         </div>
         
         <div id="sidePanel" class="side-panel">
@@ -99,15 +109,9 @@
             </div>
             <div class="panel-content">
                 <div id="importTab" class="tab-content active">
-                    <div id="layerStatus" class="layer-status" style="display: none;">
-                        <div class="status-summary">
-                            <span id="layerCount">0 layers</span>
-                            <span id="mappingStatus">0 mapped, 0 unmapped</span>
-                        </div>
-                    </div>
                     <div id="layerTable" class="layer-table">
                         <div class="no-file">
-                            Load a DXF file to view layers
+                            Load a file to view layers
                         </div>
                     </div>
                     <div id="drawingInfo" class="drawing-info" style="display: none;">
@@ -186,6 +190,17 @@
                                         <option value="priority_order" selected>Priority Order (Follow cutting sequence)</option>
                                     </select>
                                 </div>
+
+                        <!-- Bridges Handling (DDS/CFF2) -->
+                        <div class="settings-section">
+                            <h5>Bridges (DDS/CFF2)</h5>
+                            <div class="optimization-options">
+                                <label>
+                                    <input type="checkbox" id="enableBridgesOutput" checked>
+                                    Output with bridges (split toolpaths around bridge gaps)
+                                </label>
+                            </div>
+                        </div>
                                 
                                 <div class="setting-row">
                                     <label for="withinGroupOptimization">Path Optimization:</label>

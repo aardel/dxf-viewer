@@ -1,11 +1,11 @@
-import AUTO_CAD_COLOR_INDEX from "./AutoCadColorIndex.js";
-import ExtendedDataParser from "./ExtendedDataParser.js";
+const AUTO_CAD_COLOR_INDEX = require("./AutoCadColorIndex.js");
+const ExtendedDataParser = require("./ExtendedDataParser.js");
 
 /**
  * Returns the truecolor value of the given AutoCad color index value
  * @return {Number} truecolor value as a number
  */
-export function getAcadColor(index) {
+function getAcadColor(index) {
     return AUTO_CAD_COLOR_INDEX[index];
 }
 
@@ -14,7 +14,7 @@ export function getAcadColor(index) {
  * the scanner remains on the last group of the coordinate.
  * @param {*} scanner
  */
-export function parsePoint(scanner) {
+function parsePoint(scanner) {
     var point = {};
 
     // Reread group for the first coordinate
@@ -49,7 +49,7 @@ export function parsePoint(scanner) {
  * feature.
  * @param scanner
  */
-export function skipEmbeddedObject(scanner) {
+function skipEmbeddedObject(scanner) {
     /* Ensure proper start group. */
     scanner.rewind()
     let curr = scanner.next()
@@ -68,7 +68,7 @@ export function skipEmbeddedObject(scanner) {
  * @param {*} entity - the entity currently being parsed
  * @param {*} curr - the current group being parsed
  */
-export function checkCommonEntityProperties(entity, curr, scanner) {
+function checkCommonEntityProperties(entity, curr, scanner) {
     let xdataParser = null
     while (curr.code >= 1000) {
         if (xdataParser == null) {
@@ -138,3 +138,10 @@ export function checkCommonEntityProperties(entity, curr, scanner) {
     }
     return true;
 }
+
+module.exports = {
+    getAcadColor,
+    parsePoint,
+    skipEmbeddedObject,
+    checkCommonEntityProperties
+};

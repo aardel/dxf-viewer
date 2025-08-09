@@ -1,6 +1,6 @@
-import * as helpers from "../ParseHelpers.js";
+const helpers = require("../ParseHelpers.js");
 
-export default function EntityParser() {}
+function EntityParser() {}
 
 EntityParser.ForEntityName = 'ATTRIB';
 
@@ -107,3 +107,5 @@ EntityParser.prototype.parseEntity = function (scanner, curr) {
 
     return entity;
 };
+
+module.exports = EntityParser;

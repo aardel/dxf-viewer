@@ -1,8 +1,8 @@
 
-import * as helpers from "../ParseHelpers.js"
-import VertexParser from "./vertex.js";
+const helpers = require("../ParseHelpers.js");
+const VertexParser = require("./vertex.js");
 
-export default function EntityParser() {}
+function EntityParser() {}
 
 EntityParser.ForEntityName = 'POLYLINE';
 
@@ -90,3 +90,5 @@ function parseSeqEnd(scanner, curr) {
 
     return entity;
 };
+
+module.exports = EntityParser;

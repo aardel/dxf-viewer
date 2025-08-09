@@ -1,7 +1,6 @@
-import log from "loglevel"
+const log = require("loglevel");
 
-
-export default class ExtendedDataParser {
+class ExtendedDataParser {
 
     constructor() {
         this.appName = null
@@ -115,3 +114,5 @@ export default class ExtendedDataParser {
         return {code, value}
     }
 }
+
+module.exports = ExtendedDataParser;

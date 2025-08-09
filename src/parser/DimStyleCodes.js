@@ -30,4 +30,4 @@ const codes = new Map([
     [78, "DIMZIN"],
 ])
 
-export default codes
+module.exports = codes;

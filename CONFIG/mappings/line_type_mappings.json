@@ -76,11 +76,13 @@
   
   "layerMappings": {
     "0": "cutting",
+    "Layer 1": "cutting",
     "CUT": "cutting",
     "CUTTING": "cutting",
     "ENGRAVE": "engraving",
     "ENGRAVING": "engraving",
     "TEXT": "engraving",
+    "NAME": "engraving",
     "PERF": "perforating",
     "PERFORATION": "perforating",
     "SCORE": "scoring",
@@ -89,7 +91,11 @@
     "MARKING": "marking",
     "CONSTRUCTION": "construction",
     "HIDDEN": "construction",
-    "DIMENSIONS": "construction"
+    "DIMENSIONS": "construction",
+    "FNL_DIMS-363": "construction",
+    "GRIP": "cutting",
+    "GA_DIE": "cutting",
+    "ACXTEMP": "engraving"
   },
   
   "colorMappings": {

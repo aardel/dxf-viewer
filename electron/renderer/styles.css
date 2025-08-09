@@ -17,28 +17,74 @@ body {
 .header {
     background: linear-gradient(135deg, #3a3a3a 0%, #2d2d2d 100%);
     border-bottom: 1px solid #404040;
-    padding: 0.75rem 1.5rem;
+    padding: 0;
     display: flex;
-    justify-content: space-between;
-    align-items: center;
+    flex-direction: column;
     box-shadow: 0 4px 8px rgba(0,0,0,0.3);
-    z-index: 1000;
+    z-index: 1200;
     position: fixed;
     top: 0;
     left: 0;
     right: 0;
-    height: 60px;
+    height: auto;
+    min-height: 60px;
+}
+
+/* Two row layout */
+.header-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 1.5rem;
+}
+
+.header-row-1 {
+    border-bottom: 1px solid #404040;
+    background: rgba(255,255,255,0.02);
+}
+
+.header-row-2 {
+    padding: 10px 1.5rem;
+}
+
+/* Brand section styling */
+.brand-section {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+/* Controls section styling */
+.controls-section {
+    display: grid;
+    grid-auto-flow: column;
+    grid-auto-columns: 1fr;
+    align-items: stretch;
+    gap: 0.75rem;
+    min-width: 260px;
+}
+
+.status-section {
+    display: grid;
+    grid-auto-flow: column;
+    grid-auto-columns: max-content;
+    align-items: center;
+    gap: 8px;
+}
+
+.format-indicator {
+    background: #2a2a2a;
+    border: 1px solid #4a4a4a;
+    color: #ddd;
+    padding: 4px 10px;
+    border-radius: 6px;
+    font-size: 0.8rem;
+    font-weight: 600;
 }
 
 /* macOS specific padding for window controls */
 .header.mac {
     padding-left: 80px;
-}
-
-.header-left {
-    display: flex;
-    align-items: center;
-    gap: 1rem;
 }
 
 
@@ -51,7 +97,18 @@ body {
     min-width: 120px;
 }
 
-.file-info.hidden {
+.file-info-compact {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: #404040;
+    padding: 6px 12px;
+    border-radius: 6px;
+    font-size: 0.85rem;
+}
+
+.file-info.hidden,
+.file-info-compact.hidden {
     display: none;
 }
 
@@ -67,18 +124,10 @@ body {
     color: #bbb;
 }
 
-.header-right {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-end;
-    text-align: right;
-}
-
 .app-title {
     font-size: 1.1rem;
     font-weight: 600;
     color: #00BFFF;
-    margin-bottom: 0.1rem;
     text-shadow: 0 2px 4px rgba(0,191,255,0.3);
 }
 
@@ -94,16 +143,17 @@ body {
 }
 
 .btn {
-    padding: 0.5rem 1rem;
+    padding: 8px 16px;
     border: none;
     border-radius: 6px;
     cursor: pointer;
-    font-size: 0.9rem;
+    font-size: 0.85rem;
     font-weight: 500;
     transition: all 0.2s ease;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
-    transition: all 0.2s ease;
     user-select: none;
+    text-transform: none;
+    letter-spacing: 0;
+    width: 100%;
 }
 
 .btn:focus {
@@ -112,27 +162,34 @@ body {
 }
 
 .btn-primary {
-    background: linear-gradient(135deg, #00BFFF 0%, #0099CC 100%);
+    background: #00BFFF;
     color: white;
-    border: 1px solid #0099CC;
+    box-shadow: 0 2px 4px rgba(0,191,255,0.2);
 }
 
 .btn-primary:hover {
-    background: linear-gradient(135deg, #0099CC 0%, #0077AA 100%);
+    background: #0099CC;
     transform: translateY(-1px);
     box-shadow: 0 4px 8px rgba(0,191,255,0.3);
 }
 
 .btn-secondary {
-    background: linear-gradient(135deg, #6c757d 0%, #5a6268 100%);
-    color: white;
-    border: 1px solid #5a6268;
+    background: #404040;
+    color: #ffffff;
+    border: 1px solid #555;
 }
 
 .btn-secondary:hover {
-    background: linear-gradient(135deg, #5a6268 0%, #495057 100%);
+    background: #555;
+    border-color: #666;
     transform: translateY(-1px);
-    box-shadow: 0 4px 8px rgba(108,117,125,0.3);
+}
+
+.btn-toggle {
+    padding: 8px 12px;
+    min-width: 40px;
+    margin-left: 8px;
+    width: auto;
 }
 
 .btn-warning {
@@ -173,8 +230,8 @@ body {
 .main-content {
     display: flex;
     flex: 1;
-    margin-top: 60px;
-    height: calc(100vh - 60px);
+    margin-top: 100px;
+    height: calc(100vh - 100px);
 }
 
 .viewer-container {
@@ -605,9 +662,32 @@ body {
     box-shadow: inset 0 2px 4px rgba(0,0,0,0.2);
     padding: 8px;
     gap: 8px;
-    display: flex;
-    flex-direction: column;
+    display: block;
 }
+/* Framed table look, centered text */
+.rules-table-container { width: 100%; overflow: auto; }
+.rules-table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+.rules-table thead th { position: sticky; top: 0; background: #333; color: #eee; z-index: 1; }
+.rules-table th, .rules-table td { border: 1px solid #555; padding: 6px 8px; text-align: center; vertical-align: middle; }
+.rules-table tbody tr:nth-child(odd) { background: rgba(255,255,255,0.02); }
+.rules-table tbody tr:hover { background: rgba(0, 191, 255, 0.08); }
+.rules-table th.sort-asc::after { content: " \2191"; }
+.rules-table th.sort-desc::after { content: " \2193"; }
+
+/* Column drag + resize affordances */
+.rules-table th { user-select: none; position: relative; }
+.rules-table th.draggable { cursor: move; }
+.rules-table th.drop-left { box-shadow: inset 3px 0 0 #4a90e2; }
+.rules-table th.drop-right { box-shadow: inset -3px 0 0 #4a90e2; }
+.rules-table .col-resizer { position: absolute; right: 0; top: 0; bottom: 0; width: 8px; cursor: col-resize; }
+
+/* Small buttons inside cells */
+.rules-table .btn { width: auto; padding: 2px 6px; font-size: 12px; border-radius: 4px; }
+.rules-table .btn-primary { background: #00BFFF; border: 1px solid #0099CC; }
+.rules-table .btn-secondary { background: #404040; border: 1px solid #666; color: #fff; }
+
+/* Standard color swatch (small square) */
+.color-swatch { width: 14px; height: 14px; border-radius: 3px; display: inline-block; border: 1px solid rgba(255,255,255,0.4); box-shadow: 0 1px 2px rgba(0,0,0,0.4); }
 
 /* Enhanced Layer Row Styling */
 .layer-row {
@@ -1134,8 +1214,23 @@ body {
 }
 
 .drop-zone.active {
-    background: rgba(0, 123, 255, 0.1);
-    border: 2px dashed #007bff;
+    background: rgba(0, 123, 255, 0.15);
+    border: 3px dashed #007bff;
+    box-shadow: inset 0 0 20px rgba(0, 123, 255, 0.2);
+}
+
+.drop-zone.active .drop-content {
+    color: #007bff;
+    transform: scale(1.05);
+}
+
+.drop-zone.active .drop-icon {
+    animation: bounce 0.6s ease-in-out infinite alternate;
+}
+
+@keyframes bounce {
+    0% { transform: translateY(0); }
+    100% { transform: translateY(-10px); }
 }
 
 .drop-zone.hidden {
@@ -1146,11 +1241,13 @@ body {
     text-align: center;
     color: #666;
     user-select: none;
+    transition: all 0.3s ease;
 }
 
 .drop-icon {
     font-size: 3rem;
     margin-bottom: 1rem;
+    transition: all 0.3s ease;
 }
 
 .drop-text {
@@ -2950,7 +3047,7 @@ body {
     position: absolute;
     top: 20px;
     right: 20px;
-    z-index: 1000;
+    z-index: 900;
 }
 
 .control-grid {

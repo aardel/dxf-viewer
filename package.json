@@ -1,7 +1,7 @@
 {
     "name": "lasercomb-dxf-studio",
     "version": "1.0.0",
-    "description": "Lasercomb DXF Studio - Professional CAD Drawing Viewer",
+    "description": "Lasercomb Studio - Professional CAD Drawing Viewer",
     "main": "electron/main/main.cjs",
     "browser": {
         "loglevel": "./loglevel-wrapper.js"
@@ -37,9 +37,12 @@
     ],
     "dependencies": {
         "@xmldom/xmldom": "^0.9.8",
+        "chokidar": "^4.0.3",
         "earcut": "^3.0.0",
+        "electron-store": "^10.1.0",
         "fast-xml-parser": "^5.2.5",
         "loglevel": "^1.9.1",
+        "node-pty": "^1.0.0",
         "opentype.js": "^1.3.4",
         "three": "^0.161.0"
     },
@@ -50,7 +53,7 @@
     },
     "build": {
         "appId": "com.lasercomb.dxf-studio",
-        "productName": "Lasercomb DXF Studio",
+        "productName": "Lasercomb Studio",
         "directories": {
             "output": "dist"
         },
@@ -81,7 +84,10 @@
             "target": [
                 {
                     "target": "nsis",
-                    "arch": ["x64", "arm64"]
+                    "arch": [
+                        "x64",
+                        "arm64"
+                    ]
                 }
             ]
         },

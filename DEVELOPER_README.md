@@ -1,4 +1,4 @@
-# Lasercomb DXF Studio - Developer Documentation
+# Lasercomb Studio - Developer Documentation
 
 ## 📋 Table of Contents
 
@@ -13,13 +13,14 @@
 9. [Import Filter System](#import-filter-system)
 10. [Tool Management](#tool-management)
 11. [Line Type Management](#line-type-management)
-12. [Build & Deployment](#build--deployment)
-13. [Debugging](#debugging)
-14. [Contributing](#contributing)
+12. [Batch Monitor System](#batch-monitor-system)
+13. [Build & Deployment](#build--deployment)
+14. [Debugging](#debugging)
+15. [Contributing](#contributing)
 
 ## 🎯 Overview
 
-**Lasercomb DXF Studio** is a professional CAD drawing viewer and DIN file generator built with Electron, Three.js, and modern web technologies. The application provides advanced DXF file viewing, layer management, tool configuration, and G-code generation capabilities for laser cutting and CNC operations.
+**Lasercomb Studio** is a professional CAD drawing viewer and DIN file generator built with Electron, Three.js, and modern web technologies. The application provides advanced DXF/CFF2/DDS file viewing, layer management, tool configuration, and G-code generation capabilities for laser cutting and CNC operations.
 
 ### Key Features
 - **DXF File Viewer**: High-performance 3D rendering with Three.js
@@ -393,6 +394,125 @@ Line types are mapped to tools through:
 - **Line Types Manager**: CRUD operations for line types
 - **CSV Import/Export**: Bulk line type management
 - **Validation**: Line type parameter validation
+
+## 🔄 Batch Monitor System ✅ COMPLETED
+
+The DXF Batch Monitor provides automated processing of DXF files using a "silent processing" approach that reuses the exact same workflows as manual operation.
+
+### Core Concept
+The system implements the user's brilliant "stupid thinking" approach: **"open the files in the same way we open with open dxf button but silently somehow be processed with the same way, we simply check the layer status as attached and proceed with the output only if it says all layers mapped"**
+
+### Architecture
+
+**Silent Processing Pipeline:**
+```
+DXF File → Load Silently → Apply Global Filters → Validate Layer Mappings → Generate DIN → Save
+     ↓              ↓                    ↓                       ↓              ↓
+  File Watch    Same Logic        Same Validation        Same Generation    Same Save
+```
+
+**Key Components:**
+1. **Batch Monitor Window** (`/electron/renderer/batch-monitor.js`)
+   - Separate Electron window for monitoring
+   - File system watching with stability detection
+   - Processing queue management
+   - Real-time logging and statistics
+
+2. **Silent Processing Functions** (`/electron/renderer/renderer.js`)
+   - `loadDxfFileSilently()` - Simulates "Open DXF" workflow
+   - `checkLayerMappingStatus()` - Uses existing validation logic
+   - `generateDinFileSilently()` - Simulates "Generate DIN" workflow
+   - `processDxfFileSilently()` - Complete end-to-end processing
+
+3. **IPC Communication** (`/electron/main/main.cjs`)
+   - `process-dxf-file-silently` handler bridges batch monitor and main window
+   - Enables cross-window function execution
+
+### Processing Logic
+
+**File Detection & Queuing:**
+- Monitors input folder for new `.dxf` files
+- 10-second stability wait to ensure complete file transfer
+- Automatic queue management with processing status
+
+**Layer Validation (Smart Filtering):**
+```javascript
+// Only process files where ALL layers are mapped
+const isReady = totalLayers > 0 && 
+               mappedLayers > 0 && 
+               mappedLayers === totalLayers;
+```
+
+**Processing Outcomes:**
+- ✅ **Success**: All layers mapped → DIN file generated
+- ⚠️ **Skipped**: Incomplete mappings → File ignored (by design)
+- ❌ **Error**: Technical failure → Logged with details
+
+### Global Import Filters Integration
+
+The system leverages existing global import filters (`/CONFIG/import-filters/global_import_filter.json`) to automatically map layer names to line types:
+
+```json
+{
+  "rules": [
+    {
+      "id": 2,
+      "pattern": "^ACXTEMP",
+      "lineType": "Fine Cut",
+      "enabled": true
+    },
+    {
+      "id": 3,
+      "pattern": "_0000FF$",
+      "lineType": "2pt CW", 
+      "enabled": true
+    }
+  ]
+}
+```
+
+### Implementation Success ✅
+
+**Problem Solved:**
+- ❌ Initial: `window.processDxfFileSilently is not a function`
+- ❌ Context: `require is not defined` 
+- ❌ Validation: UI dependency preventing silent operation
+
+**Solution Implemented:**
+- ✅ **IPC Communication**: Batch monitor → Main process → Main window execution
+- ✅ **Context-Aware File Saving**: Uses `window.electronAPI.saveDinFile()`
+- ✅ **UI-Independent Validation**: Direct layer data analysis without DOM elements
+- ✅ **100% Consistency**: Same validation logic as manual operation
+
+### Usage Workflow
+
+1. **Setup**: Tools → Batch Monitor
+2. **Configure**: Set input and output folders
+3. **Start**: Click "Start Monitoring" 
+4. **Automatic**: Drop DXF files in input folder
+5. **Results**: Only properly mapped files generate DIN outputs
+
+### File Processing Examples
+
+**test.dxf (SUCCESS):**
+```
+Applied rule 4 to layer NAME_009800
+Applied rule 3 to layer GA_DIE_0000FF
+Applied rule 4 to layer GRIP_00FF7F
+Applied rule 2 to layer ACXTEMP_009800
+Filter applied: 4 matched, 0 unmatched
+✅ All layers mapped → test.din generated
+```
+
+**geometry test.dxf (SKIPPED):**
+```
+No matching rule found for layer Layer 1_231F20
+No matching rule found for layer Layer 1_1C75BC
+Filter applied: 0 matched, 5 unmatched
+⚠️ Incomplete mappings → File skipped
+```
+
+This ensures only files that would succeed in manual processing are automatically processed - exactly as intended!
 
 ## 🏗️ Build & Deployment
 

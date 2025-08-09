@@ -1,27 +1,25 @@
-import DxfArrayScanner from "./DxfArrayScanner.js";
-import AUTO_CAD_COLOR_INDEX from "./AutoCadColorIndex.js";
-
-import Face from "./entities/3dface.js";
-import Arc from "./entities/arc.js";
-import AttDef from "./entities/attdef.js";
-import Attribute from "./entities/attribute.js"
-import Circle from "./entities/circle.js";
-import Dimension from "./entities/dimension.js";
-import Ellipse from "./entities/ellipse.js";
-import Insert from "./entities/insert.js";
-import Line from "./entities/line.js";
-import LWPolyline from "./entities/lwpolyline.js";
-import MText from "./entities/mtext.js";
-import Point from "./entities/point.js";
-import Polyline from "./entities/polyline.js";
-import Solid from "./entities/solid.js";
-import Spline from "./entities/spline.js";
-import Text from "./entities/text.js";
-import Hatch from "./entities/hatch.js";
-import dimStyleCodes from "./DimStyleCodes.js";
-//import Vertex from "./entities/.js";
-
-import log from 'loglevel';
+const DxfArrayScanner = require('./DxfArrayScanner.js');
+const AUTO_CAD_COLOR_INDEX = require('./AutoCadColorIndex.js');
+const Face = require('./entities/3dface.js');
+const Arc = require('./entities/arc.js');
+const AttDef = require('./entities/attdef.js');
+const Attribute = require('./entities/attribute.js');
+const Circle = require('./entities/circle.js');
+const Dimension = require('./entities/dimension.js');
+const Ellipse = require('./entities/ellipse.js');
+const Insert = require('./entities/insert.js');
+const Line = require('./entities/line.js');
+const LWPolyline = require('./entities/lwpolyline.js');
+const MText = require('./entities/mtext.js');
+const Point = require('./entities/point.js');
+const Polyline = require('./entities/polyline.js');
+const Solid = require('./entities/solid.js');
+const Spline = require('./entities/spline.js');
+const Text = require('./entities/text.js');
+const Hatch = require('./entities/hatch.js');
+const dimStyleCodes = require('./DimStyleCodes.js');
+//const Vertex = require('./entities/.js');
+const log = require('loglevel');
 
 //log.setLevel('trace');
 //log.setLevel('debug');
@@ -52,7 +50,7 @@ function registerDefaultEntityHandlers(dxfParser) {
     //dxfParser.registerEntityHandler(require('./entities/vertex'));
 }
 
-export default function DxfParser() {
+function DxfParser() {
     this._entityHandlers = {};
 
     registerDefaultEntityHandlers(this);
@@ -916,3 +914,5 @@ const BLOCK_REFERENCED_XREF = 64;
 // Code 6 of an entity indicates inheritance of properties (eg. color).
 //   BYBLOCK means inherits from block
 //   BYLAYER (default) mean inherits from layer
+
+module.exports = DxfParser;

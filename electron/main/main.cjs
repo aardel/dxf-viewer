@@ -2,6 +2,18 @@ const { app, BrowserWindow, Menu, dialog, ipcMain } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const { DOMParser, XMLSerializer } = require('@xmldom/xmldom');
+const chokidar = require('chokidar');
+
+// Dynamic import for electron-store (ES module)
+let Store = null;
+(async () => {
+    try {
+        const electronStore = await import('electron-store');
+        Store = electronStore.default;
+    } catch (error) {
+        console.error('Failed to load electron-store:', error);
+    }
+})();
 
 // Detect if running in a virtual machine environment
 const isVirtualMachine = process.platform === 'win32' && (
@@ -35,6 +47,11 @@ if (isVirtualMachine) {
 let mainWindow;
 let unifiedMappingWindow = null;
 let machineToolImporterWindow = null;
+let batchMonitorWindow = null;
+
+// Batch monitoring state
+let fileWatcher = null;
+let batchStore = null;
 
 // Get the correct CONFIG directory path for both development and production
 function getConfigPath(subPath = '') {
@@ -133,7 +150,7 @@ function createWindow() {
         minWidth: 800,
         minHeight: 600,
         resizable: true,
-        title: 'Lasercomb DXF Studio',
+        title: 'Lasercomb Studio',
         webPreferences: {
             nodeIntegration: false,
             contextIsolation: true,
@@ -186,7 +203,7 @@ function createUnifiedMappingWindow() {
         height: 800,
         minWidth: 1000,
         minHeight: 600,
-        title: 'Unified Mapping Workflow - Lasercomb DXF Studio',
+        title: 'Unified Mapping Workflow - Lasercomb Studio',
         webPreferences: {
             nodeIntegration: false,
             contextIsolation: true,
@@ -223,6 +240,94 @@ function createUnifiedMappingWindow() {
     // Handle window resize
     unifiedMappingWindow.on('resize', () => {
         unifiedMappingWindow.webContents.send('window-resized');
+    });
+}
+
+// Create batch monitor window
+function createBatchMonitorWindow() {
+    // Don't create multiple instances
+    if (batchMonitorWindow) {
+        batchMonitorWindow.focus();
+        return;
+    }
+
+    // Initialize batch store if not already done
+    if (!batchStore && Store) {
+        batchStore = new Store({
+            name: 'batch-monitor-settings',
+            defaults: {
+                inputFolder: '',
+                outputFolder: '',
+                fileStabilityDelay: 10000,
+                windowBounds: {
+                    width: 1200,
+                    height: 800,
+                    x: undefined,
+                    y: undefined
+                }
+            }
+        });
+    }
+
+    // Get saved window bounds (use defaults if store not available)
+    const savedBounds = batchStore ? batchStore.get('windowBounds') : {
+        width: 1200,
+        height: 800,
+        x: undefined,
+        y: undefined
+    };
+
+    // Create the browser window
+    batchMonitorWindow = new BrowserWindow({
+        width: savedBounds.width || 1200,
+        height: savedBounds.height || 800,
+        x: savedBounds.x,
+        y: savedBounds.y,
+        minWidth: 900,
+        minHeight: 600,
+        title: 'DXF Batch Monitor - Lasercomb Studio',
+        webPreferences: {
+            nodeIntegration: true,
+            contextIsolation: false,
+            enableRemoteModule: true
+        },
+        icon: path.join(__dirname, '../../assets/app-icons/icon_256x256.png'),
+        show: false, // Don't show until ready
+        titleBarStyle: process.platform === 'darwin' ? 'default' : 'default'
+    });
+
+    // Load the batch monitor HTML
+    batchMonitorWindow.loadFile(path.join(__dirname, '../renderer/batch-monitor.html'));
+
+    // Show window when ready to prevent visual flash
+    batchMonitorWindow.once('ready-to-show', () => {
+        batchMonitorWindow.show();
+    });
+
+    // Open DevTools in development
+    if (process.argv.includes('--dev')) {
+        batchMonitorWindow.webContents.openDevTools();
+    }
+
+    // Save window bounds when moved or resized
+    const saveBounds = () => {
+        if (batchStore) {
+            const bounds = batchMonitorWindow.getBounds();
+            batchStore.set('windowBounds', bounds);
+        }
+    };
+
+    batchMonitorWindow.on('resize', saveBounds);
+    batchMonitorWindow.on('move', saveBounds);
+
+    // Emitted when the window is closed
+    batchMonitorWindow.on('closed', () => {
+        // Stop file watcher if active
+        if (fileWatcher) {
+            fileWatcher.close();
+            fileWatcher = null;
+        }
+        batchMonitorWindow = null;
     });
 }
 
@@ -296,6 +401,26 @@ function createMenu() {
             ]
         },
         {
+            label: 'Tools',
+            submenu: [
+                {
+                    label: 'Batch Monitor',
+                    accelerator: 'CmdOrCtrl+B',
+                    click: () => {
+                        createBatchMonitorWindow();
+                    }
+                },
+                { type: 'separator' },
+                {
+                    label: 'Unified Mapping Workflow',
+                    accelerator: 'CmdOrCtrl+M',
+                    click: () => {
+                        createUnifiedMappingWindow();
+                    }
+                }
+            ]
+        },
+        {
             label: 'Window',
             submenu: [
                 { role: 'minimize' },
@@ -340,7 +465,7 @@ ipcMain.handle('show-open-dialog', async () => {
     const result = await dialog.showOpenDialog(mainWindow, {
         properties: ['openFile'],
         filters: [
-            { name: 'DXF Files', extensions: ['dxf'] },
+            { name: 'Supported CAD Files', extensions: ['dxf', 'dds', 'cf2', 'cff2'] },
             { name: 'All Files', extensions: ['*'] }
         ]
     });
@@ -366,6 +491,38 @@ ipcMain.handle('show-directory-dialog', async () => {
         title: 'Select Default Save Directory'
     });
     return result;
+});
+
+// Clear app cache and storage data (useful during development)
+ipcMain.handle('clear-cache', async () => {
+    try {
+        const { session } = require('electron');
+        const s = session.defaultSession;
+        await s.clearCache();
+        await s.clearStorageData({
+            storages: [
+                'appcache', 'cookies', 'filesystem', 'indexdb', 'localstorage',
+                'shadercache', 'serviceworkers', 'cachestorage', 'websql'
+            ],
+            quotas: ['temporary', 'persistent', 'syncable']
+        });
+        return { success: true };
+    } catch (error) {
+        console.error('Error clearing cache:', error);
+        return { success: false, error: error.message };
+    }
+});
+
+// Unified parsing for DXF/DDS/CFF2 (returns unified geometry objects)
+ipcMain.handle('parse-unified', async (event, content, filename) => {
+    try {
+        const parsers = require('../../src/parsers');
+        const geometries = parsers.UnifiedImporter.import(content, filename);
+        return { success: true, data: geometries };
+    } catch (error) {
+        console.error('Error in parse-unified:', error);
+        return { success: false, error: error.message };
+    }
 });
 
 ipcMain.handle('save-layer-mapping', async (event, content, defaultFilename) => {
@@ -2017,6 +2174,36 @@ ipcMain.handle('close-unified-mapping-window', async () => {
     return { success: true };
 });
 
+// Silent DXF Processing IPC handler
+ipcMain.handle('process-dxf-file-silently', async (event, filePath, outputPath) => {
+    try {
+        console.log(`IPC: Processing DXF file silently: ${filePath}`);
+        
+        // Forward the request to the main window which has all the processing functions
+        if (mainWindow && mainWindow.webContents) {
+            const result = await mainWindow.webContents.executeJavaScript(`
+                (async () => {
+                    try {
+                        if (typeof window.processDxfFileSilently === 'function') {
+                            return await window.processDxfFileSilently('${filePath.replace(/\\/g, '\\\\').replace(/'/g, "\\'")}', '${outputPath.replace(/\\/g, '\\\\').replace(/'/g, "\\'")}');
+                        } else {
+                            throw new Error('processDxfFileSilently function not available in main window');
+                        }
+                    } catch (error) {
+                        return { success: false, reason: 'execution_failed', error: error.message };
+                    }
+                })()
+            `);
+            return result;
+        } else {
+            return { success: false, reason: 'main_window_unavailable', error: 'Main window not available' };
+        }
+    } catch (error) {
+        console.error('IPC Error processing DXF file:', error);
+        return { success: false, reason: 'ipc_error', error: error.message };
+    }
+});
+
 ipcMain.handle('get-dxf-layers', async () => {
     try {
         // Try to get real DXF layers from the main window
@@ -3567,5 +3754,322 @@ ipcMain.handle('fix-configuration-issue', async (event, issue) => {
     } catch (error) {
         console.error('Error fixing configuration issue:', error);
         return { success: false, message: `Failed to fix issue: ${error.message}` };
+    }
+});
+
+// ===== BATCH MONITORING IPC HANDLERS =====
+
+// Handle opening batch monitor window
+ipcMain.on('open-batch-monitor', () => {
+    createBatchMonitorWindow();
+});
+
+// Handle folder selection for batch monitor
+ipcMain.handle('select-folder', async () => {
+    const result = await dialog.showOpenDialog(batchMonitorWindow || mainWindow, {
+        properties: ['openDirectory'],
+        title: 'Select Folder'
+    });
+    return result;
+});
+
+// Handle file watcher start
+ipcMain.handle('start-file-watcher', async (event, folderPath) => {
+    try {
+        // Stop existing watcher if any
+        if (fileWatcher) {
+            await fileWatcher.close();
+        }
+
+        // Detect if it's a network path for enhanced polling
+        const isNetworkPath = (path) => {
+            return path.startsWith('\\\\') || path.startsWith('//') || 
+                   path.includes(':/') || path.startsWith('smb://');
+        };
+
+        // Configure watcher options based on path type
+        const watcherOptions = {
+            ignored: /(^|[\/\\])\../, // ignore dotfiles
+            persistent: true,
+            depth: 0, // Only watch the top-level folder
+            awaitWriteFinish: {
+                stabilityThreshold: 2000,
+                pollInterval: 100
+            }
+        };
+
+        // Enhanced settings for network paths
+        if (isNetworkPath(folderPath)) {
+            console.log('Network path detected, using enhanced polling');
+            watcherOptions.usePolling = true;
+            watcherOptions.interval = 5000; // 5 second intervals for network
+            watcherOptions.binaryInterval = 10000; // 10 seconds for binary files
+        } else {
+            watcherOptions.usePolling = false; // Use native events for local paths
+        }
+
+        // Create and start the file watcher
+        fileWatcher = chokidar.watch(folderPath, watcherOptions);
+
+        fileWatcher
+            .on('add', (filePath) => {
+                if (filePath.toLowerCase().endsWith('.dxf')) {
+                    console.log('DXF file detected:', filePath);
+                    if (batchMonitorWindow) {
+                        batchMonitorWindow.webContents.send('file-added', filePath);
+                    }
+                }
+            })
+            .on('unlink', (filePath) => {
+                if (filePath.toLowerCase().endsWith('.dxf')) {
+                    console.log('DXF file removed:', filePath);
+                    if (batchMonitorWindow) {
+                        batchMonitorWindow.webContents.send('file-removed', filePath);
+                    }
+                }
+            })
+            .on('error', (error) => {
+                console.error('File watcher error:', error);
+                if (batchMonitorWindow) {
+                    batchMonitorWindow.webContents.send('watcher-error', error.message);
+                }
+            });
+
+        await new Promise((resolve) => {
+            fileWatcher.on('ready', () => {
+                console.log('File watcher is ready and scanning for DXF files');
+                resolve();
+            });
+        });
+
+        return { success: true, message: 'File watcher started successfully' };
+
+    } catch (error) {
+        console.error('Error starting file watcher:', error);
+        return { success: false, message: error.message };
+    }
+});
+
+// Handle file watcher stop
+ipcMain.handle('stop-file-watcher', async () => {
+    try {
+        if (fileWatcher) {
+            await fileWatcher.close();
+            fileWatcher = null;
+            console.log('File watcher stopped');
+        }
+        return { success: true, message: 'File watcher stopped' };
+    } catch (error) {
+        console.error('Error stopping file watcher:', error);
+        return { success: false, message: error.message };
+    }
+});
+
+// Handle folder scanning
+ipcMain.handle('scan-folder', async (event, folderPath) => {
+    try {
+        if (!fs.existsSync(folderPath)) {
+            throw new Error('Folder does not exist');
+        }
+
+        const files = fs.readdirSync(folderPath);
+        const dxfFiles = files.filter(file => 
+            file.toLowerCase().endsWith('.dxf') && 
+            fs.lstatSync(path.join(folderPath, file)).isFile()
+        );
+
+        return dxfFiles;
+    } catch (error) {
+        console.error('Error scanning folder:', error);
+        throw error;
+    }
+});
+
+// Handle DXF file processing
+ipcMain.handle('process-dxf-file', async (event, { inputPath, outputFolder }) => {
+    try {
+        // Dynamically import parser and generator (for main process, ES module compatible)
+        const pathToDxfParser = path.join(process.cwd(), 'src', 'parser', 'DxfParser.js');
+        const pathToDinGenerator = path.join(process.cwd(), 'src', 'DinGenerator.js');
+        console.log('DEBUG: Resolved pathToDxfParser:', pathToDxfParser);
+        console.log('DEBUG: Resolved pathToDinGenerator:', pathToDinGenerator);
+        const fsExists = fs.existsSync(pathToDxfParser);
+        const fsExists2 = fs.existsSync(pathToDinGenerator);
+        console.log('DEBUG: DxfParser.js exists:', fsExists);
+        console.log('DEBUG: DinGenerator.js exists:', fsExists2);
+        if (!fsExists) throw new Error('DxfParser.js not found at ' + pathToDxfParser);
+        if (!fsExists2) throw new Error('DinGenerator.js not found at ' + pathToDinGenerator);
+
+    // Clear require cache to ensure fresh modules
+    delete require.cache[pathToDxfParser];
+    delete require.cache[pathToDinGenerator];
+
+    // Use require for CommonJS modules
+    const DxfParser = require(pathToDxfParser);
+    const DinGenerator = require(pathToDinGenerator);
+    
+    console.log('DEBUG: DxfParser type:', typeof DxfParser);
+    console.log('DEBUG: DinGenerator type:', typeof DinGenerator);
+    console.log('DEBUG: DinGenerator value:', DinGenerator);
+
+        const fileName = path.basename(inputPath, '.dxf');
+        const outputPath = path.join(outputFolder, `${fileName}.din`);
+
+        // Read the DXF file
+        const dxfContent = fs.readFileSync(inputPath, 'utf8');
+
+        // Parse DXF
+        const parser = new DxfParser();
+        const dxf = parser.parseSync(dxfContent);
+        if (!dxf || !dxf.entities) throw new Error('Failed to parse DXF entities');
+
+        console.log(`DEBUG: Parsed ${dxf.entities.length} entities from DXF file`);
+        console.log('DEBUG: Entity types:', dxf.entities.map(e => e.type).join(', '));
+        console.log('DEBUG: First entity sample:', JSON.stringify(dxf.entities[0], null, 2));
+
+        // Load postprocessor config (use default for now, or enhance to select per job)
+        const configPath = path.join(process.cwd(), 'CONFIG', 'postprocessors', 'default_metric.json');
+        const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+
+        // Load global import filter configuration (PRIMARY)
+        const globalImportFilterPath = path.join(process.cwd(), 'CONFIG', 'import-filters', 'global_import_filter.json');
+        if (fs.existsSync(globalImportFilterPath)) {
+            const globalImportFilter = JSON.parse(fs.readFileSync(globalImportFilterPath, 'utf8'));
+            config.globalImportFilter = globalImportFilter;
+            console.log('DEBUG: Loaded global import filter with', globalImportFilter.rules?.length || 0, 'rules');
+        } else {
+            console.warn('Global import filter not found at:', globalImportFilterPath);
+        }
+
+        // Load line types library
+        const lineTypesPath = path.join(process.cwd(), 'CONFIG', 'LineTypes', 'line-types.csv');
+        if (fs.existsSync(lineTypesPath)) {
+            const lineTypesContent = fs.readFileSync(lineTypesPath, 'utf8');
+            const lineTypes = [];
+            const lines = lineTypesContent.split('\n');
+            
+            // Parse CSV header
+            const headers = lines[0].split(',');
+            
+            // Parse data rows
+            for (let i = 1; i < lines.length; i++) {
+                const line = lines[i].trim();
+                if (line) {
+                    const values = line.split(',');
+                    const lineType = {};
+                    headers.forEach((header, index) => {
+                        lineType[header.trim()] = values[index]?.trim() || '';
+                    });
+                    lineTypes.push(lineType);
+                }
+            }
+            
+            config.lineTypesLibrary = lineTypes;
+            console.log('DEBUG: Loaded', lineTypes.length, 'line types from library');
+        } else {
+            console.warn('Line types library not found at:', lineTypesPath);
+        }
+
+        // Load and merge legacy mapping configuration (FALLBACK)
+        const mappingPath = path.join(process.cwd(), 'CONFIG', 'mappings', 'line_type_mappings.json');
+        if (fs.existsSync(mappingPath)) {
+            const mappingConfig = JSON.parse(fs.readFileSync(mappingPath, 'utf8'));
+            config.lineTypeMappings = mappingConfig.mappings;
+            config.mappingWorkflow = {
+                layerToLineType: mappingConfig.layerMappings,
+                colorToLineType: mappingConfig.colorMappings,
+                lineTypeToTool: mappingConfig.mappings,  // This is what DinGenerator needs!
+                defaultLineType: mappingConfig.defaultMapping,
+                rules: mappingConfig.rules
+            };
+            console.log('DEBUG: Loaded layer mappings:', config.mappingWorkflow.layerToLineType);
+            console.log('DEBUG: Loaded line type to tool mappings:', config.mappingWorkflow.lineTypeToTool);
+        } else {
+            console.warn('Mapping configuration not found at:', mappingPath);
+        }
+
+        // Metadata (filename, bounds, etc.)
+        const metadata = {
+            filename: path.basename(inputPath),
+            // Optionally add bounds, etc.
+        };
+
+        // Generate DIN
+        const generator = new DinGenerator();
+        const dinContent = generator.generateDin(dxf.entities, config, metadata);
+
+        // Write the DIN file
+        fs.writeFileSync(outputPath, dinContent);
+
+        console.log(`Processed DXF file: ${inputPath} -> ${outputPath}`);
+
+        return {
+            success: true,
+            outputPath: outputPath,
+            message: 'DXF file processed successfully'
+        };
+    } catch (error) {
+        // Check if it's a mapping validation error
+        if (error.message.includes('layers have no mapping rules')) {
+            console.warn(`Skipping file due to unmapped layers: ${error.message}`);
+            return {
+                success: false,
+                skipped: true,
+                reason: 'unmapped_layers',
+                error: error.message
+            };
+        }
+        
+        console.error('Error processing DXF file:', error);
+        return {
+            success: false,
+            error: error.message
+        };
+    }
+});
+
+// Handle settings save/load for batch monitor
+ipcMain.handle('save-batch-settings', async (event, settings) => {
+    try {
+        if (!batchStore && Store) {
+            batchStore = new Store({ name: 'batch-monitor-settings' });
+        }
+        
+        if (batchStore) {
+            Object.keys(settings).forEach(key => {
+                batchStore.set(key, settings[key]);
+            });
+        }
+        
+        return { success: true };
+    } catch (error) {
+        console.error('Error saving batch settings:', error);
+        return { success: false, error: error.message };
+    }
+});
+
+ipcMain.handle('load-batch-settings', async () => {
+    try {
+        if (!batchStore && Store) {
+            batchStore = new Store({ name: 'batch-monitor-settings' });
+        }
+        
+        if (batchStore) {
+            return {
+                inputFolder: batchStore.get('inputFolder', ''),
+                outputFolder: batchStore.get('outputFolder', ''),
+                fileStabilityDelay: batchStore.get('fileStabilityDelay', 10000)
+            };
+        } else {
+            // Return defaults if store not available
+            return {
+                inputFolder: '',
+                outputFolder: '',
+                fileStabilityDelay: 10000
+            };
+        }
+    } catch (error) {
+        console.error('Error loading batch settings:', error);
+        return null;
     }
 });

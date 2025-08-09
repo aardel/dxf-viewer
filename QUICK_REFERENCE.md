@@ -1,4 +1,4 @@
-# Lasercomb DXF Studio - Quick Reference
+# Lasercomb Studio - Quick Reference
 
 ## 🎯 Path Optimization System
 
@@ -84,7 +84,47 @@ Phase 3: T22 (Border Cuts)   ← Borders last
 - **Precision**: Decimal places for coordinates
 - **Output Format**: DIN/G-code customization
 
-## 🔧 Troubleshooting
+## � Batch Monitor (Automated Processing)
+
+### Quick Setup
+1. **Open**: Tools → Batch Monitor
+2. **Input Folder**: Select folder to monitor for DXF files
+3. **Output Folder**: Select destination for DIN files
+4. **Start**: Click "Start Monitoring"
+
+### Processing Logic
+- **Auto-Detection**: Monitors for new `.dxf` files
+- **Stability Wait**: 10-second delay ensures complete file transfer
+- **Smart Filtering**: Only processes files with complete layer mappings
+- **Global Filters**: Automatically applies import filter rules
+
+### Processing Outcomes
+- ✅ **Success**: All layers mapped → DIN file generated
+- ⚠️ **Skipped**: Incomplete mappings → File ignored (by design)
+- ❌ **Error**: Technical failure → Check logs
+
+### Batch Processing Tips
+- **Setup Global Filters**: Configure layer-to-tool mappings
+- **Verify Rules**: Test with sample files first
+- **Monitor Logs**: Check processing status and errors
+- **Output Organization**: Use consistent naming conventions
+
+### File Requirements
+Files must meet these criteria for automatic processing:
+- Valid DXF format
+- All layers mapped via global import filters
+- No manual intervention required
+- Complete layer validation passes
+
+Example successful processing:
+```
+✅ test.dxf processed successfully
+   - 4 layers, all mapped
+   - Generated: test.din (2.4KB)
+   - Processing time: 1.2s
+```
+
+## �🔧 Troubleshooting
 
 ### Optimization Issues
 - **Wrong cutting order**: Check priority configuration

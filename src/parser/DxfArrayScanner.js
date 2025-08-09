@@ -1,15 +1,9 @@
 /**
- * DxfArrayScanner
- *
- * Based off the AutoCad 2012 DXF Reference
- * http://images.autodesk.com/adsk/files/autocad_2012_pdf_dxf-reference_enu.pdf
- *
- * Reads through an array representing lines of a dxf file. Takes an array and
- * provides an easy interface to extract group code and value pairs.
- * @param data - an array where each element represents a line in the dxf file
+ * Scanner for DXF array data
+ * @param data - array of DXF data
  * @constructor
  */
-export default function DxfArrayScanner(data) {
+function DxfArrayScanner(data) {
     this._pointer = 0;
     this._data = data;
     this._eof = false;
@@ -149,3 +143,5 @@ function parseBoolean(str) {
     if(str === '1') return true;
     throw TypeError('String \'' + str + '\' cannot be cast to Boolean type');
 }
+
+module.exports = DxfArrayScanner;

@@ -1,7 +1,6 @@
+const helpers = require("../ParseHelpers.js");
 
-import * as helpers from "../ParseHelpers.js"
-
-export default function EntityParser() {}
+function EntityParser() {}
 
 EntityParser.ForEntityName = '3DFACE';
 
@@ -81,3 +80,5 @@ function parse3dFaceVertices(scanner, curr) {
     scanner.rewind();
     return vertices;
 };
+
+module.exports = EntityParser;
