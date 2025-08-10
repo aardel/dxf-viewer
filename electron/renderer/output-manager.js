@@ -538,23 +538,110 @@ function setupEventListeners() {
     // Profile management buttons
     const newProfileBtn = document.getElementById('newProfileBtn');
     if (newProfileBtn) {
-        newProfileBtn.addEventListener('click', () => {
-            showInfo('New profile functionality coming soon');
+        newProfileBtn.addEventListener('click', async () => {
+            const profileName = prompt('Enter new profile name:');
+            if (profileName && profileName.trim()) {
+                try {
+                    // Create a new profile based on current one
+                    const newProfile = {
+                        name: profileName.trim(),
+                        description: 'New profile created from ' + (currentProfile?.name || 'default'),
+                        filename: `${profileName.trim().toLowerCase().replace(/\s+/g, '_')}.xml`
+                    };
+                    
+                    // Save the new profile
+                    await window.electronAPI.saveXmlProfile(newProfile.filename, {
+                        profileInfo: {
+                            name: newProfile.name,
+                            description: newProfile.description,
+                            version: '1.0',
+                            created: new Date().toISOString(),
+                            lastModified: new Date().toISOString(),
+                            author: 'User'
+                        },
+                        units: {
+                            feedInchMachine: false
+                        }
+                    });
+                    
+                    // Refresh the profile list
+                    await loadAvailableProfiles();
+                    showSuccess(`Profile "${newProfile.name}" created successfully`);
+                } catch (error) {
+                    console.error('Error creating new profile:', error);
+                    showError('Failed to create new profile');
+                }
+            }
         });
     }
     
     const copyProfileBtn = document.getElementById('copyProfileBtn');
     if (copyProfileBtn) {
-        copyProfileBtn.addEventListener('click', () => {
-            showInfo('Copy profile functionality coming soon');
+        copyProfileBtn.addEventListener('click', async () => {
+            if (!currentProfile) {
+                showError('No profile selected to copy');
+                return;
+            }
+            
+            const copyName = prompt(`Enter name for copy of "${currentProfile.name}":`, `${currentProfile.name} Copy`);
+            if (copyName && copyName.trim()) {
+                try {
+                    // Copy the current profile
+                    const copyProfile = {
+                        name: copyName.trim(),
+                        description: `Copy of ${currentProfile.name}`,
+                        filename: `${copyName.trim().toLowerCase().replace(/\s+/g, '_')}.xml`
+                    };
+                    
+                    // Load the current profile data and save as copy
+                    const currentProfileData = await window.electronAPI.loadXmlProfile(currentProfile.filename || currentProfile.id);
+                    if (currentProfileData) {
+                        // Update the profile info for the copy
+                        currentProfileData.profileInfo = {
+                            ...currentProfileData.profileInfo,
+                            name: copyProfile.name,
+                            description: copyProfile.description,
+                            lastModified: new Date().toISOString()
+                        };
+                        
+                        await window.electronAPI.saveXmlProfile(copyProfile.filename, currentProfileData);
+                        
+                        // Refresh the profile list
+                        await loadAvailableProfiles();
+                        showSuccess(`Profile "${copyProfile.name}" created successfully`);
+                    } else {
+                        showError('Failed to load current profile data');
+                    }
+                } catch (error) {
+                    console.error('Error copying profile:', error);
+                    showError('Failed to copy profile');
+                }
+            }
         });
     }
     
     const deleteProfileBtn = document.getElementById('deleteProfileBtn');
     if (deleteProfileBtn) {
-        deleteProfileBtn.addEventListener('click', () => {
-            if (currentProfile && confirm(`Are you sure you want to delete profile "${currentProfile.name}"?`)) {
-                showInfo('Delete profile functionality coming soon');
+        deleteProfileBtn.addEventListener('click', async () => {
+            if (!currentProfile) {
+                showError('No profile selected to delete');
+                return;
+            }
+            
+            const confirmDelete = confirm(`Are you sure you want to delete profile "${currentProfile.name}"?\n\nThis action cannot be undone.`);
+            if (confirmDelete) {
+                try {
+                    // Delete the profile file
+                    await window.electronAPI.deleteXmlProfile(currentProfile.filename || currentProfile.id);
+                    
+                    // Refresh the profile list
+                    await loadAvailableProfiles();
+                    await loadCurrentProfile(); // Load a new current profile
+                    showSuccess(`Profile "${currentProfile.name}" deleted successfully`);
+                } catch (error) {
+                    console.error('Error deleting profile:', error);
+                    showError('Failed to delete profile');
+                }
             }
         });
     }
