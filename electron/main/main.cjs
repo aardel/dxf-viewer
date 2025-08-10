@@ -927,12 +927,58 @@ ipcMain.handle('open-line-types-manager', async () => {
 // Load postprocessor configuration file
 ipcMain.handle('load-postprocessor-config', async (event, profileName) => {
     try {
-        const configPath = getConfigPath(`postprocessors/${profileName}.json`);
-        const configData = fs.readFileSync(configPath, 'utf8');
-        return JSON.parse(configData);
+        // Clean the profile name to remove any whitespace or newlines
+        const cleanProfileName = profileName ? profileName.trim().replace(/[\r\n]/g, '') : '';
+        
+        if (!cleanProfileName) {
+            console.log('No profile name provided, returning default config');
+            return {
+                units: 'mm',
+                includeLineNumbers: true,
+                scaleCommand: '',
+                initialCommands: 'G90\nG60 X0',
+                headerTemplate: '',
+                footerTemplate: '',
+                enableLineNumbers: true,
+                enableComments: true,
+                validateWidths: true
+            };
+        }
+        
+        const configPath = getConfigPath(`postprocessors/${cleanProfileName}.json`);
+        
+        if (fs.existsSync(configPath)) {
+            const configData = fs.readFileSync(configPath, 'utf8');
+            return JSON.parse(configData);
+        } else {
+            console.log(`Postprocessor config file not found: ${configPath}, returning default config`);
+            // Return default configuration instead of throwing error
+            return {
+                units: 'mm',
+                includeLineNumbers: true,
+                scaleCommand: '',
+                initialCommands: 'G90\nG60 X0',
+                headerTemplate: '',
+                footerTemplate: '',
+                enableLineNumbers: true,
+                enableComments: true,
+                validateWidths: true
+            };
+        }
     } catch (error) {
         console.error('Error loading postprocessor config:', error);
-        throw new Error(`Failed to load postprocessor config: ${error.message}`);
+        // Return default configuration instead of throwing error
+        return {
+            units: 'mm',
+            includeLineNumbers: true,
+            scaleCommand: '',
+            initialCommands: 'G90\nG60 X0',
+            headerTemplate: '',
+            footerTemplate: '',
+            enableLineNumbers: true,
+            enableComments: true,
+            validateWidths: true
+        };
     }
 });
 
@@ -980,7 +1026,14 @@ ipcMain.handle('load-optimization-config', async () => {
 // Save postprocessor configuration file
 ipcMain.handle('save-postprocessor-config', async (event, profileName, configData) => {
     try {
-        const configPath = path.join(__dirname, '../../CONFIG/postprocessors', `${profileName}.json`);
+        // Clean the profile name to remove any whitespace or newlines
+        const cleanProfileName = profileName ? profileName.trim().replace(/[\r\n]/g, '') : '';
+        
+        if (!cleanProfileName) {
+            throw new Error('No profile name provided');
+        }
+        
+        const configPath = getConfigPath(`postprocessors/${cleanProfileName}.json`);
         const configDir = path.dirname(configPath);
         
         // Ensure directory exists
@@ -1188,14 +1241,21 @@ ipcMain.handle('get-main-window-current-profile', async () => {
                 (() => {
                     const select = document.getElementById('postprocessorProfile');
                     if (select && select.value && select.value !== 'custom') {
-                        return select.value;
+                        return select.value.trim(); // Remove whitespace
                     }
                     return null;
                 })()
             `);
             
             if (result) {
-                return result;
+                // Map display names to actual filenames if needed
+                const profileMap = {
+                    'MTL_Flatbed': 'mtl.xml',
+                    'Default Metric': 'default_metric.xml',
+                    'Default Inch': 'default_inch.xml'
+                };
+                
+                return profileMap[result] || result;
             }
         }
         
