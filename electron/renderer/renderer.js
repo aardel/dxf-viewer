@@ -1176,12 +1176,22 @@ function updateFormatIndicator(ext) {
         if (currentFileFormat === 'dds') {
             const geoms = window.unifiedGeometries || [];
             let unit = geoms.find(g => g?.properties?.unitCode)?.properties?.unitCode || 'unknown';
+            // Fallback to display preference if detection is unknown
+            if (unit === 'unknown') {
+                const pref = getUserUnitPreference();
+                if (pref === 'mm' || pref === 'in') unit = pref;
+            }
             label = `DDS / ${unit}`;
         } else if (currentFileFormat === 'cf2' || currentFileFormat === 'cff2') {
             // Try inference
             const geoms = window.unifiedGeometries || [];
             const inf = inferUnitsFromGeometry(geoms);
-            label = `CFF2 / ${inf.unit}${inf.confidence ? ` (${Math.round(inf.confidence*100)}%)` : ''}`;
+            let unit = inf.unit;
+            if (unit === 'unknown') {
+                const pref = getUserUnitPreference();
+                if (pref === 'mm' || pref === 'in') unit = pref;
+            }
+            label = `CFF2 / ${unit}${inf.confidence ? ` (${Math.round(inf.confidence*100)}%)` : ''}`;
         } else if (currentFileFormat === 'dxf') {
             const u = getDXFUnits();
             label = `DXF / ${u.unit}`;
@@ -1515,10 +1525,18 @@ function updateUnifiedDimensions() {
         if (currentFileFormat === 'dds') {
             const u = geoms.find(g => g.properties?.unitCode)?.properties?.unitCode || 'unknown';
             unit = u;
+            if (unit === 'unknown') {
+                const pref = getUserUnitPreference();
+                if (pref === 'mm' || pref === 'in') unit = pref;
+            }
             unitName = (u === 'mm' ? 'Millimeters' : (u === 'in' ? 'Inches' : 'Unknown'));
         } else if (currentFileFormat === 'cf2' || currentFileFormat === 'cff2') {
             const inf = inferUnitsFromGeometry(geoms);
             unit = inf.unit;
+            if (unit === 'unknown') {
+                const pref = getUserUnitPreference();
+                if (pref === 'mm' || pref === 'in') unit = pref;
+            }
             unitName = (unit === 'mm' ? 'Millimeters' : unit === 'in' ? 'Inches' : 'Unknown');
         }
         dimsEl.textContent = `${w.toFixed(3)} × ${h.toFixed(3)} ${unit}${scaleNote}`;
