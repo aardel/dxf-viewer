@@ -267,6 +267,7 @@ body {
     flex-direction: column;
     transition: width 0.3s ease, min-width 0.3s ease;
     position: relative; /* anchor children (tabs) */
+    height: calc(100vh - 100px); /* fill vertical space under header */
     box-shadow: -4px 0 8px rgba(0,0,0,0.3);
 }
 
@@ -480,14 +481,10 @@ label.group-by-pt input[type="checkbox"] {
     border-top: 1px solid #404040;
     background: linear-gradient(135deg, #3a3a3a 0%, #2d2d2d 100%);
     box-shadow: 0 2px 4px rgba(0,0,0,0.2);
-    margin-top: auto; /* pin to bottom of side panel */
+    margin-top: auto; /* pin to bottom of side panel via flex */
     width: 100%;
     flex-shrink: 0;
-    position: absolute; /* anchor within panel */
-    bottom: 0;
-    left: 0;
-    right: 0;
-    z-index: 1;
+    position: static; /* remain inside panel flow */
 }
 
 .tab-button {
