@@ -472,6 +472,8 @@ label.group-by-pt input[type="checkbox"] {
 
 .panel-tabs {
     display: flex;
+    flex-direction: row; /* force horizontal layout */
+    align-items: center;
     gap: 8px;
     padding: 8px 8px 0 8px;
     border-top: 1px solid #404040;
@@ -480,7 +482,7 @@ label.group-by-pt input[type="checkbox"] {
 }
 
 .tab-button {
-    flex: 1;
+    flex: 0 0 auto; /* size to content; avoid stretching into a vertical bar */
     background: none;
     border: none;
     color: #bbb;
