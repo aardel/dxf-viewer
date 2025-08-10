@@ -191,10 +191,27 @@ const fileSizeEl = document.getElementById('fileSize');
 const headerEl = document.querySelector('.header');
 const sidePanelEl = document.getElementById('sidePanel');
 const togglePanelBtn = document.getElementById('togglePanelBtn');
+// Header shortcuts
+document.getElementById('openGlobalFilterShortcut')?.addEventListener('click', ()=>{
+    if (window.electronAPI?.openGlobalImportFilterManager) {
+        window.electronAPI.openGlobalImportFilterManager();
+    }
+});
+
+const groupByPtToggleEl = document.getElementById('groupByPtToggle');
+groupByPtToggleEl?.addEventListener('change', ()=>{
+    localStorage.setItem('groupByPt', groupByPtToggleEl.checked ? '1' : '0');
+    updateImportPanelForUnified();
+});
+if (groupByPtToggleEl) groupByPtToggleEl.checked = localStorage.getItem('groupByPt') === '1';
+// Settings overrides
+const importUnitOverrideEl = document.getElementById('importUnitOverride');
+const outputUnitOverrideEl = document.getElementById('outputUnitOverride');
 // Rules cache for exact-key mapping (DXF/DDS/CFF2)
 let exactRulesCache = new Map(); // key: `${format}|${key}` -> { lineTypeId, enabled }
 // Internal line types cache for display color resolution
 let internalLineTypesCache = [];
+let unifiedUnitCode = 'unknown';
 
 async function refreshRulesCache() {
     try {
@@ -234,6 +251,25 @@ if (window.electronAPI?.onRulesUpdated) {
         } catch {}
     });
 }
+
+// Persist and read unit overrides
+function loadUnitOverrides() {
+    try {
+        const iu = localStorage.getItem('importUnitOverride') || 'auto';
+        const ou = localStorage.getItem('outputUnitOverride') || 'mm';
+        if (importUnitOverrideEl) importUnitOverrideEl.value = iu;
+        if (outputUnitOverrideEl) outputUnitOverrideEl.value = ou;
+    } catch {}
+}
+function saveUnitOverrides() {
+    try {
+        if (importUnitOverrideEl) localStorage.setItem('importUnitOverride', importUnitOverrideEl.value || 'auto');
+        if (outputUnitOverrideEl) localStorage.setItem('outputUnitOverride', outputUnitOverrideEl.value || 'mm');
+    } catch {}
+}
+loadUnitOverrides();
+importUnitOverrideEl?.addEventListener('change', ()=>{ saveUnitOverrides(); updateUnifiedDimensions(); updateFormatIndicator(currentFileFormat); });
+outputUnitOverrideEl?.addEventListener('change', ()=>{ saveUnitOverrides(); });
 
 const lineTypesBtn = document.getElementById('lineTypesBtn');
 const panelToggleIcon = document.getElementById('panelToggleIcon');
@@ -283,9 +319,18 @@ function ensureOverlayCanvas() {
         const rect = viewerEl.getBoundingClientRect();
         overlayCanvas.width = Math.max(1, Math.floor(rect.width));
         overlayCanvas.height = Math.max(1, Math.floor(rect.height));
-        drawOverlay();
+        // After container size changes, refit geometry to keep it in view
+        if (window.unifiedGeometries && window.unifiedGeometries.length) {
+            fitOverlayView();
+        } else {
+            drawOverlay();
+        }
     };
     window.addEventListener('resize', overlayResizeHandler);
+    // Also observe viewer size changes not caused by window resize
+    const ro = new ResizeObserver(() => overlayResizeHandler());
+    ro.observe(viewerEl);
+    overlayCanvas._ro = ro;
     overlayResizeHandler();
 
     // Redraw when bridge overlay toggle changes
@@ -341,6 +386,10 @@ function destroyOverlayCanvas() {
             window.removeEventListener('resize', overlayResizeHandler);
             overlayResizeHandler = null;
         }
+        if (overlayCanvas && overlayCanvas._ro) {
+            try { overlayCanvas._ro.disconnect(); } catch {}
+            overlayCanvas._ro = null;
+        }
         if (overlayCanvas && overlayCanvas.parentNode) {
             overlayCanvas.parentNode.removeChild(overlayCanvas);
         }
@@ -368,6 +417,63 @@ function getUnifiedBounds(geometries) {
     }
     if (!isFinite(minX)) return null;
     return { minX, minY, maxX, maxY };
+}
+
+// Infer file-level units (mm vs inches) from geometry coordinates
+function inferUnitsFromGeometry(geoms) {
+    try {
+        const b = getUnifiedBounds(geoms);
+        if (!b) return { unit: 'unknown', confidence: 0 };
+        const w = Math.abs(b.maxX - b.minX);
+        const h = Math.abs(b.maxY - b.minY);
+        // Collect sample points (cap to 200 for speed)
+        const points = [];
+        for (let i = 0; i < geoms.length && points.length < 200; i++) {
+            const g = geoms[i];
+            if (g.start) { points.push(g.start.x, g.start.y); }
+            if (g.end) { points.push(g.end.x, g.end.y); }
+            if (g.center) { points.push(g.center.x, g.center.y); }
+        }
+        if (points.length < 4) return { unit: 'unknown', confidence: 0 };
+
+        // Grid residual helper
+        const avgResidual = (vals, step, convert) => {
+            let acc = 0, n = 0;
+            for (let i = 0; i < vals.length; i++) {
+                const v = convert ? convert(vals[i]) : vals[i];
+                const r = v % step;
+                const d = Math.min(r, step - r);
+                acc += (d / step);
+                n++;
+            }
+            return n ? acc / n : 1;
+        };
+        // Hypothesis MM: raw units are millimeters
+        const residualMm = avgResidual(points, 0.1);
+        // Hypothesis IN: raw units are inches → convert to inches then measure against 1/16 grid
+        const residualIn = avgResidual(points, 1/16, (x) => x); // points presumed already inches in this hypo
+        // But our raw may be mm when testing inches; convert values to inches in that case:
+        const residualRawAsMmToIn = avgResidual(points, 1/16, (x) => x / 25.4);
+
+        // Size plausibility (in mm)
+        const plausible = (valMm) => (valMm >= 20 && valMm <= 8000) ? 1 : 0;
+        const sizeScoreMm = Math.min(1, (plausible(w) + plausible(h)) / 2);
+        const sizeScoreIn = Math.min(1, (plausible(w * 25.4) + plausible(h * 25.4)) / 2);
+
+        // Combine scores (lower residual is better)
+        const gridScoreMm = 1 - Math.min(1, residualMm);
+        const gridScoreIn = 1 - Math.min(1, residualRawAsMmToIn);
+        const scoreMm = 0.6 * gridScoreMm + 0.4 * sizeScoreMm;
+        const scoreIn = 0.6 * gridScoreIn + 0.4 * sizeScoreIn;
+        if (Math.max(scoreMm, scoreIn) < 0.2 || Math.abs(scoreMm - scoreIn) < 0.1) {
+            return { unit: 'unknown', confidence: 0 };
+        }
+        return (scoreMm > scoreIn)
+            ? { unit: 'mm', confidence: +(scoreMm - scoreIn).toFixed(2) }
+            : { unit: 'in', confidence: +(scoreIn - scoreMm).toFixed(2) };
+    } catch {
+        return { unit: 'unknown', confidence: 0 };
+    }
 }
 
 function fitOverlayViewInitial() {
@@ -507,58 +613,147 @@ function updateImportPanelForUnified() {
         thead = '<tr><th>Output</th><th>Color</th><th>Key</th><th>→</th><th>Mapping</th></tr>';
     }
 
-    const rows = keys.map((k) => {
-        const g = overlayGroups[k];
-        const length = g.length;
-        if (isCff2) {
-            const parts = k.split('-');
-            const pen = parts[0] ?? '';
-            const layer = parts.slice(1).join('-');
-            const lineTypeName = resolveMappedLineTypeName('cff2', k);
-            const mappedClass = lineTypeName ? 'mapped' : 'unmapped';
+    const doGroupByPt = (groupByPtToggleEl && groupByPtToggleEl.checked);
+
+    if (doGroupByPt && (isCff2 || isDds)) {
+        // Build grouped rows by Pt value
+        const colSpan = isCff2 ? 7 : 6;
+        const groups = new Map();
+        keys.forEach((k) => {
+            if (isCff2) {
+                const pen = (k.split('-')[0] || '0');
+                const ptKey = Number(pen || 0).toFixed(2);
+                if (!groups.has(ptKey)) groups.set(ptKey, []);
+                groups.get(ptKey).push(k);
+            } else if (isDds) {
+                const [color, rawKerf, unit] = k.split('|');
+                const ptVal = (unit==='in' ? Number(rawKerf||0)*72 : unit==='mm' ? Number(rawKerf||0)/25.4*72 : Number(rawKerf||0));
+                const ptKey = ptVal.toFixed(2);
+                if (!groups.has(ptKey)) groups.set(ptKey, []);
+                groups.get(ptKey).push(k);
+            }
+        });
+        const sorted = Array.from(groups.keys()).sort((a,b)=>parseFloat(a)-parseFloat(b));
+        const parts = [];
+        sorted.forEach((ptKey, idx) => {
+            const gid = `grp_${ptKey.replace(/\./g,'_')}`;
+            // Header row
+            parts.push(`
+                <tr class="group-row" data-group-id="${gid}">
+                  <td colspan="${colSpan}" style="text-align:left; cursor:pointer;">
+                    <span class="twisty">▶</span> <strong>${ptKey} pt</strong> · ${groups.get(ptKey).length} item(s)
+                  </td>
+                </tr>
+            `);
+            // Child rows hidden by default
+            groups.get(ptKey).forEach((k) => {
+                if (isCff2) {
+                    const g = overlayGroups[k];
+                    const [pen, ...rest] = k.split('-');
+                    const layer = rest.join('-');
+                    const lineTypeName = resolveMappedLineTypeName('cff2', k);
+                    const mappedClass = lineTypeName ? 'mapped' : 'unmapped';
+                    parts.push(`
+                      <tr class="group-child" data-parent-group="${gid}" style="display:none;" data-key="${k}">
+                        <td><input type="checkbox" class="unified-layer-visible output-toggle ${mappedClass}" data-key="${k}" ${g.visible ? 'checked' : ''} /></td>
+                        <td><span class="color-swatch" style="background:${g.displayColor}"></span></td>
+                        <td>${Number(pen || 0).toFixed(2)}</td>
+                        <td>${pen}</td>
+                        <td>${layer}</td>
+                        <td><button class="btn btn-small btn-secondary goto-mapping-btn" data-key="${k}" title="Open Mapping">→</button></td>
+                        <td class="lt-name">${lineTypeName || 'UNMAPPED'}</td>
+                      </tr>`);
+                } else {
+                    const g = overlayGroups[k];
+                    const [color, rawKerf, unit] = k.split('|');
+                    const lineTypeName = resolveMappedLineTypeName('dds', k);
+                    const mappedClass = lineTypeName ? 'mapped' : 'unmapped';
+                    parts.push(`
+                      <tr class="group-child" data-parent-group="${gid}" style="display:none;" data-key="${k}">
+                        <td><input type="checkbox" class="unified-layer-visible output-toggle ${mappedClass}" data-key="${k}" ${g.visible ? 'checked' : ''} /></td>
+                        <td><span class="color-swatch" style="background:${g.displayColor}"></span></td>
+                        <td title="raw: ${rawKerf} ${unit}">${(unit==='in' ? Number(rawKerf||0)*72 : unit==='mm' ? Number(rawKerf||0)/25.4*72 : Number(rawKerf||0)).toFixed(2)}</td>
+                        <td>${color}</td>
+                        <td><button class="btn btn-small btn-secondary goto-mapping-btn" data-key="${k}" title="Open Mapping">→</button></td>
+                        <td class="lt-name">${lineTypeName || 'UNMAPPED'}</td>
+                      </tr>`);
+                }
+            });
+        });
+        const rows = parts.join('');
+        // Inject
+        layerTableEl.innerHTML = `
+          <div class="rules-table-container">
+            <table class="rules-table" id="unifiedLineTypesTable">
+              <thead>${thead}</thead>
+              <tbody>${rows}</tbody>
+            </table>
+          </div>`;
+        // Add togglers
+        layerTableEl.querySelectorAll('tr.group-row').forEach(row => {
+            row.addEventListener('click', () => {
+                const gid = row.getAttribute('data-group-id');
+                const open = row.classList.toggle('open');
+                const twist = row.querySelector('.twisty');
+                if (twist) twist.textContent = open ? '▼' : '▶';
+                layerTableEl.querySelectorAll(`tr.group-child[data-parent-group="${gid}"]`).forEach(ch => {
+                    ch.style.display = open ? '' : 'none';
+                });
+            });
+        });
+        // Continue with listeners for checkboxes, mapping btns, etc. below
+    } else {
+        const rows = keys.map((k) => {
+            const g = overlayGroups[k];
+            const length = g.length;
+            if (isCff2) {
+                const parts = k.split('-');
+                const pen = parts[0] ?? '';
+                const layer = parts.slice(1).join('-');
+                const lineTypeName = resolveMappedLineTypeName('cff2', k);
+                const mappedClass = lineTypeName ? 'mapped' : 'unmapped';
+                return `
+                  <tr data-key="${k}">
+                    <td><input type="checkbox" class="unified-layer-visible output-toggle ${mappedClass}" data-key="${k}" ${g.visible ? 'checked' : ''} /></td>
+                    <td><span class="color-swatch" style="background:${g.displayColor}"></span></td>
+                    <td>${Number(pen || 0).toFixed(2)}</td>
+                    <td>${pen}</td>
+                    <td>${layer}</td>
+                    <td><button class="btn btn-small btn-secondary goto-mapping-btn" data-key="${k}" title="Open Mapping">→</button></td>
+                    <td class="lt-name">${lineTypeName || 'UNMAPPED'}</td>
+                  </tr>`;
+            }
+            if (isDds) {
+                const [color, rawKerf, unit] = k.split('|');
+                const lineTypeName = resolveMappedLineTypeName('dds', k);
+                const mappedClass = lineTypeName ? 'mapped' : 'unmapped';
+                return `
+                  <tr data-key="${k}">
+                    <td><input type="checkbox" class="unified-layer-visible output-toggle ${mappedClass}" data-key="${k}" ${g.visible ? 'checked' : ''} /></td>
+                    <td><span class="color-swatch" style="background:${g.displayColor}"></span></td>
+                    <td title="raw: ${rawKerf} ${unit}">${(unit==='in' ? Number(rawKerf||0)*72 : unit==='mm' ? Number(rawKerf||0)/25.4*72 : Number(rawKerf||0)).toFixed(2)}</td>
+                    <td>${color}</td>
+                    <td><button class="btn btn-small btn-secondary goto-mapping-btn" data-key="${k}" title="Open Mapping">→</button></td>
+                    <td class="lt-name">${lineTypeName || 'UNMAPPED'}</td>
+                  </tr>`;
+            }
             return `
               <tr data-key="${k}">
-                <td><input type="checkbox" class="unified-layer-visible output-toggle ${mappedClass}" data-key="${k}" ${g.visible ? 'checked' : ''} /></td>
+                <td><input type="checkbox" class="unified-layer-visible output-toggle unmapped" data-key="${k}" ${g.visible ? 'checked' : ''} /></td>
                 <td><span class="color-swatch" style="background:${g.displayColor}"></span></td>
-                <td>${Number(pen || 0).toFixed(2)}</td>
-                <td>${pen}</td>
-                <td>${layer}</td>
+                <td>${k}</td>
                 <td><button class="btn btn-small btn-secondary goto-mapping-btn" data-key="${k}" title="Open Mapping">→</button></td>
-                <td class="lt-name">${lineTypeName || 'UNMAPPED'}</td>
+                <td class="lt-name">UNMAPPED</td>
               </tr>`;
-        }
-        if (isDds) {
-            const [color, rawKerf, unit] = k.split('|');
-            const lineTypeName = resolveMappedLineTypeName('dds', k);
-            const mappedClass = lineTypeName ? 'mapped' : 'unmapped';
-            return `
-              <tr data-key="${k}">
-                <td><input type="checkbox" class="unified-layer-visible output-toggle ${mappedClass}" data-key="${k}" ${g.visible ? 'checked' : ''} /></td>
-                <td><span class="color-swatch" style="background:${g.displayColor}"></span></td>
-                <td title="raw: ${rawKerf} ${unit}">${(unit==='in' ? Number(rawKerf||0)*72 : unit==='mm' ? Number(rawKerf||0)/25.4*72 : Number(rawKerf||0)).toFixed(2)}</td>
-                <td>${color}</td>
-                <td><button class="btn btn-small btn-secondary goto-mapping-btn" data-key="${k}" title="Open Mapping">→</button></td>
-                <td class="lt-name">${lineTypeName || 'UNMAPPED'}</td>
-              </tr>`;
-        }
-        return `
-          <tr data-key="${k}">
-            <td><input type="checkbox" class="unified-layer-visible output-toggle unmapped" data-key="${k}" ${g.visible ? 'checked' : ''} /></td>
-            <td><span class="color-swatch" style="background:${g.displayColor}"></span></td>
-            <td>${k}</td>
-            <td><button class="btn btn-small btn-secondary goto-mapping-btn" data-key="${k}" title="Open Mapping">→</button></td>
-            <td class="lt-name">UNMAPPED</td>
-          </tr>`;
-    }).join('');
-
-    layerTableEl.innerHTML = `
-      <div class="rules-table-container">
-        <table class="rules-table" id="unifiedLineTypesTable">
-          <thead>${thead}</thead>
-          <tbody>${rows}</tbody>
-        </table>
-      </div>`;
-
+        }).join('');
+        layerTableEl.innerHTML = `
+          <div class="rules-table-container">
+            <table class="rules-table" id="unifiedLineTypesTable">
+              <thead>${thead}</thead>
+              <tbody>${rows}</tbody>
+            </table>
+          </div>`;
+    }
     // Enable column drag-reorder and width persist (like unified-viewer)
     (function makeHeadersDraggable(tableId, storageKey){
         const table = document.getElementById(tableId);
@@ -967,10 +1162,16 @@ function updateFormatIndicator(ext) {
         let label = map[currentFileFormat] || '';
         if (currentFileFormat === 'dds') {
             const geoms = window.unifiedGeometries || [];
-            const unit = geoms.find(g => g?.properties?.unitCode)?.properties?.unitCode || 'unknown';
+            let unit = geoms.find(g => g?.properties?.unitCode)?.properties?.unitCode || 'unknown';
+            const override = importUnitOverrideEl?.value || 'auto';
+            if (override !== 'auto') unit = override;
             label = `DDS / ${unit}`;
         } else if (currentFileFormat === 'cf2' || currentFileFormat === 'cff2') {
-            label = 'CFF2 / pt';
+            // Try inference
+            const geoms = window.unifiedGeometries || [];
+            const override = importUnitOverrideEl?.value || 'auto';
+            const inf = override !== 'auto' ? { unit: override, confidence: 0 } : inferUnitsFromGeometry(geoms);
+            label = `CFF2 / ${inf.unit}${inf.confidence ? ` (${Math.round(inf.confidence*100)}%)` : ''}`;
         } else if (currentFileFormat === 'dxf') {
             const u = getDXFUnits();
             label = `DXF / ${u.unit}`;
@@ -987,9 +1188,9 @@ function updateFormatIndicator(ext) {
     if (showBridgesContainerEl) {
         showBridgesContainerEl.style.display = isBridgedFormat ? 'inline-flex' : 'none';
     }
-    // Default bridges overlay to off for DDS/CFF2 to avoid confusion when positions differ
-    if (isBridgedFormat && showBridgesToggleEl) {
-        showBridgesToggleEl.checked = false;
+    // Default bridges overlay to ON for all formats
+    if (showBridgesToggleEl) {
+        showBridgesToggleEl.checked = true;
     }
 }
 
@@ -1072,62 +1273,7 @@ let isResizing = false;
 let startX = 0;
 let startWidth = 0;
 
-resizeHandleEl.addEventListener('mousedown', (e) => {
-    isResizing = true;
-    startX = e.clientX;
-    startWidth = parseInt(document.defaultView.getComputedStyle(sidePanelEl).width, 10);
-    resizeHandleEl.classList.add('resizing');
-    document.body.style.userSelect = 'none';
-    document.body.style.cursor = 'col-resize';
-});
-
-document.addEventListener('mousemove', (e) => {
-    if (!isResizing) return;
-    
-    const dx = startX - e.clientX; // Negative because we're resizing from the left edge
-    const newWidth = startWidth + dx;
-    const minWidth = 200;
-    const maxWidth = window.innerWidth * 0.6;
-    
-    if (newWidth >= minWidth && newWidth <= maxWidth) {
-        sidePanelEl.style.width = newWidth + 'px';
-    }
-});
-
-document.addEventListener('mouseup', () => {
-    if (isResizing) {
-        isResizing = false;
-        resizeHandleEl.classList.remove('resizing');
-        document.body.style.userSelect = '';
-        document.body.style.cursor = '';
-        
-        // Trigger viewer resize after panel resize
-        setTimeout(() => {
-            if (viewer && viewer.canvas) {
-                // Get the actual container dimensions
-                const containerEl = document.getElementById('viewer');
-                if (containerEl) {
-                    const rect = containerEl.getBoundingClientRect();
-                    console.log('Container dimensions after resize:', rect.width, rect.height);
-                    
-                    // Force viewer to resize to container dimensions
-                    if (viewer.SetSize) {
-                        viewer.SetSize(Math.floor(rect.width), Math.floor(rect.height));
-                    }
-                    
-                    // Also trigger window resize event as fallback
-                    const resizeEvent = new Event('resize');
-                    window.dispatchEvent(resizeEvent);
-                    
-                    // Force a render
-                    if (viewer.Render) {
-                        viewer.Render();
-                    }
-                }
-            }
-        }, 50);
-    }
-});
+// Disable resizing interactions (fixed width)
 // Layer management functions
 function populateLayerTable(layers) {
     if (!layers || layers.length === 0) {
@@ -1148,7 +1294,7 @@ function populateLayerTable(layers) {
         const displayName = layer.displayName || layerName;
         const hexColor = rgbToHex(layer.color || 0xffffff);
         // ACI (robust): prefer parsed DXF layer color/colorIndex; fallback to computed from hex
-        let aciColor = '';
+            let aciColor = '';
         try {
             const dxfLayer = viewer.parsedDxf?.tables?.layer?.layers?.[layerName];
             const tableAci = (typeof dxfLayer?.color === 'number') ? dxfLayer.color
@@ -1156,7 +1302,7 @@ function populateLayerTable(layers) {
                               : null;
             if (typeof tableAci === 'number') {
                 aciColor = String(tableAci);
-            } else {
+                    } else {
                 // Compute from display hex as last resort
                 const guessed = hexToACI(hexColor);
                 if (typeof guessed === 'number' && !Number.isNaN(guessed)) aciColor = String(guessed);
@@ -1328,6 +1474,41 @@ function updateDrawingDimensions() {
     
     // Update layer status summary
     updateLayerStatus();
+}
+
+// Unified formats (DDS/CFF2): show overall size as-is (no scaling)
+function updateUnifiedDimensions() {
+    try {
+        const dimsEl = drawingDimensionsEl;
+        const unitsEl = drawingUnitsEl;
+        if (!dimsEl || !unitsEl) return;
+        const geoms = window.unifiedGeometries || [];
+        if (!geoms.length) {
+            drawingInfoEl.style.display = 'none';
+            return;
+        }
+        const b = getUnifiedBounds(geoms);
+        if (!b) { drawingInfoEl.style.display = 'none'; return; }
+        const w = Math.abs(b.maxX - b.minX);
+        const h = Math.abs(b.maxY - b.minY);
+        // Determine unit label per format
+        let unit = 'unknown';
+        let unitName = 'Unknown';
+        if (currentFileFormat === 'dds') {
+            const u = geoms.find(g => g.properties?.unitCode)?.properties?.unitCode || 'unknown';
+            const override = importUnitOverrideEl?.value || 'auto';
+            unit = override !== 'auto' ? override : u;
+            unitName = (u === 'mm' ? 'Millimeters' : (u === 'in' ? 'Inches' : 'Unknown'));
+        } else if (currentFileFormat === 'cf2' || currentFileFormat === 'cff2') {
+            const override = importUnitOverrideEl?.value || 'auto';
+            const inf = override !== 'auto' ? { unit: override } : inferUnitsFromGeometry(geoms);
+            unit = inf.unit;
+            unitName = (unit === 'mm' ? 'Millimeters' : unit === 'in' ? 'Inches' : 'Unknown');
+        }
+        dimsEl.textContent = `${w.toFixed(3)} × ${h.toFixed(3)} ${unit}`;
+        unitsEl.textContent = unitName;
+        drawingInfoEl.style.display = 'block';
+    } catch {}
 }
 
 function rgbToHex(color) {
@@ -3034,7 +3215,7 @@ async function handleOpenFile() {
                     // Build groups and UI, then draw so colors are correct on first paint
                     updateImportPanelForUnified();
                     fitOverlayView();
-                    drawOverlay();
+                    updateUnifiedDimensions();
                     showStatus(`Loaded ${fileName} (${window.unifiedGeometries.length} entities)`, 'success');
                     // Layer list is rendered by updateImportPanelForUnified(); do not overwrite it with a placeholder
                 } else {
@@ -3107,6 +3288,7 @@ function initDragAndDrop() {
                 updateImportPanelForUnified();
                 fitOverlayView();
                 drawOverlay();
+                updateUnifiedDimensions();
             } else {
                 throw new Error('Unsupported file type');
             }

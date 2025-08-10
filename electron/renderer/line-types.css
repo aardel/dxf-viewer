@@ -59,13 +59,14 @@ body {
 }
 
 .btn {
-    background: linear-gradient(135deg, #404040, #2f2f2f);
+    background: linear-gradient(135deg, #555 0%, #444 100%);
     color: #ffffff;
-    border: 1px solid #404040;
+    border: 1px solid #555;
     padding: 0.5rem 1rem;
     border-radius: 6px;
     cursor: pointer;
     font-size: 0.9rem;
+    font-weight: 600;
     display: flex;
     align-items: center;
     gap: 0.5rem;
@@ -73,9 +74,10 @@ body {
 }
 
 .btn:hover {
-    background: linear-gradient(135deg, #4a4a4a, #3a3a3a);
-    transform: translateY(-2px);
-    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+    background: linear-gradient(135deg, #444 0%, #333 100%);
+    border-color: #444;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
 }
 
 .btn.active {
@@ -84,59 +86,54 @@ body {
 }
 
 .btn-primary {
-    background: linear-gradient(135deg, #00BFFF, #0099CC);
+    background: linear-gradient(135deg, #00BFFF 0%, #0099CC 100%);
     border-color: #00BFFF;
 }
 
 .btn-primary:hover {
-    background: linear-gradient(135deg, #0099CC, #007399);
-    transform: translateY(-2px);
-    box-shadow: 0 4px 15px rgba(0, 191, 255, 0.4);
+    background: linear-gradient(135deg, #0099CC 0%, #0077AA 100%);
+    box-shadow: 0 4px 12px rgba(0, 191, 255, 0.3);
 }
 
 .btn-success {
-    background: linear-gradient(135deg, #27ae60, #229954);
-    border-color: #27ae60;
+    background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+    border-color: #28a745;
 }
 
 .btn-success:hover {
-    background: linear-gradient(135deg, #229954, #1e8449);
-    transform: translateY(-2px);
-    box-shadow: 0 4px 15px rgba(39, 174, 96, 0.4);
+    background: linear-gradient(135deg, #20c997 0%, #17a2b8 100%);
+    box-shadow: 0 4px 12px rgba(40, 167, 69, 0.3);
 }
 
 .btn-warning {
-    background: linear-gradient(135deg, #f39c12, #e67e22);
-    border-color: #f39c12;
-    color: #ffffff;
+    background: linear-gradient(135deg, #ffc107 0%, #fd7e14 100%);
+    border-color: #ffc107;
+    color: #000;
 }
 
 .btn-warning:hover {
-    background: linear-gradient(135deg, #e67e22, #d35400);
-    transform: translateY(-2px);
-    box-shadow: 0 4px 15px rgba(243, 156, 18, 0.4);
+    background: linear-gradient(135deg, #fd7e14 0%, #e83e8c 100%);
+    box-shadow: 0 4px 12px rgba(255, 193, 7, 0.3);
 }
 
 .btn-danger {
-    background: linear-gradient(135deg, #e74c3c, #c0392b);
-    border-color: #e74c3c;
+    background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+    border-color: #dc3545;
 }
 
 .btn-danger:hover {
-    background: linear-gradient(135deg, #c0392b, #a93226);
-    transform: translateY(-2px);
-    box-shadow: 0 4px 15px rgba(231, 76, 60, 0.4);
+    background: linear-gradient(135deg, #c82333 0%, #a71e2a 100%);
+    box-shadow: 0 4px 12px rgba(220, 53, 69, 0.3);
 }
 
 .btn-secondary {
-    background: linear-gradient(135deg, #6c757d, #5a6268);
-    border-color: #6c757d;
+    background: linear-gradient(135deg, #555 0%, #444 100%);
+    border-color: #555;
 }
 
 .btn-secondary:hover {
-    background: linear-gradient(135deg, #5a6268, #495057);
-    transform: translateY(-2px);
-    box-shadow: 0 4px 15px rgba(108, 117, 125, 0.4);
+    background: linear-gradient(135deg, #444 0%, #333 100%);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
 }
 
 .main-content {
@@ -160,10 +157,10 @@ body {
 }
 
 .line-type-card {
-    background: #fff;
+    background: linear-gradient(135deg, #3a3a3a 0%, #2f2f2f 100%);
     border-radius: 8px;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-    border: 2px solid transparent;
+    border: 1px solid #404040;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.25);
     overflow: hidden;
     transition: all 0.2s ease;
 }
@@ -177,8 +174,8 @@ body {
     display: flex;
     align-items: center;
     padding: 1rem;
-    background: #f8f9fa;
-    border-bottom: 1px solid #e9ecef;
+    background: linear-gradient(135deg, #2d2d2d 0%, #1a1a1a 100%);
+    border-bottom: 1px solid #404040;
 }
 
 .card-icon {
@@ -202,13 +199,14 @@ body {
     margin: 0;
     font-size: 1.1rem;
     font-weight: 600;
-    color: #333;
+    color: #ffffff;
+    text-shadow: 0 1px 2px rgba(0,0,0,0.3);
 }
 
 .card-title p {
     margin: 0;
     font-size: 0.85rem;
-    color: #666;
+    color: #ccc;
 }
 
 .card-body {
@@ -230,14 +228,14 @@ body {
 .detail-label {
     font-size: 0.75rem;
     font-weight: 600;
-    color: #666;
+    color: #aaa;
     text-transform: uppercase;
     margin-bottom: 0.25rem;
 }
 
 .detail-value {
     font-size: 0.9rem;
-    color: #333;
+    color: #ffffff;
     font-weight: 500;
 }
 
@@ -263,9 +261,10 @@ body {
 
 /* Table styles */
 .table-container {
-    background: white;
+    background: linear-gradient(135deg, #3a3a3a 0%, #2f2f2f 100%);
+    border: 1px solid #404040;
     border-radius: 8px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
     overflow: hidden;
     flex: 1;
     display: flex;
@@ -306,15 +305,13 @@ body {
 }
 
 .line-types-table th {
-    background: linear-gradient(135deg, #00BFFF 0%, #0099CC 100%);
-    color: white;
+    background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
+    color: #ffffff;
     font-weight: 600;
-    padding: 16px 12px;
+    padding: 1rem 0.75rem;
     text-align: left;
-    border: none;
-    font-size: 13px;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
+    border-bottom: 1px solid #404040;
+    font-size: 0.9rem;
     position: sticky;
     top: 0;
     text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
@@ -340,9 +337,9 @@ body {
     width: 100%;
     padding: 8px 12px;
     border: 1px solid #404040;
-    border-radius: 4px;
+    border-radius: 6px;
     font-size: 14px;
-    background: #2f2f2f;
+    background: linear-gradient(135deg, #3a3a3a 0%, #2f2f2f 100%);
     color: #ffffff;
     transition: all 0.2s ease;
 }
@@ -350,7 +347,7 @@ body {
 .table-input:focus {
     outline: none;
     border-color: #00BFFF;
-    box-shadow: 0 0 0 3px rgba(0, 191, 255, 0.1);
+    box-shadow: 0 0 0 2px rgba(0, 191, 255, 0.2);
     background: #3a3a3a;
 }
 
@@ -377,9 +374,9 @@ body {
     width: 100%;
     padding: 8px 12px;
     border: 1px solid #404040;
-    border-radius: 4px;
+    border-radius: 6px;
     font-size: 14px;
-    background: #2f2f2f;
+    background: linear-gradient(135deg, #3a3a3a 0%, #2f2f2f 100%);
     color: #ffffff;
     cursor: pointer;
     transition: all 0.2s ease;
@@ -409,7 +406,7 @@ body {
 .color-picker {
     width: 40px;
     height: 30px;
-    border: 2px solid #404040;
+    border: 1px solid #404040;
     border-radius: 6px;
     cursor: pointer;
     padding: 0;
@@ -425,7 +422,7 @@ body {
 .color-value {
     font-family: 'Courier New', monospace;
     font-size: 12px;
-    color: #cccccc;
+    color: #bbbbbb;
     font-weight: 500;
     text-transform: uppercase;
 }
@@ -446,27 +443,27 @@ body {
 }
 
 .linetype-badge.linetype-laser {
-    background: linear-gradient(135deg, #ff4757, #ff3742);
+    background: linear-gradient(135deg, #e74c3c, #c0392b);
     color: white;
 }
 
 .linetype-badge.linetype-milling {
-    background: linear-gradient(135deg, #747d8c, #57606f);
+    background: linear-gradient(135deg, #6c757d, #495057);
     color: white;
 }
 
 .linetype-badge.linetype-plasma {
-    background: linear-gradient(135deg, #ffa502, #ff6348);
-    color: white;
+    background: linear-gradient(135deg, #ffc107, #fd7e14);
+    color: #000;
 }
 
 .linetype-badge.linetype-waterjet {
-    background: linear-gradient(135deg, #3742fa, #2f3542);
+    background: linear-gradient(135deg, #17a2b8, #6f42c1);
     color: white;
 }
 
 .linetype-badge.linetype-engraving {
-    background: linear-gradient(135deg, #2ed573, #1e90ff);
+    background: linear-gradient(135deg, #28a745, #20c997);
     color: white;
 }
 
@@ -481,7 +478,7 @@ body {
     width: 30px;
     height: 20px;
     border-radius: 4px;
-    border: 1px solid #ddd;
+    border: 1px solid rgba(255,255,255,0.2);
     display: inline-block;
 }
 
@@ -494,23 +491,23 @@ body {
 }
 
 .process-laser_cut {
-    background: #ffebee;
-    color: #c62828;
+    background: rgba(220,53,69,0.15);
+    color: #ff6b6b;
 }
 
 .process-laser_engrave {
-    background: #e8f5e8;
-    color: #2e7d32;
+    background: rgba(40,167,69,0.15);
+    color: #2ed573;
 }
 
 .process-cnc_mill {
-    background: #f3e5f5;
-    color: #7b1fa2;
+    background: rgba(23,162,184,0.15);
+    color: #6ab0ff;
 }
 
 .width-value {
     font-weight: 500;
-    color: #333;
+    color: #ffffff;
 }
 
 .width-value::after {
@@ -550,10 +547,10 @@ body {
 }
 
 .modal-content {
-    background: linear-gradient(135deg, #3a3a3a 0%, #2f2f2f 100%);
+    background: #2d2d2d;
     border: 1px solid #404040;
     border-radius: 8px;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6);
     width: 600px;
     max-width: 90vw;
     max-height: 90vh;
@@ -566,7 +563,7 @@ body {
     align-items: center;
     padding: 1rem 1.5rem;
     border-bottom: 1px solid #404040;
-    background: linear-gradient(135deg, #00BFFF 0%, #0099CC 100%);
+    background: linear-gradient(135deg, #2d2d2d 0%, #1a1a1a 100%);
 }
 
 .modal-header h3 {
@@ -578,27 +575,32 @@ body {
 }
 
 .modal-close {
-    background: none;
-    border: none;
-    color: #666;
-    font-size: 1.5rem;
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    color: #ccc;
+    font-size: 1.25rem;
     cursor: pointer;
     padding: 0;
-    width: 24px;
-    height: 24px;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
+    transition: all 0.2s ease;
 }
 
 .modal-close:hover {
-    color: #333;
+    background: rgba(255, 255, 255, 0.2);
+    border-color: rgba(255, 255, 255, 0.3);
+    color: #ffffff;
 }
 
 .modal-body {
     padding: 1.5rem;
     max-height: 60vh;
     overflow-y: auto;
+    background: #2d2d2d;
 }
 
 .form-grid {
@@ -627,9 +629,9 @@ body {
 .form-group select {
     padding: 0.75rem;
     border: 1px solid #404040;
-    border-radius: 4px;
+    border-radius: 6px;
     font-size: 1rem;
-    background: #2f2f2f;
+    background: linear-gradient(135deg, #3a3a3a 0%, #2f2f2f 100%);
     color: #ffffff;
 }
 
@@ -664,7 +666,7 @@ body {
     gap: 0.75rem;
     padding: 1rem 1.5rem;
     border-top: 1px solid #404040;
-    background: linear-gradient(135deg, #3a3a3a 0%, #2f2f2f 100%);
+    background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
     justify-content: space-between;
 }
 
@@ -695,7 +697,7 @@ body {
 }
 
 ::-webkit-scrollbar-track {
-    background: #2f2f2f;
+    background: #2d2d2d;
 }
 
 ::-webkit-scrollbar-thumb {

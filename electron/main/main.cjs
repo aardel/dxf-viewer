@@ -801,9 +801,20 @@ ipcMain.handle('open-mapping-wizard', async () => {
     });
 });
 
+// Keep a single instance of Global Import Filter Manager
+let globalFilterManagerWindow = null;
+
 // Open Global Import Filter Manager window
 ipcMain.handle('open-global-import-filter-manager', async () => {
-    const globalFilterManagerWindow = new BrowserWindow({
+    try {
+        if (globalFilterManagerWindow && !globalFilterManagerWindow.isDestroyed()) {
+            if (globalFilterManagerWindow.isMinimized()) globalFilterManagerWindow.restore();
+            globalFilterManagerWindow.focus();
+            globalFilterManagerWindow.show();
+            return { success: true };
+        }
+
+        globalFilterManagerWindow = new BrowserWindow({
         width: 1400,
         height: 900,
         webPreferences: {
@@ -818,15 +829,20 @@ ipcMain.handle('open-global-import-filter-manager', async () => {
         maximizable: true
     });
 
-    globalFilterManagerWindow.loadFile(path.join(__dirname, '../renderer/global-import-filter.html'));
+        globalFilterManagerWindow.loadFile(path.join(__dirname, '../renderer/global-import-filter.html'));
 
-    if (process.env.NODE_ENV === 'development') {
-        globalFilterManagerWindow.webContents.openDevTools();
+        if (process.env.NODE_ENV === 'development') {
+            globalFilterManagerWindow.webContents.openDevTools();
+        }
+
+        globalFilterManagerWindow.on('closed', () => {
+            globalFilterManagerWindow = null;
+        });
+        return { success: true };
+    } catch (err) {
+        console.error('Failed to open Global Import Filter Manager', err);
+        return { success: false, error: err.message };
     }
-
-    globalFilterManagerWindow.on('closed', () => {
-        globalFilterManagerWindow = null;
-    });
 });
 
 // Open Line Types Manager window

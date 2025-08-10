@@ -104,8 +104,14 @@
         
         <div id="sidePanel" class="side-panel">
             <div class="resize-handle" id="resizeHandle"></div>
-            <div class="panel-header">
-                <h3>Import</h3>
+            <div class="panel-header" style="display:flex; align-items:center; justify-content:space-between; gap:8px;">
+                <h3 style="margin:0;">Import</h3>
+                <div class="panel-actions" style="display:flex; align-items:center; gap:10px;">
+                    <label class="group-by-pt" title="Collapse rows by pointage (DDS/CFF2)">
+                        <input type="checkbox" id="groupByPtToggle"><span>Group by Pt</span>
+                    </label>
+                    <button class="btn btn-secondary btn-small" id="openGlobalFilterShortcut" title="Open Global Mapping Manager">↗</button>
+                </div>
             </div>
             <div class="panel-content">
                 <div id="importTab" class="tab-content active">
@@ -310,6 +316,28 @@
                                     <option value="in">Inches (in)</option>
                                     <option value="ft">Feet (ft)</option>
                                 </select>
+                            </div>
+
+                            <div class="unit-selector" style="margin-top:10px;">
+                                <h5>Import/Output Units Override</h5>
+                                <div style="display:flex; gap:12px; flex-wrap:wrap;">
+                                  <div>
+                                    <label for="importUnitOverride">Import units (DDS/CFF2 only):</label>
+                                    <select id="importUnitOverride" class="form-select">
+                                        <option value="auto">Auto Detect</option>
+                                        <option value="mm">Millimeters (mm)</option>
+                                        <option value="in">Inches (in)</option>
+                                    </select>
+                                  </div>
+                                  <div>
+                                    <label for="outputUnitOverride">Output units (DIN):</label>
+                                    <select id="outputUnitOverride" class="form-select">
+                                        <option value="mm" selected>Millimeters (mm)</option>
+                                        <option value="in">Inches (in)</option>
+                                    </select>
+                                  </div>
+                                </div>
+                                <p class="setting-help">Input override affects unit labels and display only; geometry values are not changed. Output override controls DIN generation units.</p>
                             </div>
                             
                             <div class="scaling-selector">
