@@ -10,6 +10,7 @@ let currentPriorityOrder = [];
 // Global variables for modal management
 let modalCallback = null;
 let modalType = null;
+let editingTools = []; // Copy of tools for editing
 
 // Modal management functions
 function showModal(title, placeholder, defaultValue = '', callback) {
@@ -34,13 +35,108 @@ function closeModal() {
 }
 
 function confirmModal() {
-    if (modalType === 'input') {
-        const value = document.getElementById('modalInput').value.trim();
-        if (value) {
-            modalCallback(value);
-        }
+    if (modalCallback) {
+        const input = document.getElementById('modalInput');
+        modalCallback(input.value);
     }
     closeModal();
+}
+
+// Edit Tools Modal Functions
+function openEditToolsModal() {
+    if (!currentTools || currentTools.length === 0) {
+        showError('No tools to edit');
+        return;
+    }
+    
+    // Create a copy of tools for editing
+    editingTools = JSON.parse(JSON.stringify(currentTools));
+    populateToolsTable();
+    document.getElementById('editToolsModal').style.display = 'flex';
+}
+
+function closeEditToolsModal() {
+    document.getElementById('editToolsModal').style.display = 'none';
+    editingTools = [];
+}
+
+function populateToolsTable() {
+    const tbody = document.getElementById('toolsTableBody');
+    if (!tbody) return;
+    
+    tbody.innerHTML = '';
+    
+    editingTools.forEach((tool, index) => {
+        const row = document.createElement('tr');
+        row.innerHTML = `
+            <td><input type="text" value="${tool.id || ''}" onchange="updateTool(${index}, 'id', this.value)"></td>
+            <td><input type="text" value="${tool.name || ''}" onchange="updateTool(${index}, 'name', this.value)"></td>
+            <td><input type="text" value="${tool.description || ''}" onchange="updateTool(${index}, 'description', this.value)"></td>
+            <td><input type="number" value="${tool.width || 0}" step="0.1" onchange="updateTool(${index}, 'width', parseFloat(this.value))"></td>
+            <td><input type="text" value="${tool.hCode || ''}" onchange="updateTool(${index}, 'hCode', this.value)"></td>
+            <td><input type="text" value="${tool.type || 'cut'}" onchange="updateTool(${index}, 'type', this.value)"></td>
+            <td>
+                <div class="action-buttons">
+                    <button class="btn btn-danger btn-small" onclick="deleteTool(${index})">Delete</button>
+                </div>
+            </td>
+        `;
+        tbody.appendChild(row);
+    });
+}
+
+function updateTool(index, field, value) {
+    if (editingTools[index]) {
+        editingTools[index][field] = value;
+    }
+}
+
+function deleteTool(index) {
+    if (confirm('Are you sure you want to delete this tool?')) {
+        editingTools.splice(index, 1);
+        populateToolsTable();
+    }
+}
+
+function addNewTool() {
+    const newTool = {
+        id: 'T' + (editingTools.length + 1),
+        name: 'New Tool',
+        description: 'New tool description',
+        width: 1,
+        hCode: 'H' + (editingTools.length + 1),
+        type: 'cut'
+    };
+    
+    editingTools.push(newTool);
+    populateToolsTable();
+}
+
+async function saveTools() {
+    try {
+        if (!currentProfile) {
+            showError('No profile selected');
+            return;
+        }
+        
+        // Update currentTools with editingTools
+        currentTools = JSON.parse(JSON.stringify(editingTools));
+        
+        // Save tools to profile using existing method
+        const response = await window.electronAPI.saveMachineTools(currentTools, 'replace');
+        
+        if (response && response.success) {
+            showSuccess('Tools saved successfully');
+            closeEditToolsModal();
+            displayTools(); // Refresh the display
+        } else {
+            showError('Failed to save tools');
+        }
+        
+    } catch (error) {
+        console.error('Error saving tools:', error);
+        showError('Failed to save tools');
+    }
 }
 
 // Add event listeners for modal
@@ -280,8 +376,11 @@ async function loadTools() {
     try {
         if (!currentProfile) return;
         
-        console.log('Loading tools for profile:', currentProfile.id || currentProfile.name);
-        const response = await window.electronAPI.getToolsFromProfile(currentProfile.id || currentProfile.name);
+        // Use the correct profile filename
+        const profileName = currentProfile.filename || currentProfile.id || currentProfile.name;
+        console.log('Loading tools for profile:', profileName);
+        
+        const response = await window.electronAPI.getToolsFromProfile(profileName);
         
         // Handle the response format from IPC
         if (response && response.success && response.data) {
@@ -808,10 +907,7 @@ function setupEventListeners() {
     // Edit tools button
     const editToolsBtn = document.getElementById('editToolsBtn');
     if (editToolsBtn) {
-        editToolsBtn.addEventListener('click', () => {
-            // This would open a tool editor modal
-            showInfo('Tool editor functionality coming soon');
-        });
+        editToolsBtn.addEventListener('click', openEditToolsModal);
     }
     
     // Cutting priority controls
