@@ -53,9 +53,20 @@
                     <h2>Import Filter Rules</h2>
                     <div class="table-controls">
                         <input type="text" id="searchInput" placeholder="Search rules..." class="search-input">
+                        <select id="filterByFormat" class="filter-select">
+                            <option value="">All Formats</option>
+                            <option value="dxf">DXF</option>
+                            <option value="dds">DDS</option>
+                            <option value="cff2">CFF2</option>
+                        </select>
+                        <select id="filterByLineType" class="filter-select">
+                            <option value="">All Line Types</option>
+                        </select>
                         <select id="filterBySource" class="filter-select">
                             <option value="">All Sources</option>
                         </select>
+                        <button class="btn btn-secondary" id="groupByFormatBtn">Group by Format</button>
+                        <button class="btn btn-secondary" id="groupByLineTypeBtn">Group by Line Type</button>
                     </div>
                 </div>
 
@@ -64,9 +75,18 @@
                         <thead>
                             <tr>
                                 <th>ID</th>
-                                <th>Layer Name</th>
-                                <th>ACI Color</th>
+                                <th>Format</th>
+                                <th>Key</th>
+                                <th>Layer</th>
+                                <th>ACI</th>
+                                <th>DDS Color</th>
+                                <th>Raw Width</th>
+                                <th>Unit</th>
+                                <th>CFF2 Pen</th>
+                                <th>CFF2 Layer</th>
+                                <th>Color</th>
                                 <th>Line Type</th>
+                                <th>Enabled</th>
                                 <th>Source</th>
                                 <th>Description</th>
                                 <th>Actions</th>
@@ -96,10 +116,10 @@
                     </div>
                     
                     <div class="form-group">
-                        <label for="ruleColor">Color:</label>
+                        <label for="ruleColor">Display Color (for mapped rows):</label>
                         <div class="color-input-group">
                             <input type="color" id="ruleColorPicker" value="#ff0000">
-                            <input type="text" id="ruleColor" class="form-input" required placeholder="#FF0000" pattern="^#[0-9A-Fa-f]{6}$">
+                            <input type="text" id="ruleColor" class="form-input" placeholder="#FF0000" pattern="^#[0-9A-Fa-f]{6}$">
                         </div>
                     </div>
                     

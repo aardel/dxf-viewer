@@ -89,6 +89,36 @@ Pending:
 - Wire unified Mapping column to Global Import Filter rules.
 - Add measurement/selection overlays to unified formats.
 
+### Mapping and Units (DXF, DDS, CFF2)
+
+- Exact-key rules (no wildcards, no rounding):
+  - DXF: `dxf|<Layer>|<ACI>`
+  - DDS: `dds|<Color>|<RawWidth>|<Unit>` (Unit auto-detected via median width: in vs mm)
+  - CFF2: `cff2|<Pen>-<Layer>` (unit pt)
+- Color behavior when mapped:
+  - Rule.color (if set) → used for display/graphics
+  - Else Local Line Type color (from internal line types)
+  - Else fallback (DDS uses entity ACI; CFF2/DDS fallback deterministic group color)
+- Visual status in tables (all formats): Output checkbox glow
+  - Green: mapped
+  - Red: unmapped
+  - Blue: mapped but disabled
+
+### Global Import Filter Manager (multi-format)
+
+- Format filter dropdown hides non-relevant columns per format.
+- Group by Format / Group by Line Type.
+- Inline Enabled toggle; persists immediately.
+- Inline Color picker (CFF2/DDS) to set display color for mapped rows.
+- Import/Export rules as JSON; auto-refresh rules in main UI.
+
+### Mapping Popup (→ in tables)
+
+- Opens a lightweight dialog with extracted key fields.
+- Shows current mapping if present (and disabled state).
+- Preselects the current Local Line Type and includes a color picker.
+- Saving writes an exact-key rule and syncs to the active profile; main UI updates immediately.
+
 ## Application Structure
 
 ```

@@ -1,3 +1,75 @@
+// Lightweight Map Line popup
+function openMapLinePopup(summary, exactKey) {
+    const modalId = 'mapLinePopupModal';
+    const existing = document.getElementById(modalId);
+    if (existing) existing.remove();
+    const fieldsHtml = summary.fields.map(f => `<div class="kv"><span class="k">${f.label}</span><span class="v">${f.value}</span></div>`).join('');
+    const entry = exactRulesCache.get(`${summary.format}|${exactKey}`);
+    const currentLtName = entry?.lineTypeId ? getLineTypeName(String(entry.lineTypeId)) : '';
+    const currentEnabled = entry ? (entry.enabled !== false) : null;
+    const initialColor = summary.displayColor || '#66d9ef';
+    const html = `
+      <div id="${modalId}" class="modal" style="display:flex;">
+        <div class="modal-content" style="max-width:460px;">
+          <div class="modal-header"><h3>Map Line (${summary.format.toUpperCase()})</h3><button class="modal-close" onclick="document.getElementById('${modalId}').remove()">&times;</button></div>
+          <div class="modal-body">
+            <div class="summary">${fieldsHtml}</div>
+            <div id="currentMappingInfo" style="margin:8px 0; font-size: 0.9rem; opacity: 0.85;">
+              ${currentLtName ? `Current: <strong>${currentLtName}</strong>${currentEnabled===false ? ' (disabled)' : ''}` : 'Not mapped'}
+            </div>
+            <div class="form-group">
+              <label for="mapColorPicker">Display Color (optional)</label>
+              <input type="color" id="mapColorPicker" value="${initialColor}">
+            </div>
+            <div class="form-group">
+              <label for="mapLineTypeSelect">Local Line Type</label>
+              <select id="mapLineTypeSelect" class="form-select"><option>Loading...</option></select>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="document.getElementById('${modalId}').remove()">Cancel</button>
+            <button class="btn btn-primary" id="mapLineSaveBtn">Save</button>
+          </div>
+        </div>
+      </div>`;
+    document.body.insertAdjacentHTML('beforeend', html);
+    // Load line types
+    (async () => {
+        try {
+            const select = document.getElementById('mapLineTypeSelect');
+            const list = await window.electronAPI.getInternalLineTypes();
+            select.innerHTML = '<option value="">Choose a line type...</option>' + list.map(l => `<option value="${l.id}">${l.name}</option>`).join('');
+            if (entry?.lineTypeId) {
+                select.value = String(entry.lineTypeId);
+            }
+        } catch {}
+    })();
+    document.getElementById('mapLineSaveBtn').addEventListener('click', async () => {
+        const select = document.getElementById('mapLineTypeSelect');
+        const lt = select?.value || '';
+        if (!lt) { alert('Please select a line type'); return; }
+        try {
+            // Persist to global filter (exact key)
+            const selColor = document.getElementById('mapColorPicker')?.value || undefined;
+            await window.electronAPI.addRuleToGlobalImportFilter({ format: summary.format, key: exactKey, lineTypeId: lt, enabled: true, color: selColor });
+            // Mirror to active profile if applicable
+            if (window.electronAPI?.syncRuleToActiveProfile) {
+                await window.electronAPI.syncRuleToActiveProfile({ format: summary.format, key: exactKey, lineTypeId: lt });
+            }
+            showStatus('Mapping saved', 'success');
+            document.getElementById(modalId)?.remove();
+            // Refresh rules cache and current table to show mapping and glow
+            await refreshRulesCache();
+            if (currentFileFormat === 'dxf' && window.currentLayerData) {
+                populateLayerTable(window.currentLayerData);
+            } else {
+                updateImportPanelForUnified();
+            }
+        } catch (e) {
+            showStatus('Failed to save mapping', 'error');
+        }
+    });
+}
 // Toggle visibility for entities matching both layer and color
 function toggleLayerColorVisibility(layerName, color, isVisible) {
     if (!viewer || !viewer.scene) return;
@@ -119,6 +191,49 @@ const fileSizeEl = document.getElementById('fileSize');
 const headerEl = document.querySelector('.header');
 const sidePanelEl = document.getElementById('sidePanel');
 const togglePanelBtn = document.getElementById('togglePanelBtn');
+// Rules cache for exact-key mapping (DXF/DDS/CFF2)
+let exactRulesCache = new Map(); // key: `${format}|${key}` -> { lineTypeId, enabled }
+// Internal line types cache for display color resolution
+let internalLineTypesCache = [];
+
+async function refreshRulesCache() {
+    try {
+        const res = await window.electronAPI.loadGlobalImportFilter();
+        exactRulesCache = new Map();
+        if (res?.success && Array.isArray(res.data?.rules)) {
+            for (const r of res.data.rules) {
+                if (r && r.format && r.key && r.lineTypeId) {
+                    exactRulesCache.set(`${r.format}|${r.key}`, { lineTypeId: r.lineTypeId, enabled: r.enabled !== false, color: r.color });
+                }
+            }
+        }
+    } catch {}
+}
+
+function resolveMappedLineTypeName(format, key) {
+    const entry = exactRulesCache.get(`${format}|${key}`);
+    if (entry && entry.enabled && entry.lineTypeId) return getLineTypeName(String(entry.lineTypeId));
+    return '';
+}
+
+async function refreshLineTypesCache() {
+    try {
+        const list = await window.electronAPI.getInternalLineTypes();
+        internalLineTypesCache = Array.isArray(list) ? list : [];
+    } catch { internalLineTypesCache = []; }
+}
+
+// Auto-refresh rules cache when main process reports updates
+if (window.electronAPI?.onRulesUpdated) {
+    window.electronAPI.onRulesUpdated(async () => {
+        await refreshRulesCache();
+        await refreshLineTypesCache();
+        try {
+            if (currentFileFormat === 'dxf' && window.currentLayerData) populateLayerTable(window.currentLayerData);
+            else updateImportPanelForUnified();
+        } catch {}
+    });
+}
 
 const lineTypesBtn = document.getElementById('lineTypesBtn');
 const panelToggleIcon = document.getElementById('panelToggleIcon');
@@ -295,8 +410,9 @@ function colorFromCode(code) {
 
 function getGroupKeyForGeometry(g) {
     if (currentFileFormat === 'dds') {
-        const kerf = Math.round(((g.kerfWidth || 0) + Number.EPSILON) * 10000) / 10000;
-        return `${g.color}|${kerf}`;
+        const rawKerf = g.properties?.rawKerf != null ? String(g.properties.rawKerf) : String(g.kerfWidth ?? '');
+        const unit = g.properties?.unitCode || 'unknown';
+        return `${g.color}|${rawKerf}|${unit}`;
     }
     if (currentFileFormat === 'cf2' || currentFileFormat === 'cff2') {
         if (g.layer) return String(g.layer);
@@ -398,10 +514,11 @@ function updateImportPanelForUnified() {
             const parts = k.split('-');
             const pen = parts[0] ?? '';
             const layer = parts.slice(1).join('-');
-            const lineTypeName = '';
+            const lineTypeName = resolveMappedLineTypeName('cff2', k);
+            const mappedClass = lineTypeName ? 'mapped' : 'unmapped';
             return `
               <tr data-key="${k}">
-                <td><input type="checkbox" class="unified-layer-visible" data-key="${k}" ${g.visible ? 'checked' : ''} /></td>
+                <td><input type="checkbox" class="unified-layer-visible output-toggle ${mappedClass}" data-key="${k}" ${g.visible ? 'checked' : ''} /></td>
                 <td><span class="color-swatch" style="background:${g.displayColor}"></span></td>
                 <td>${Number(pen || 0).toFixed(2)}</td>
                 <td>${pen}</td>
@@ -411,13 +528,14 @@ function updateImportPanelForUnified() {
               </tr>`;
         }
         if (isDds) {
-            const [color, kerf] = k.split('|');
-            const lineTypeName = '';
+            const [color, rawKerf, unit] = k.split('|');
+            const lineTypeName = resolveMappedLineTypeName('dds', k);
+            const mappedClass = lineTypeName ? 'mapped' : 'unmapped';
             return `
               <tr data-key="${k}">
-                <td><input type="checkbox" class="unified-layer-visible" data-key="${k}" ${g.visible ? 'checked' : ''} /></td>
+                <td><input type="checkbox" class="unified-layer-visible output-toggle ${mappedClass}" data-key="${k}" ${g.visible ? 'checked' : ''} /></td>
                 <td><span class="color-swatch" style="background:${g.displayColor}"></span></td>
-                <td>${(Number(kerf || 0) * 72).toFixed(2)}</td>
+                <td title="raw: ${rawKerf} ${unit}">${(unit==='in' ? Number(rawKerf||0)*72 : unit==='mm' ? Number(rawKerf||0)/25.4*72 : Number(rawKerf||0)).toFixed(2)}</td>
                 <td>${color}</td>
                 <td><button class="btn btn-small btn-secondary goto-mapping-btn" data-key="${k}" title="Open Mapping">→</button></td>
                 <td class="lt-name">${lineTypeName || 'UNMAPPED'}</td>
@@ -425,7 +543,7 @@ function updateImportPanelForUnified() {
         }
         return `
           <tr data-key="${k}">
-            <td><input type="checkbox" class="unified-layer-visible" data-key="${k}" ${g.visible ? 'checked' : ''} /></td>
+            <td><input type="checkbox" class="unified-layer-visible output-toggle unmapped" data-key="${k}" ${g.visible ? 'checked' : ''} /></td>
             <td><span class="color-swatch" style="background:${g.displayColor}"></span></td>
             <td>${k}</td>
             <td><button class="btn btn-small btn-secondary goto-mapping-btn" data-key="${k}" title="Open Mapping">→</button></td>
@@ -532,13 +650,73 @@ function updateImportPanelForUnified() {
         });
     });
 
+    // Apply disabled class for rows mapped=false but with rule disabled (if we detect it)
+    Array.from(layerTableEl.querySelectorAll('tr[data-key]')).forEach(tr => {
+        const k = tr.getAttribute('data-key');
+        const cb = tr.querySelector('.output-toggle');
+        if (!cb) return;
+        const fmt = isDds ? 'dds' : (isCff2 ? 'cff2' : '');
+        if (fmt) {
+            const id = exactRulesCache.get(`${fmt}|${k}`);
+            // We don't have enabled flag in cache; rely on Mapping text: if unmapped, keep mapped/unmapped class; if mapped but checkbox off, show disabled blue
+            const mappedCell = tr.querySelector('.lt-name');
+            if (mappedCell && /UNMAPPED/i.test(mappedCell.textContent)) return;
+            if (!cb.checked) cb.classList.add('disabled');
+        }
+    });
+
     // No manual color picker in simplified UI
 
-    // Open mapping manager from unified rows
+    // Map Line popup for unified rows (DDS/CFF2)
     layerTableEl.querySelectorAll('.goto-mapping-btn').forEach(btn => {
-        btn.addEventListener('click', () => {
-            if (window.electronAPI?.openGlobalImportFilterManager) {
-                window.electronAPI.openGlobalImportFilterManager();
+        btn.addEventListener('click', async (e) => {
+            const key = e.currentTarget.getAttribute('data-key');
+            if (!key) return;
+            if (isDds) {
+                const [color, rawKerf, unit] = key.split('|');
+                const disp = overlayGroups?.[key]?.displayColor || '#66d9ef';
+                openMapLinePopup({
+                    format: 'dds',
+                    fields: [
+                        { label: 'Color', value: color },
+                        { label: 'Width', value: `${rawKerf} ${unit}` }
+                    ],
+                    rulePayload: { format: 'dds', key, color: Number(color), rawKerf: String(rawKerf), unitCode: unit },
+                    displayColor: disp
+                }, key);
+            } else if (isCff2) {
+                const parts = key.split('-');
+                const pen = parts[0] ?? '';
+                const layer = parts.slice(1).join('-');
+                const disp = overlayGroups?.[key]?.displayColor || '#66d9ef';
+                openMapLinePopup({
+                    format: 'cff2',
+                    fields: [
+                        { label: 'Pen (pt)', value: pen },
+                        { label: 'Layer', value: layer }
+                    ],
+                    rulePayload: { format: 'cff2', key, pen: String(pen), layer: String(layer), unitCode: 'pt' },
+                    displayColor: disp
+                }, key);
+            }
+        });
+    });
+
+    // Double-click swatch to open mapping popup with color picker
+    layerTableEl.querySelectorAll('span.color-swatch').forEach(sw => {
+        sw.addEventListener('dblclick', (e) => {
+            const tr = e.currentTarget.closest('tr[data-key]');
+            if (!tr) return;
+            const key = tr.getAttribute('data-key');
+            const disp = overlayGroups?.[key]?.displayColor || '#66d9ef';
+            if (isDds) {
+                const [color, rawKerf, unit] = key.split('|');
+                openMapLinePopup({ format: 'dds', fields: [ {label:'Color', value: color}, {label:'Width', value: `${rawKerf} ${unit}`} ], rulePayload: { format:'dds', key }, displayColor: disp }, key);
+            } else if (isCff2) {
+                const parts = key.split('-');
+                const pen = parts[0] ?? '';
+                const layer = parts.slice(1).join('-');
+                openMapLinePopup({ format: 'cff2', fields: [ {label:'Pen (pt)', value: pen}, {label:'Layer', value: layer} ], rulePayload: { format:'cff2', key }, displayColor: disp }, key);
             }
         });
     });
@@ -565,12 +743,37 @@ function drawOverlay() {
         if (group && group.visible === false) continue;
 
         overlayCtx.save();
-        // Choose color: for DDS prefer raw entity color if present; else group color
+        // Choose color: if mapped to a Local Line Type with a defined display color, use that;
+        // otherwise fall back to format-native (DXF ACI for DDS if present) or group color
         let stroke = group?.displayColor || '#66d9ef';
-        if (currentFileFormat === 'dds' && typeof g.color !== 'undefined') {
-            const hex = aciToHex(g.color);
-            if (hex) stroke = hex;
-        }
+        try {
+            // Resolve exact key for this geometry group
+            const groupKey = key; // already computed
+            let mappedHex = '';
+            if (currentFileFormat === 'dds') {
+                const entry = exactRulesCache.get(`dds|${groupKey}`);
+                const ltId = entry?.enabled ? entry.lineTypeId : null;
+                if (ltId && internalLineTypesCache.length) {
+                    const lt = internalLineTypesCache.find(x => String(x.id) === String(ltId));
+                    if (lt?.color) mappedHex = lt.color; // expect hex like #RRGGBB
+                }
+                if (!mappedHex && typeof g.color !== 'undefined') {
+                    const hex = aciToHex(g.color);
+                    if (hex) mappedHex = hex;
+                }
+            } else if (currentFileFormat === 'cf2' || currentFileFormat === 'cff2') {
+                const entry = exactRulesCache.get(`cff2|${groupKey}`);
+                const ltId = entry?.enabled ? entry.lineTypeId : null;
+                // Prefer explicit rule color if provided
+                if (entry?.color) mappedHex = entry.color;
+                if (!mappedHex && ltId && internalLineTypesCache.length) {
+                    const lt = internalLineTypesCache.find(x => String(x.id) === String(ltId));
+                    if (lt?.color) mappedHex = lt.color;
+                }
+            }
+            if (mappedHex) stroke = mappedHex;
+        } catch {}
+        
         overlayCtx.strokeStyle = stroke;
         overlayCtx.lineWidth = 1.25;
         overlayCtx.setLineDash([]);
@@ -759,9 +962,19 @@ function hideStatus() {
 function updateFormatIndicator(ext) {
     const map = { dxf: 'DXF', dwg: 'DXF', dds: 'DDS', cf2: 'CFF2', cff2: 'CFF2' };
     const key = (ext || '').toLowerCase();
-    const label = map[key];
     currentFileFormat = key || 'dxf';
     if (formatIndicatorEl) {
+        let label = map[currentFileFormat] || '';
+        if (currentFileFormat === 'dds') {
+            const geoms = window.unifiedGeometries || [];
+            const unit = geoms.find(g => g?.properties?.unitCode)?.properties?.unitCode || 'unknown';
+            label = `DDS / ${unit}`;
+        } else if (currentFileFormat === 'cf2' || currentFileFormat === 'cff2') {
+            label = 'CFF2 / pt';
+        } else if (currentFileFormat === 'dxf') {
+            const u = getDXFUnits();
+            label = `DXF / ${u.unit}`;
+        }
         if (label) {
             formatIndicatorEl.textContent = label;
             formatIndicatorEl.style.display = 'inline-flex';
@@ -953,11 +1166,14 @@ function populateLayerTable(layers) {
             if (typeof guessed === 'number' && !Number.isNaN(guessed)) aciColor = String(guessed);
         }
         const mapped = !!layer.importFilterApplied && !!layer.lineTypeId;
-        const lineTypeName = mapped ? getLineTypeName(layer.lineTypeId) : 'UNMAPPED';
+        const ruleLtName = resolveMappedLineTypeName('dxf', `dxf|${layerName}|${aciColor || ''}`);
+        const isMapped = !!ruleLtName || mapped;
+        const lineTypeName = ruleLtName || (mapped ? getLineTypeName(layer.lineTypeId) : 'UNMAPPED');
+        const mappedClass = isMapped ? 'mapped' : 'unmapped';
         const actionBtn = `<button class="btn btn-small btn-secondary edit-mapping-btn" data-layer-name="${layerName}" data-line-type="${layer.lineTypeId||''}" title="Open Mapping">→</button>`;
         return `
           <tr data-layer-index="${index}">
-            <td><input type=\"checkbox\" class=\"layer-checkbox\" id=\"layer-${index}\" checked data-layer-name=\"${layerName}\"></td>
+            <td><input type=\"checkbox\" class=\"layer-checkbox output-toggle ${mappedClass}\" id=\"layer-${index}\" checked data-layer-name=\"${layerName}\"></td>
             <td><span class=\"color-swatch\" style=\"background:${hexColor}\"></span></td>
             <td>${aciColor || '-'}</td>
             <td class=\"layer-name-cell\">${displayName}</td>
@@ -994,22 +1210,15 @@ function populateLayerTable(layers) {
             editBtn.addEventListener('click', async (e) => {
                 e.preventDefault();
                 e.stopPropagation();
-                const lname = e.target.dataset.layerName;
-                const ltype = e.target.dataset.lineType;
-                try {
-                    const rulesResult = await window.electronAPI.loadGlobalImportFilter();
-                    if (rulesResult.success && rulesResult.data) {
-                        const rule = rulesResult.data.rules.find(r => r.layerName === lname || r.layerName === lname.replace(/_[0-9A-F]+$/, ''));
-                        if (rule && rule.id) {
-                                window.electronAPI.openGlobalImportFilterManager(rule.id);
-                            showStatus(`Opening global filter for "${lname}"`, 'info');
-                            } else {
-                                window.electronAPI.openGlobalImportFilterManager();
-                            }
-                        }
-                } catch (_) {
-                    if (window.electronAPI?.openGlobalImportFilterManager) window.electronAPI.openGlobalImportFilterManager();
-                }
+                const lname = e.currentTarget.dataset.layerName;
+                openMapLinePopup({
+                    format: 'dxf',
+                    fields: [
+                        { label: 'Layer', value: lname },
+                        { label: 'ACI', value: (viewer.parsedDxf?.tables?.layer?.layers?.[lname]?.color ?? '-') }
+                    ],
+                    rulePayload: { format: 'dxf', key: `dxf|${lname}|${viewer.parsedDxf?.tables?.layer?.layers?.[lname]?.color ?? ''}`, layerName: lname, aci: viewer.parsedDxf?.tables?.layer?.layers?.[lname]?.color ?? '' }
+                }, `dxf|${lname}|${viewer.parsedDxf?.tables?.layer?.layers?.[lname]?.color ?? ''}`);
             });
         }
     });
@@ -2806,10 +3015,12 @@ async function handleOpenFile() {
                 const ext = (fileName.split('.').pop() || '').toLowerCase();
                 updateFormatIndicator(ext);
                 if (ext === 'dxf' || ext === 'dwg') {
+                await refreshRulesCache();
                 // Switching to DXF: clear any overlay canvas/state first
                 destroyOverlayCanvas();
                 await loadDxfContent(fileName, fileResult.content, filePath);
                 } else if (ext === 'dds' || ext === 'cf2' || ext === 'cff2') {
+                    await refreshRulesCache();
                     const res = await window.electronAPI.parseUnified(fileResult.content, fileName);
                     if (!res.success) throw new Error(res.error || 'Failed to parse file');
                     window.unifiedGeometries = res.data || [];
@@ -2876,9 +3087,11 @@ function initDragAndDrop() {
             const ext = (sel.name.split('.').pop() || '').toLowerCase();
             updateFormatIndicator(ext);
             if (ext === 'dxf' || ext === 'dwg') {
+                await refreshRulesCache();
                 destroyOverlayCanvas();
                 await loadDxfContent(sel.name, content);
             } else if (ext === 'dds' || ext === 'cf2' || ext === 'cff2') {
+                await refreshRulesCache();
                 const res = await window.electronAPI.parseUnified(content, sel.name);
                 if (!res.success) throw new Error(res.error || 'Failed to parse file');
                 window.unifiedGeometries = res.data || [];

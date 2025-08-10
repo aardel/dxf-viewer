@@ -112,29 +112,53 @@ function renderRulesTable() {
         return;
     }
 
-    const rulesHTML = rules.map(rule => {
+    const search = (document.getElementById('searchInput')?.value || '').toLowerCase();
+    const fmtFilter = (document.getElementById('filterByFormat')?.value || '');
+    const ltFilter = (document.getElementById('filterByLineType')?.value || '');
+    const srcFilter = (document.getElementById('filterBySource')?.value || '').toLowerCase();
+
+    const filtered = rules.filter(rule => {
+        const blob = `${rule.id} ${rule.format||'dxf'} ${rule.key||''} ${rule.layerName||''} ${rule.color||''} ${rule.lineTypeId||''} ${rule.source||''} ${rule.description||''}`.toLowerCase();
+        const fmtOk = !fmtFilter || (rule.format||'dxf') === fmtFilter;
+        const ltOk = !ltFilter || String(rule.lineTypeId) === String(ltFilter);
+        const srcOk = !srcFilter || (rule.source||'').toLowerCase() === srcFilter;
+        return blob.includes(search) && fmtOk && ltOk && srcOk;
+    });
+
+    const renderRow = (rule) => {
         // Clean up corrupted layer names
         const cleanLayerName = (rule.layerName || '').replace(/\n\s*⚠\s*\n\s*Add to Global/g, '').trim();
         
         // Format color display - show just the ACI number (same as import filters manager)
         const aciNum = parseInt(rule.color);
-        const colorDisplay = !isNaN(aciNum) && aciNum >= 0 && aciNum <= 255
-            ? aciNum.toString() // Just show the number, not "ACI X"
-            : (typeof rule.color === 'string' && rule.color.startsWith('rgb(') 
-                ? `RGB ${rule.color}` 
-                : rule.color || '7');
-        
+        const hasAci = Number.isInteger(aciNum) && aciNum >= 0 && aciNum <= 255;
+        const colorDisplay = hasAci ? String(aciNum) : '-';
+        const fmt = rule.format || 'dxf';
+        const key = rule.key || '';
+        let ddsColor = '', rawW='', unit='', cff2Pen='', cff2Layer='';
+        if (fmt === 'dds' && key) { const [c,w,u] = key.split('|'); ddsColor=c; rawW=w; unit=u; }
+        if (fmt === 'cff2' && key) { const [p, ...rest] = key.split('-'); cff2Pen=p; cff2Layer=rest.join('-'); }
+        const enabled = rule.enabled !== false;
         return `
             <tr data-rule-id="${rule.id || ''}">
                 <td>${rule.id || ''}</td>
+                <td>${fmt}</td>
+                <td>${key}</td>
                 <td>${cleanLayerName}</td>
                 <td>
                     <div style="display: flex; align-items: center; gap: 0.5rem;">
-                        <div class="color-swatch" style="background-color: ${rule.colorHex || aciToHex(parseInt(rule.color))}"></div>
+                        <div class="color-swatch" style="background-color: ${hasAci ? aciToHex(aciNum) : 'transparent'}"></div>
                         <span>${colorDisplay}</span>
                     </div>
                 </td>
+                <td>${ddsColor || '-'}</td>
+                <td>${rawW || '-'}</td>
+                <td>${unit || '-'}</td>
+                <td>${cff2Pen || '-'}</td>
+                <td>${cff2Layer || '-'}</td>
+                <td><input type="color" class="rule-color-picker" data-id="${rule.id}" value="${(rule.color || '#cccccc')}"></td>
                 <td>${getLineTypeName(rule.lineTypeId || 1)}</td>
+                <td><input type="checkbox" ${enabled?'checked':''} class="rule-enabled" data-id="${rule.id}"></td>
                 <td>${rule.source || 'Global'}</td>
                 <td>${rule.description || 'No description'}</td>
                 <td>
@@ -143,11 +167,67 @@ function renderRulesTable() {
                         <button class="btn-icon" onclick="deleteRule('${rule.id || ''}')" title="Delete Rule">🗑️</button>
                     </div>
                 </td>
-            </tr>
-        `;
-    }).join('');
+            </tr>`;
+    };
 
-    tableBody.innerHTML = rulesHTML;
+    const rowsHTML = filtered.map(renderRow).join('');
+    tableBody.innerHTML = rowsHTML;
+
+    // Apply column visibility based on selected format
+    applyColumnVisibility();
+
+    document.querySelectorAll('.rule-enabled').forEach(el => {
+        el.addEventListener('change', async (e)=>{
+            const id = e.target.getAttribute('data-id');
+            await window.electronAPI.updateRuleInGlobalImportFilter(id, { enabled: e.target.checked });
+            await loadGlobalFilter();
+            renderRulesTable();
+        });
+    });
+
+    // Inline color picker for CFF2/DDS display color
+    document.querySelectorAll('.rule-color-picker').forEach(p => {
+        p.addEventListener('input', async (e) => {
+            const id = e.target.getAttribute('data-id');
+            const color = e.target.value;
+            await window.electronAPI.updateRuleInGlobalImportFilter(id, { color });
+            await loadGlobalFilter();
+            renderRulesTable();
+        });
+    });
+}
+
+// Hide/show non-relevant columns for selected format
+function applyColumnVisibility() {
+    const fmt = (document.getElementById('filterByFormat')?.value || '').toLowerCase();
+    const table = document.getElementById('rulesTable');
+    if (!table) return;
+    // Column indexes
+    const COLS = {
+        ID: 0, FORMAT: 1, KEY: 2, LAYER: 3, ACI: 4, DDS_COLOR: 5, RAW_WIDTH: 6, UNIT: 7, CFF2_PEN: 8, CFF2_LAYER: 9,
+        LINE_TYPE: 10, ENABLED: 11, SOURCE: 12, DESC: 13, ACTIONS: 14
+    };
+    // By default, show all if no format filter
+    let visible = new Set(Object.values(COLS));
+    if (fmt === 'dxf') {
+        visible = new Set([COLS.ID, COLS.FORMAT, COLS.KEY, COLS.LAYER, COLS.ACI, COLS.LINE_TYPE, COLS.ENABLED, COLS.SOURCE, COLS.DESC, COLS.ACTIONS]);
+    } else if (fmt === 'dds') {
+        visible = new Set([COLS.ID, COLS.FORMAT, COLS.KEY, COLS.DDS_COLOR, COLS.RAW_WIDTH, COLS.UNIT, COLS.LINE_TYPE, COLS.ENABLED, COLS.SOURCE, COLS.DESC, COLS.ACTIONS]);
+    } else if (fmt === 'cff2') {
+        // include the Color column (index shifts by +1 after adding Color before Line Type)
+        visible = new Set([COLS.ID, COLS.FORMAT, COLS.KEY, COLS.CFF2_PEN, COLS.CFF2_LAYER, COLS.ACI, COLS.LINE_TYPE, COLS.ENABLED, COLS.SOURCE, COLS.DESC, COLS.ACTIONS]);
+    }
+    const setColDisplay = (row, colIdx, show) => {
+        const cell = row.children[colIdx];
+        if (cell) cell.style.display = show ? '' : 'none';
+    };
+    const headRow = table.tHead?.rows?.[0];
+    if (headRow) {
+        for (let i = 0; i < headRow.children.length; i++) setColDisplay(headRow, i, visible.has(i));
+    }
+    Array.from(table.tBodies[0]?.rows || []).forEach(r => {
+        for (let i = 0; i < r.children.length; i++) setColDisplay(r, i, visible.has(i));
+    });
 }
 
 // Setup event listeners
@@ -171,6 +251,9 @@ function setupEventListeners() {
     if (importBtn) {
         importBtn.addEventListener('click', importGlobalFilter);
     }
+    document.getElementById('filterByFormat')?.addEventListener('change', ()=>{ renderRulesTable(); applyColumnVisibility(); });
+    document.getElementById('filterByLineType')?.addEventListener('change', renderRulesTable);
+    document.getElementById('searchInput')?.addEventListener('input', renderRulesTable);
 
     // Refresh button
     const refreshBtn = document.getElementById('refreshBtn');
@@ -186,6 +269,11 @@ function setupEventListeners() {
 
     // Modal event listeners
     setupModalEventListeners();
+
+    const groupByFormatBtn = document.getElementById('groupByFormatBtn');
+    if (groupByFormatBtn) groupByFormatBtn.addEventListener('click', ()=>{ currentGrouping='format'; renderRulesTable(); });
+    const groupByLineTypeBtn = document.getElementById('groupByLineTypeBtn');
+    if (groupByLineTypeBtn) groupByLineTypeBtn.addEventListener('click', ()=>{ currentGrouping='linetype'; renderRulesTable(); });
 }
 
 // Setup modal event listeners
@@ -420,7 +508,7 @@ async function updateRule(formData) {
         
         const updatedRule = {
             layerName: formData.get('layerName'),
-            color: formData.get('color'),
+            color: formData.get('color'), // hex for display only
             lineTypeId: formData.get('lineTypeId'),
             description: formData.get('description') || '',
             source: formData.get('source') || 'manual'

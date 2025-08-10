@@ -30,6 +30,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     saveGlobalImportFilter: (filterData) => ipcRenderer.invoke('save-global-import-filter', filterData),
     applyGlobalImportFilter: (layers) => ipcRenderer.invoke('apply-global-import-filter', layers),
     addRuleToGlobalImportFilter: (ruleData) => ipcRenderer.invoke('add-rule-to-global-import-filter', ruleData),
+    syncRuleToActiveProfile: (payload) => ipcRenderer.invoke('sync-rule-to-active-profile', payload),
     updateRuleInGlobalImportFilter: (ruleId, ruleData) => ipcRenderer.invoke('update-rule-in-global-import-filter', ruleId, ruleData),
     deleteRuleFromGlobalImportFilter: (ruleId) => ipcRenderer.invoke('delete-rule-from-global-import-filter', ruleId),
 
@@ -83,6 +84,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     onClearViewer: (callback) => ipcRenderer.on('clear-viewer', callback),
     onFitToView: (callback) => ipcRenderer.on('fit-to-view', callback),
     onWindowResized: (callback) => ipcRenderer.on('window-resized', callback),
+    onRulesUpdated: (callback) => ipcRenderer.on('rules-updated', callback),
     onRefreshToolConfiguration: (callback) => ipcRenderer.on('refresh-tool-configuration', callback),
 
     // Remove listeners

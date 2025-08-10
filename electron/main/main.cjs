@@ -2621,14 +2621,20 @@ function saveGlobalImportFilter(globalFilter) {
             fs.mkdirSync(configDir, { recursive: true });
         }
         
-        // Update metadata
+        // Update metadata (supports legacy DXF-only and new exact-key formats)
         globalFilter.modified = new Date().toISOString();
         globalFilter.statistics.totalRules = globalFilter.rules.length;
-        globalFilter.statistics.uniqueLayers = new Set(globalFilter.rules.map(r => r.layerName)).size;
-        globalFilter.statistics.uniqueColors = new Set(globalFilter.rules.map(r => r.color)).size;
+        const dxfRules = globalFilter.rules.filter(r => !r.format || r.format === 'dxf');
+        globalFilter.statistics.uniqueLayers = new Set(dxfRules.map(r => r.layerName)).size;
+        globalFilter.statistics.uniqueColors = new Set(dxfRules.map(r => r.color)).size;
         
         fs.writeFileSync(globalFilterPath, JSON.stringify(globalFilter, null, 2), 'utf8');
         console.log('Global import filter saved successfully');
+        // Notify all renderer windows to refresh rule cache
+        const allWindows = BrowserWindow.getAllWindows();
+        for (const win of allWindows) {
+            try { win.webContents.send('rules-updated'); } catch {}
+        }
         return true;
     } catch (error) {
         console.error('Error saving global import filter:', error);
@@ -2791,30 +2797,87 @@ ipcMain.handle('add-rule-to-global-import-filter', async (event, rule) => {
     try {
         console.log('Adding rule to global import filter...');
         const globalFilter = loadGlobalImportFilter();
-        
-        // Generate new rule ID
+
+        // Backward-compatible DXF-only schema support
+        const isExactSchema = !!(rule && rule.format && rule.key);
+        if (isExactSchema) {
+            // Update existing rule if same (format,key) exists
+            const idx = globalFilter.rules.findIndex(r => r.format === rule.format && r.key === rule.key);
+            const updated = {
+                id: idx >= 0 ? globalFilter.rules[idx].id : (globalFilter.rules.length + 1),
+                format: rule.format,
+                key: rule.key,
+                lineTypeId: rule.lineTypeId,
+                enabled: rule.enabled !== false,
+                color: rule.color || globalFilter.rules[idx]?.color || undefined,
+                description: rule.description || `Exact mapping (${rule.format})`,
+                source: rule.source || 'manual'
+            };
+            if (idx >= 0) {
+                globalFilter.rules[idx] = { ...globalFilter.rules[idx], ...updated };
+            } else {
+                globalFilter.rules.push(updated);
+            }
+            saveGlobalImportFilter(globalFilter);
+            return { success: true, data: updated };
+        }
+
+        // Legacy path: assume DXF layer/color
         const newRuleId = globalFilter.rules.length + 1;
-        
-        // Add colorHex property for display consistency
         const colorHex = aciToHex(parseInt(rule.color) || 7);
-        
         const newRule = {
             id: newRuleId,
             layerName: rule.layerName,
             color: rule.color,
             colorHex: colorHex,
-            lineTypeId: rule.lineTypeId || "1",
+            lineTypeId: rule.lineTypeId || '1',
             description: rule.description || `Rule for ${rule.layerName}`,
-            source: rule.source || "manual"
+            source: rule.source || 'manual'
         };
-        
         globalFilter.rules.push(newRule);
         saveGlobalImportFilter(globalFilter);
-        
         return { success: true, data: newRule };
     } catch (error) {
         console.error('Error adding rule to global import filter:', error);
         return { success: false, error: error.message };
+    }
+});
+
+// Optional: sync the mapping rule to active postprocessor profile (mtl.xml)
+ipcMain.handle('sync-rule-to-active-profile', async (event, payload) => {
+    try {
+        // Load current active profile name from settings or default
+        const profileName = currentPostprocessorProfileName || 'default_metric';
+        const config = await loadPostprocessorConfig(profileName);
+        if (!config.mappingWorkflow) config.mappingWorkflow = { layerToLineType: [], ddsExact: [], cff2Exact: [] };
+        if (!config.mappingWorkflow.ddsExact) config.mappingWorkflow.ddsExact = [];
+        if (!config.mappingWorkflow.cff2Exact) config.mappingWorkflow.cff2Exact = [];
+        if (!config.mappingWorkflow.layerToLineType) config.mappingWorkflow.layerToLineType = [];
+
+        if (payload.format === 'dxf') {
+            // Expect key: dxf|layer|aci
+            const [, layerName, aci] = String(payload.key).split('|');
+            const aciNum = aci ? parseInt(aci) : undefined;
+            // Replace existing
+            config.mappingWorkflow.layerToLineType = config.mappingWorkflow.layerToLineType.filter(m => !(m.layer === layerName && (m.color === aciNum || typeof m.color === 'undefined')));
+            config.mappingWorkflow.layerToLineType.push({ layer: layerName, color: aciNum, lineType: payload.lineTypeId });
+        } else if (payload.format === 'dds') {
+            // key: color|rawKerf|unit
+            const [color, rawKerf, unit] = String(payload.key).split('|');
+            config.mappingWorkflow.ddsExact = config.mappingWorkflow.ddsExact.filter(m => !(m.color == color && m.rawKerf == rawKerf && m.unit == unit));
+            config.mappingWorkflow.ddsExact.push({ color: Number(color), rawKerf: String(rawKerf), unit: unit || 'unknown', lineType: payload.lineTypeId });
+        } else if (payload.format === 'cff2') {
+            // key: pen-layer (we keep exact string key too)
+            const key = String(payload.key);
+            config.mappingWorkflow.cff2Exact = config.mappingWorkflow.cff2Exact.filter(m => m.key !== key);
+            config.mappingWorkflow.cff2Exact.push({ key, lineType: payload.lineTypeId });
+        }
+
+        await savePostprocessorConfig(profileName, config);
+        return { success: true };
+    } catch (err) {
+        console.error('sync-rule-to-active-profile failed', err);
+        return { success: false, error: err.message };
     }
 });
 
