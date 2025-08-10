@@ -92,18 +92,21 @@ async function loadCurrentProfile() {
         let currentProfileName = null;
         
         if (mainProfileSelect && mainProfileSelect.value && mainProfileSelect.value !== 'custom') {
-            currentProfileName = mainProfileSelect.value;
+            currentProfileName = mainProfileSelect.value.trim(); // Remove whitespace
         } else {
             // Fallback: try to get from main window via IPC
             try {
                 currentProfileName = await window.electronAPI.getMainWindowCurrentProfile();
+                if (currentProfileName) {
+                    currentProfileName = currentProfileName.trim(); // Remove whitespace
+                }
             } catch (ipcError) {
                 console.log('IPC getMainWindowCurrentProfile failed, trying alternative method');
                 // Try the old method as last resort
                 try {
                     const profile = await window.electronAPI.getCurrentProfile();
                     if (profile) {
-                        currentProfileName = profile.id || profile.name;
+                        currentProfileName = (profile.id || profile.name).trim(); // Remove whitespace
                     }
                 } catch (oldIpcError) {
                     console.log('All IPC methods failed');
@@ -114,7 +117,7 @@ async function loadCurrentProfile() {
         // If still no profile name, try to get from localStorage or use first available
         if (!currentProfileName && availableProfiles.length > 0) {
             // Use the first available profile as fallback
-            currentProfileName = availableProfiles[0].filename || availableProfiles[0].name;
+            currentProfileName = (availableProfiles[0].filename || availableProfiles[0].name).trim();
             console.log('Using first available profile as fallback:', currentProfileName);
         }
         
@@ -223,12 +226,23 @@ async function loadTools() {
         if (!currentProfile) return;
         
         const tools = await window.electronAPI.getToolsFromProfile(currentProfile.id || currentProfile.name);
-        currentTools = tools || [];
+        
+        // Ensure tools is an array
+        if (Array.isArray(tools)) {
+            currentTools = tools;
+        } else if (tools && typeof tools === 'object') {
+            // If tools is an object, convert to array
+            currentTools = Object.values(tools);
+        } else {
+            currentTools = [];
+        }
         
         displayTools();
         
     } catch (error) {
         console.error('Error loading tools:', error);
+        currentTools = []; // Set empty array on error
+        displayTools(); // Still try to display
         showError('Failed to load tools');
     }
 }
@@ -239,15 +253,20 @@ function displayTools() {
     
     toolGrid.innerHTML = '';
     
+    if (!Array.isArray(currentTools) || currentTools.length === 0) {
+        toolGrid.innerHTML = '<div class="no-data">No tools found in profile</div>';
+        return;
+    }
+    
     currentTools.forEach(tool => {
         const toolCard = document.createElement('div');
         toolCard.className = 'tool-card';
         toolCard.innerHTML = `
-            <h6>${tool.id}</h6>
-            <div><strong>${tool.name}</strong></div>
-            <div>${tool.description}</div>
-            <div>Width: ${tool.width}mm</div>
-            <div>H-Code: ${tool.hCode}</div>
+            <h6>${tool.id || 'Unknown'}</h6>
+            <div><strong>${tool.name || 'Unnamed Tool'}</strong></div>
+            <div>${tool.description || 'No description'}</div>
+            <div>Width: ${tool.width || 0}mm</div>
+            <div>H-Code: ${tool.hCode || 'N/A'}</div>
         `;
         toolGrid.appendChild(toolCard);
     });
@@ -258,12 +277,23 @@ async function loadLineTypeMappings() {
         if (!currentProfile) return;
         
         const mappings = await window.electronAPI.getLineTypeMappingsFromProfile(currentProfile.id || currentProfile.name);
-        currentMappings = mappings || [];
+        
+        // Ensure mappings is an array
+        if (Array.isArray(mappings)) {
+            currentMappings = mappings;
+        } else if (mappings && typeof mappings === 'object') {
+            // If mappings is an object, convert to array
+            currentMappings = Object.values(mappings);
+        } else {
+            currentMappings = [];
+        }
         
         displayLineTypeMappings();
         
     } catch (error) {
         console.error('Error loading line type mappings:', error);
+        currentMappings = []; // Set empty array on error
+        displayLineTypeMappings(); // Still try to display
         showError('Failed to load line type mappings');
     }
 }
@@ -274,29 +304,38 @@ function displayLineTypeMappings() {
     
     mappingGrid.innerHTML = '';
     
+    if (!Array.isArray(currentMappings) || currentMappings.length === 0) {
+        mappingGrid.innerHTML = '<div class="no-data">No line type mappings found in profile</div>';
+        return;
+    }
+    
     currentMappings.forEach(mapping => {
         const mappingCard = document.createElement('div');
         mappingCard.className = 'mapping-card';
+        
+        // Ensure currentTools is available for tool selection
+        const toolOptions = Array.isArray(currentTools) ? currentTools.map(tool => 
+            `<option value="${tool.id}" ${mapping.toolId === tool.id ? 'selected' : ''}>
+                ${tool.id} (${tool.width || 0}mm - ${tool.description || 'No description'})
+            </option>`
+        ).join('') : '<option value="">No tools available</option>';
+        
         mappingCard.innerHTML = `
             <h6>
                 <span class="color-indicator" style="background: #ff0000;"></span>
-                ${mapping.lineTypeName}
+                ${mapping.lineTypeName || 'Unknown'}
             </h6>
-            <div><strong>Operation:</strong> ${mapping.lineTypeName}</div>
+            <div><strong>Operation:</strong> ${mapping.lineTypeName || 'Unknown'}</div>
             <div><strong>Current Tool:</strong> ${mapping.toolId || 'None assigned'}</div>
             <div class="form-group">
                 <label>Select Machine Tool:</label>
-                <select class="form-select tool-select" data-line-type="${mapping.lineTypeId}">
+                <select class="form-select tool-select" data-line-type="${mapping.lineTypeId || ''}">
                     <option value="">Choose tool...</option>
-                    ${currentTools.map(tool => 
-                        `<option value="${tool.id}" ${mapping.toolId === tool.id ? 'selected' : ''}>
-                            ${tool.id} (${tool.width}mm - ${tool.description})
-                        </option>`
-                    ).join('')}
+                    ${toolOptions}
                 </select>
             </div>
-            <div><strong>Line Width:</strong> ${mapping.lineTypeName.includes('pt') ? mapping.lineTypeName.split('pt')[0] + 'mm' : '1mm'}</div>
-            <div><strong>Tool Width:</strong> ${mapping.toolId ? currentTools.find(t => t.id === mapping.toolId)?.width + 'mm' : 'N/A'}</div>
+            <div><strong>Line Width:</strong> ${mapping.lineTypeName && mapping.lineTypeName.includes('pt') ? mapping.lineTypeName.split('pt')[0] + 'mm' : '1mm'}</div>
+            <div><strong>Tool Width:</strong> ${mapping.toolId && Array.isArray(currentTools) ? (currentTools.find(t => t.id === mapping.toolId)?.width || 0) + 'mm' : 'N/A'}</div>
         `;
         mappingGrid.appendChild(mappingCard);
     });
@@ -307,12 +346,23 @@ async function loadCuttingPriority() {
         if (!currentProfile) return;
         
         const priorityConfig = await window.electronAPI.loadPriorityConfiguration(currentProfile.id || currentProfile.name);
-        currentPriorityOrder = priorityConfig?.items || [];
+        
+        // Ensure priority items is an array
+        if (priorityConfig && Array.isArray(priorityConfig.items)) {
+            currentPriorityOrder = priorityConfig.items;
+        } else if (priorityConfig && typeof priorityConfig === 'object') {
+            // If priorityConfig is an object, try to extract items
+            currentPriorityOrder = priorityConfig.items || Object.values(priorityConfig) || [];
+        } else {
+            currentPriorityOrder = [];
+        }
         
         displayCuttingPriority();
         
     } catch (error) {
         console.error('Error loading cutting priority:', error);
+        currentPriorityOrder = []; // Set empty array on error
+        displayCuttingPriority(); // Still try to display
         showError('Failed to load cutting priority');
     }
 }
@@ -323,57 +373,39 @@ function displayCuttingPriority() {
     
     if (!availableItems || !priorityOrder) return;
     
-    // Display available items (tools not in priority order)
     availableItems.innerHTML = '';
-    currentTools.forEach(tool => {
-        if (!currentPriorityOrder.find(item => item.id === tool.id)) {
+    priorityOrder.innerHTML = '';
+    
+    // Display available tools (from currentTools)
+    if (Array.isArray(currentTools) && currentTools.length > 0) {
+        currentTools.forEach(tool => {
             const item = document.createElement('div');
             item.className = 'priority-item';
             item.innerHTML = `
-                <div>
-                    <div><strong>${tool.id}</strong></div>
-                    <div>${tool.description}</div>
-                </div>
-                <div style="background: #00BFFF; color: white; border-radius: 50%; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; font-size: 12px;">
-                    ${currentTools.indexOf(tool) + 1}
-                </div>
+                <span>${tool.id} - ${tool.name}</span>
+                <span class="tool-width">${tool.width || 0}mm</span>
             `;
             availableItems.appendChild(item);
-        }
-    });
+        });
+    } else {
+        availableItems.innerHTML = '<div class="no-data">No tools available</div>';
+    }
     
     // Display priority order
-    priorityOrder.innerHTML = '';
-    currentPriorityOrder.forEach((item, index) => {
-        const priorityItem = document.createElement('div');
-        priorityItem.className = 'priority-item';
-        
-        if (item.type === 'break') {
+    if (Array.isArray(currentPriorityOrder) && currentPriorityOrder.length > 0) {
+        currentPriorityOrder.forEach((item, index) => {
+            const priorityItem = document.createElement('div');
+            priorityItem.className = 'priority-item';
             priorityItem.innerHTML = `
-                <div>
-                    <div><strong>--- LINE BREAK ---</strong></div>
-                    <div>Manual break in cutting sequence</div>
-                </div>
-                <div style="background: #ffaa00; color: white; border-radius: 50%; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; font-size: 12px;">
-                    ${index + 1}
-                </div>
+                <span class="priority-number">${index + 1}.</span>
+                <span>${item.name || item.id || 'Unknown Item'}</span>
+                <span class="tool-width">${item.width || 0}mm</span>
             `;
-        } else {
-            const tool = currentTools.find(t => t.id === item.id);
-            if (tool) {
-                priorityItem.innerHTML = `
-                    <div>
-                        <div><strong>${tool.id}</strong></div>
-                        <div>Priority item</div>
-                    </div>
-                    <div style="background: #00BFFF; color: white; border-radius: 50%; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; font-size: 12px;">
-                        ${index + 1}
-                    </div>
-                `;
-            }
-        }
-        priorityOrder.appendChild(priorityItem);
-    });
+            priorityOrder.appendChild(priorityItem);
+        });
+    } else {
+        priorityOrder.innerHTML = '<div class="no-data">No priority order set</div>';
+    }
 }
 
 async function loadHeaderFooterConfig() {
