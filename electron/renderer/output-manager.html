@@ -102,6 +102,9 @@
             grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
             gap: 1rem;
             margin-top: 1rem;
+            max-height: 600px;
+            overflow-y: auto;
+            padding-right: 0.5rem;
         }
         .tool-card {
             background: #2c2c2c;
@@ -348,7 +351,7 @@
         <div id="toolsTab" class="tab-content">
             <div class="settings-section">
                 <h5>🔧 Tool Configuration</h5>
-                <p>Configure your machine tools (T1-T4) and their parameters.</p>
+                <p>View and manage your machine tools from the selected profile. Speed configurations are handled by the machine's material database.</p>
                 
                 <div class="button-group">
                     <button class="btn btn-secondary" id="refreshToolsBtn">🔄 Refresh</button>
@@ -357,38 +360,6 @@
                 
                 <div class="tool-grid" id="toolGrid">
                     <!-- Tools will be loaded here -->
-                </div>
-            </div>
-            
-            <div class="settings-section">
-                <h5>⚙️ Tool Parameters</h5>
-                <div class="two-column">
-                    <div>
-                        <h6>Cutting Speeds (mm/min)</h6>
-                        <div class="form-group">
-                            <label for="engravingSpeed">Engraving Speed:</label>
-                            <input type="number" id="engravingSpeed" class="form-input" value="1200">
-                        </div>
-                        <div class="form-group">
-                            <label for="cuttingSpeed">Cutting Speed:</label>
-                            <input type="number" id="cuttingSpeed" class="form-input" value="800">
-                        </div>
-                        <div class="form-group">
-                            <label for="perforationSpeed">Perforation Speed:</label>
-                            <input type="number" id="perforationSpeed" class="form-input" value="600">
-                        </div>
-                    </div>
-                    <div>
-                        <h6>Tool Change Settings</h6>
-                        <div class="form-group">
-                            <label for="toolChangeTime">Tool Change Time (seconds):</label>
-                            <input type="number" id="toolChangeTime" class="form-input" value="5">
-                        </div>
-                        <div class="form-group">
-                            <label for="toolChangeCommand">Tool Change Command:</label>
-                            <input type="text" id="toolChangeCommand" class="form-input" placeholder="e.g., M6">
-                        </div>
-                    </div>
                 </div>
             </div>
         </div>

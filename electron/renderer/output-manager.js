@@ -314,16 +314,26 @@ async function loadTools() {
 
 function displayTools() {
     const toolGrid = document.getElementById('toolGrid');
-    if (!toolGrid) return;
+    if (!toolGrid) {
+        console.error('Tool grid element not found');
+        return;
+    }
+    
+    console.log('Displaying tools:', currentTools);
+    console.log('Number of tools to display:', currentTools ? currentTools.length : 0);
     
     toolGrid.innerHTML = '';
     
     if (!Array.isArray(currentTools) || currentTools.length === 0) {
+        console.warn('No tools to display - currentTools:', currentTools);
         toolGrid.innerHTML = '<div class="no-data">No tools found in profile</div>';
         return;
     }
     
-    currentTools.forEach(tool => {
+    console.log('Creating tool cards for', currentTools.length, 'tools');
+    
+    currentTools.forEach((tool, index) => {
+        console.log(`Creating tool card ${index + 1}:`, tool);
         const toolCard = document.createElement('div');
         toolCard.className = 'tool-card';
         toolCard.innerHTML = `
@@ -335,6 +345,8 @@ function displayTools() {
         `;
         toolGrid.appendChild(toolCard);
     });
+    
+    console.log('Tool grid now contains', toolGrid.children.length, 'tool cards');
 }
 
 async function loadLineTypeMappings() {
