@@ -242,22 +242,13 @@
                         <option value="mm">Millimeters</option>
                         <option value="in">Inches</option>
                     </select>
+                    <small>This determines the units used in generated DIN files.</small>
                 </div>
-                <div class="form-group">
-                    <label for="scaleCommand">Scale Command:</label>
-                    <input type="text" id="scaleCommand" class="form-input" placeholder="e.g., G51 X1.0 Y1.0 Z1.0">
-                </div>
-                <div class="form-group">
-                    <label>
-                        <input type="checkbox" id="includeLineNumbers" checked>
-                        Include line numbers
-                    </label>
-                </div>
-                <div class="button-group">
+                <div class="button-group" style="justify-content: space-between;">
                     <button class="btn btn-primary" id="refreshBtn">🔄 Refresh</button>
-                    <button class="btn btn-secondary">New Profile</button>
-                    <button class="btn btn-secondary">Copy Profile</button>
-                    <button class="btn btn-danger">Delete Profile</button>
+                    <button class="btn btn-secondary" id="newProfileBtn">New Profile</button>
+                    <button class="btn btn-secondary" id="copyProfileBtn">Copy Profile</button>
+                    <button class="btn btn-danger" id="deleteProfileBtn">Delete Profile</button>
                 </div>
             </div>
         </div>
@@ -396,6 +387,12 @@
                                 <input type="checkbox" id="includeOperationCount" checked>
                                 Operation count
                             </label>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="scaleCommand">Scale Command:</label>
+                            <input type="text" id="scaleCommand" class="form-input" placeholder="e.g., G51 X1.0 Y1.0 Z1.0">
+                            <small>Optional scaling command for the machine. Leave empty for no scaling.</small>
                         </div>
                         
                         <div class="form-group">

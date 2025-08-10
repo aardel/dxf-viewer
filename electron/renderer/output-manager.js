@@ -91,11 +91,13 @@ async function loadCurrentProfile() {
         currentProfile = profile;
         
         if (profile) {
+            // Select the current profile in dropdown
             const profileSelect = document.getElementById('profileSelect');
             if (profileSelect) {
                 profileSelect.value = profile.id || profile.name;
             }
             
+            // Load profile configuration immediately
             await loadProfileConfiguration(profile);
         }
         
@@ -105,17 +107,45 @@ async function loadCurrentProfile() {
     }
 }
 
+async function saveOutputUnitsToProfile(units) {
+    try {
+        if (!currentProfile) return;
+        
+        // Save the units setting to the profile
+        await window.electronAPI.savePostprocessorConfig(currentProfile.id || currentProfile.name, {
+            units: units
+        });
+        
+        showSuccess(`Output units set to ${units}`);
+        
+    } catch (error) {
+        console.error('Error saving output units:', error);
+        showError('Failed to save output units');
+    }
+}
+
 async function loadProfileConfiguration(profile) {
     try {
         const config = await window.electronAPI.loadPostprocessorConfig(profile.id || profile.name);
         
         if (config) {
             populateConfigurationFields(config);
+        } else {
+            // Use default values if no config exists
+            populateConfigurationFields({
+                units: 'mm',
+                includeLineNumbers: true
+            });
         }
         
     } catch (error) {
         console.error('Error loading profile configuration:', error);
-        showError('Failed to load profile configuration');
+        // Use default values if config file doesn't exist
+        console.log('Using default configuration values');
+        populateConfigurationFields({
+            units: 'mm',
+            includeLineNumbers: true
+        });
     }
 }
 
@@ -126,12 +156,14 @@ function populateConfigurationFields(config) {
         unitsSelect.value = config.units;
     }
     
+    // Scale command is now in header/footer tab
     const scaleCommandInput = document.getElementById('scaleCommand');
     if (scaleCommandInput && config.scaleCommand) {
         scaleCommandInput.value = config.scaleCommand;
     }
     
-    const lineNumbersCheckbox = document.getElementById('includeLineNumbers');
+    // Line numbers are now in output settings tab
+    const lineNumbersCheckbox = document.getElementById('enableLineNumbers');
     if (lineNumbersCheckbox) {
         lineNumbersCheckbox.checked = config.includeLineNumbers !== false;
     }
@@ -411,6 +443,41 @@ function setupEventListeners() {
         });
     }
     
+    // Output units change
+    const outputUnits = document.getElementById('outputUnits');
+    if (outputUnits) {
+        outputUnits.addEventListener('change', (e) => {
+            // Save the units selection to the current profile
+            if (currentProfile) {
+                saveOutputUnitsToProfile(e.target.value);
+            }
+        });
+    }
+    
+    // Profile management buttons
+    const newProfileBtn = document.getElementById('newProfileBtn');
+    if (newProfileBtn) {
+        newProfileBtn.addEventListener('click', () => {
+            showInfo('New profile functionality coming soon');
+        });
+    }
+    
+    const copyProfileBtn = document.getElementById('copyProfileBtn');
+    if (copyProfileBtn) {
+        copyProfileBtn.addEventListener('click', () => {
+            showInfo('Copy profile functionality coming soon');
+        });
+    }
+    
+    const deleteProfileBtn = document.getElementById('deleteProfileBtn');
+    if (deleteProfileBtn) {
+        deleteProfileBtn.addEventListener('click', () => {
+            if (currentProfile && confirm(`Are you sure you want to delete profile "${currentProfile.name}"?`)) {
+                showInfo('Delete profile functionality coming soon');
+            }
+        });
+    }
+    
     // Refresh button
     const refreshBtn = document.getElementById('refreshBtn');
     if (refreshBtn) {
@@ -571,6 +638,7 @@ window.outputManager = {
     loadCurrentProfile,
     loadProfileConfiguration,
     populateConfigurationFields,
+    saveOutputUnitsToProfile,
     loadTools,
     loadLineTypeMappings,
     loadCuttingPriority,
