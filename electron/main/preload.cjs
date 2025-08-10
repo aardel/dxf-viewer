@@ -70,6 +70,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
     saveMachineTools: (tools, importMode) => ipcRenderer.invoke('save-machine-tools', tools, importMode),
     openMachineToolImporter: () => ipcRenderer.invoke('open-machine-tool-importer'),
     refreshToolConfiguration: () => ipcRenderer.invoke('refresh-tool-configuration'),
+    // Output Manager
+    openOutputManager: () => ipcRenderer.invoke('open-output-manager'),
     
     // Priority Configuration API
     savePriorityConfiguration: (profileName, mode, items) => ipcRenderer.invoke('save-priority-configuration', profileName, mode, items),

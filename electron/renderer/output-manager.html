@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Output Manager</title>
+  <link rel="stylesheet" href="styles.css" />
+  <style>
+    .om-container { display:flex; flex-direction:column; height:100vh; background:#1f1f1f; }
+    .om-header { padding:12px 16px; border-bottom:1px solid #404040; font-weight:600; color:#fff; }
+    .om-tabs { display:flex; gap:8px; padding:8px 12px; border-bottom:1px solid #333; }
+    .om-tab { background:#2c2c2c; color:#ccc; border:none; padding:8px 12px; border-radius:6px; cursor:pointer; }
+    .om-tab.active { background:#0099cc; color:#fff; }
+    .om-body { flex:1; overflow:auto; padding:16px; color:#eee; }
+    .om-section { background:#2c2c2c; border:1px solid #3a3a3a; border-radius:8px; padding:16px; margin-bottom:12px; }
+    .row { display:flex; gap:12px; align-items:center; }
+    label { color:#ddd; }
+    select, input[type="text"], textarea { background:#202020; color:#fff; border:1px solid #444; border-radius:6px; padding:6px 8px; }
+    .om-footer { display:flex; justify-content:flex-end; gap:8px; padding:12px; border-top:1px solid #404040; }
+  </style>
+</head>
+<body>
+  <div class="om-container">
+    <div class="om-header">Output Manager</div>
+    <div class="om-tabs">
+      <button class="om-tab active" data-tab="profile">Profile</button>
+      <button class="om-tab" data-tab="tools">Tools</button>
+      <button class="om-tab" data-tab="paths">Paths & Filenames</button>
+      <button class="om-tab" data-tab="optimization">Optimization</button>
+      <button class="om-tab" data-tab="validation">Validation</button>
+      <button class="om-tab" data-tab="format">Format</button>
+    </div>
+    <div class="om-body">
+      <div class="om-tabpanel" id="tab-profile">
+        <div class="om-section">
+          <div class="row">
+            <label>Active Profile:</label>
+            <select id="omProfile"></select>
+            <button id="omNew">+ New</button>
+            <button id="omCopy">Copy</button>
+            <button id="omEdit">Edit</button>
+            <button id="omRefresh">Refresh</button>
+          </div>
+        </div>
+        <div class="om-section">
+          <div class="row"><label>Output Units:</label><select id="omUnits"><option value="mm">Millimeters (mm)</option><option value="in">Inches (in)</option></select></div>
+          <div class="row"><label>Scaling Header Command:</label><input type="text" id="omScaleCmd" placeholder="G75 X=P2027 Y=P2027" /></div>
+          <div class="row"><label>Line Numbers:</label><input type="checkbox" id="omLineNumbers" checked /></div>
+        </div>
+      </div>
+      <div class="om-tabpanel" id="tab-tools" style="display:none;">
+        <div class="om-section">Tools configuration (placeholder)</div>
+      </div>
+      <div class="om-tabpanel" id="tab-paths" style="display:none;">
+        <div class="om-section">
+          <div class="row"><label>Default Save Location:</label><input type="text" id="omSavePath" style="width:60%" /><button id="omBrowse">Browse</button></div>
+          <div class="row"><label>Filename Template:</label><input type="text" id="omFilename" value="{original_name}.din" /></div>
+          <div class="row"><label>Auto-save:</label><input type="checkbox" id="omAutosave" /></div>
+        </div>
+      </div>
+      <div class="om-tabpanel" id="tab-optimization" style="display:none;">
+        <div class="om-section">
+          <div class="row"><label>Primary Strategy:</label><select id="omStrategy"><option value="closest_path">Closest Path First</option><option value="priority_order">Priority Order</option></select></div>
+          <div class="row"><label>Respect manual breaks:</label><input type="checkbox" id="omManualBreaks" checked /></div>
+          <div class="row"><label>Output with bridges (DDS/CFF2):</label><input type="checkbox" id="omBridges" checked /></div>
+        </div>
+      </div>
+      <div class="om-tabpanel" id="tab-validation" style="display:none;">
+        <div class="om-section">
+          <div class="row"><label>Include comments:</label><input type="checkbox" id="omComments" checked /></div>
+          <div class="row"><label>Validate widths vs tool:</label><input type="checkbox" id="omValidateWidths" checked /></div>
+        </div>
+      </div>
+      <div class="om-tabpanel" id="tab-format" style="display:none;">
+        <div class="om-section">Format specifics (read-only summary)</div>
+      </div>
+    </div>
+    <div class="om-footer">
+      <button id="omClose">Close</button>
+    </div>
+  </div>
+  <script>
+    const tabs = document.querySelectorAll('.om-tab');
+    const panels = {
+      profile: document.getElementById('tab-profile'),
+      tools: document.getElementById('tab-tools'),
+      paths: document.getElementById('tab-paths'),
+      optimization: document.getElementById('tab-optimization'),
+      validation: document.getElementById('tab-validation'),
+      format: document.getElementById('tab-format')
+    };
+    tabs.forEach(btn => {
+      btn.addEventListener('click', () => {
+        tabs.forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        Object.values(panels).forEach(p => p.style.display = 'none');
+        const p = panels[btn.dataset.tab]; if (p) p.style.display = 'block';
+      });
+    });
+    document.getElementById('omClose').addEventListener('click', ()=> window.close());
+  </script>
+</body>
+</html>
+

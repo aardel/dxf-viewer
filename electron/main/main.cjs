@@ -803,6 +803,7 @@ ipcMain.handle('open-mapping-wizard', async () => {
 
 // Keep a single instance of Global Import Filter Manager
 let globalFilterManagerWindow = null;
+let outputManagerWindow = null;
 
 // Open Global Import Filter Manager window
 ipcMain.handle('open-global-import-filter-manager', async () => {
@@ -841,6 +842,43 @@ ipcMain.handle('open-global-import-filter-manager', async () => {
         return { success: true };
     } catch (err) {
         console.error('Failed to open Global Import Filter Manager', err);
+        return { success: false, error: err.message };
+    }
+});
+
+// Open Output Manager window (single instance)
+ipcMain.handle('open-output-manager', async () => {
+    try {
+        if (outputManagerWindow && !outputManagerWindow.isDestroyed()) {
+            if (outputManagerWindow.isMinimized()) outputManagerWindow.restore();
+            outputManagerWindow.focus();
+            outputManagerWindow.show();
+            return { success: true };
+        }
+        outputManagerWindow = new BrowserWindow({
+            width: 1200,
+            height: 850,
+            webPreferences: {
+                nodeIntegration: false,
+                contextIsolation: true,
+                enableRemoteModule: false,
+                preload: path.join(__dirname, 'preload.cjs')
+            },
+            title: 'Output Manager',
+            resizable: true,
+            minimizable: true,
+            maximizable: true
+        });
+        outputManagerWindow.loadFile(path.join(__dirname, '../renderer/output-manager.html'));
+        if (process.env.NODE_ENV === 'development') {
+            outputManagerWindow.webContents.openDevTools();
+        }
+        outputManagerWindow.on('closed', () => {
+            outputManagerWindow = null;
+        });
+        return { success: true };
+    } catch (err) {
+        console.error('Failed to open Output Manager', err);
         return { success: false, error: err.message };
     }
 });
