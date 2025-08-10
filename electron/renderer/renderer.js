@@ -841,6 +841,7 @@ function updateImportPanelForUnified() {
             if (overlayGroups[key]) {
                 overlayGroups[key].visible = !!e.target.checked;
                 drawOverlay();
+                updateUnifiedMappingStatus();
             }
         });
     });
@@ -906,15 +907,18 @@ function updateImportPanelForUnified() {
             const disp = overlayGroups?.[key]?.displayColor || '#66d9ef';
             if (isDds) {
                 const [color, rawKerf, unit] = key.split('|');
-                openMapLinePopup({ format: 'dds', fields: [ {label:'Color', value: color}, {label:'Width', value: `${rawKerf} ${unit}`} ], rulePayload: { format:'dds', key }, displayColor: disp }, key);
+                openMapLinePopup({ format: 'dds', fields: [ {label:'Color', value: color}, {label:'Width', value: `${rawKerf} ${unit}`} ], rulePayload: { format:'dds', key }, displayColor: disp }, key).then(()=>updateUnifiedMappingStatus());
             } else if (isCff2) {
                 const parts = key.split('-');
                 const pen = parts[0] ?? '';
                 const layer = parts.slice(1).join('-');
-                openMapLinePopup({ format: 'cff2', fields: [ {label:'Pen (pt)', value: pen}, {label:'Layer', value: layer} ], rulePayload: { format:'cff2', key }, displayColor: disp }, key);
+                openMapLinePopup({ format: 'cff2', fields: [ {label:'Pen (pt)', value: pen}, {label:'Layer', value: layer} ], rulePayload: { format:'cff2', key }, displayColor: disp }, key).then(()=>updateUnifiedMappingStatus());
             }
         });
     });
+
+    // After building the table, push status to header
+    updateUnifiedMappingStatus();
 }
 
 function drawOverlay() {
@@ -2436,6 +2440,80 @@ function updateLayerStatus() {
         }
     });
     document.dispatchEvent(mappingStatusEvent);
+}
+
+// Unified (DDS/CFF2) mapping status for header controls
+function updateUnifiedMappingStatus() {
+    const isUnified = (currentFileFormat === 'dds' || currentFileFormat === 'cf2' || currentFileFormat === 'cff2');
+    if (!isUnified) return;
+    if (!overlayGroups || Object.keys(overlayGroups).length === 0) return;
+
+    const keys = Object.keys(overlayGroups);
+    const fmt = currentFileFormat === 'dds' ? 'dds' : 'cff2';
+
+    let totalLayers = keys.length;
+    let mappedLayers = 0;
+    let unmappedLayerNames = [];
+    let visibleMappedLayers = 0;
+    let readyForGeneration = true;
+    const generationBlockers = [];
+
+    for (const k of keys) {
+        const entry = exactRulesCache.get(`${fmt}|${k}`);
+        const hasEnabledMapping = !!(entry && entry.enabled && entry.lineTypeId);
+        if (hasEnabledMapping) {
+            mappedLayers++;
+        } else {
+            // Build a user-friendly name from key
+            let display = k;
+            try {
+                if (fmt === 'dds') {
+                    const [color, rawKerf, unit] = k.split('|');
+                    const pt = (unit==='in' ? Number(rawKerf||0)*72 : unit==='mm' ? Number(rawKerf||0)/25.4*72 : Number(rawKerf||0));
+                    display = `${pt.toFixed(2)} pt · color ${color}`;
+                } else {
+                    const parts = k.split('-');
+                    const pen = parts[0] ?? '';
+                    const layer = parts.slice(1).join('-');
+                    display = `${Number(pen||0).toFixed(2)} pt · ${layer}`;
+                }
+            } catch {}
+            unmappedLayerNames.push(display);
+        }
+
+        // Visibility gating – visible items must have enabled mapping
+        const isVisible = !!overlayGroups[k]?.visible;
+        if (isVisible) {
+            if (hasEnabledMapping) {
+                visibleMappedLayers++;
+            } else {
+                readyForGeneration = false;
+                if (!generationBlockers.includes('unmapped layers')) {
+                    generationBlockers.push('unmapped layers');
+                }
+            }
+        }
+    }
+
+    if (visibleMappedLayers === 0 && mappedLayers > 0) {
+        readyForGeneration = false;
+        generationBlockers.push('no visible layers');
+    }
+
+    const unmappedLayers = totalLayers - mappedLayers;
+
+    const evt = new CustomEvent('mappingStatusUpdated', {
+        detail: {
+            totalLayers,
+            mappedLayers,
+            unmappedLayers,
+            unmappedLayerNames,
+            visibleMappedLayers,
+            readyForGeneration,
+            generationBlockers
+        }
+    });
+    document.dispatchEvent(evt);
 }
 // Layer validation and warning functions
 function validateLayerMappings() {

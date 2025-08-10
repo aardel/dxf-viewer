@@ -127,6 +127,10 @@ class HeaderControls {
         document.addEventListener('dxfLoaded', (event) => {
             this.onDxfLoaded(event.detail);
         });
+        // Also listen for unified updates to refresh status on DDS/CFF2 changes
+        document.addEventListener('mappingStatusUpdated', (event) => {
+            this.updateMappingStatus(event.detail);
+        });
     }
 
     updateMappingStatus(statusData) {
