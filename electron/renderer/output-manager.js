@@ -11,6 +11,8 @@ let currentPriorityOrder = [];
 let modalCallback = null;
 let modalType = null;
 let editingTools = []; // Copy of tools for editing
+let sortColumn = null;
+let sortDirection = 'asc';
 
 // Modal management functions
 function showModal(title, placeholder, defaultValue = '', callback) {
@@ -49,15 +51,51 @@ function openEditToolsModal() {
         return;
     }
     
-    // Create a copy of tools for editing
-    editingTools = JSON.parse(JSON.stringify(currentTools));
+    // Create a copy of tools for editing and fix H-Code format
+    editingTools = JSON.parse(JSON.stringify(currentTools)).map(tool => ({
+        ...tool,
+        hCode: tool.hCode ? tool.hCode.replace(/^H/, '') : '' // Remove H prefix
+    }));
+    
+    sortColumn = null;
+    sortDirection = 'asc';
     populateToolsTable();
     document.getElementById('editToolsModal').style.display = 'flex';
 }
 
 function closeEditToolsModal() {
-    document.getElementById('editToolsModal').style.display = 'none';
-    editingTools = [];
+    // Check if there are unsaved changes
+    if (hasUnsavedChanges()) {
+        if (confirm('You have unsaved changes. Are you sure you want to close without saving?')) {
+            document.getElementById('editToolsModal').style.display = 'none';
+            editingTools = [];
+        }
+    } else {
+        document.getElementById('editToolsModal').style.display = 'none';
+        editingTools = [];
+    }
+}
+
+function hasUnsavedChanges() {
+    if (!currentTools || currentTools.length !== editingTools.length) {
+        return true;
+    }
+    
+    for (let i = 0; i < editingTools.length; i++) {
+        const original = currentTools[i];
+        const edited = editingTools[i];
+        
+        if (original.id !== edited.id ||
+            original.name !== edited.name ||
+            original.description !== edited.description ||
+            original.width !== edited.width ||
+            original.hCode !== (edited.hCode ? 'H' + edited.hCode : '') ||
+            original.type !== edited.type) {
+            return true;
+        }
+    }
+    
+    return false;
 }
 
 function populateToolsTable() {
@@ -66,15 +104,38 @@ function populateToolsTable() {
     
     tbody.innerHTML = '';
     
+    // Sort tools if needed
+    if (sortColumn) {
+        editingTools.sort((a, b) => {
+            let aVal = a[sortColumn];
+            let bVal = b[sortColumn];
+            
+            // Handle numeric sorting for ID and width
+            if (sortColumn === 'id' || sortColumn === 'width') {
+                aVal = parseFloat(aVal.toString().replace(/[^\d.]/g, '')) || 0;
+                bVal = parseFloat(bVal.toString().replace(/[^\d.]/g, '')) || 0;
+            } else {
+                aVal = (aVal || '').toString().toLowerCase();
+                bVal = (bVal || '').toString().toLowerCase();
+            }
+            
+            if (sortDirection === 'asc') {
+                return aVal > bVal ? 1 : -1;
+            } else {
+                return aVal < bVal ? 1 : -1;
+            }
+        });
+    }
+    
     editingTools.forEach((tool, index) => {
         const row = document.createElement('tr');
         row.innerHTML = `
-            <td><input type="text" value="${tool.id || ''}" onchange="updateTool(${index}, 'id', this.value)"></td>
-            <td><input type="text" value="${tool.name || ''}" onchange="updateTool(${index}, 'name', this.value)"></td>
-            <td><input type="text" value="${tool.description || ''}" onchange="updateTool(${index}, 'description', this.value)"></td>
-            <td><input type="number" value="${tool.width || 0}" step="0.1" onchange="updateTool(${index}, 'width', parseFloat(this.value))"></td>
-            <td><input type="text" value="${tool.hCode || ''}" onchange="updateTool(${index}, 'hCode', this.value)"></td>
-            <td><input type="text" value="${tool.type || 'cut'}" onchange="updateTool(${index}, 'type', this.value)"></td>
+            <td><input type="number" value="${tool.id ? tool.id.replace(/[^\d]/g, '') : ''}" min="1" onchange="updateTool(${index}, 'id', 'T' + this.value)" onblur="validateToolField(${index}, 'id', this)"></td>
+            <td><input type="text" value="${tool.name || ''}" maxlength="50" onchange="updateTool(${index}, 'name', this.value)" onblur="validateToolField(${index}, 'name', this)"></td>
+            <td><input type="text" value="${tool.description || ''}" maxlength="100" onchange="updateTool(${index}, 'description', this.value)" onblur="validateToolField(${index}, 'description', this)"></td>
+            <td><input type="number" value="${tool.width || 0}" min="0.1" max="100" step="0.1" onchange="updateTool(${index}, 'width', parseFloat(this.value))" onblur="validateToolField(${index}, 'width', this)"></td>
+            <td><input type="number" value="${tool.hCode || ''}" min="1" max="999" onchange="updateTool(${index}, 'hCode', this.value)" onblur="validateToolField(${index}, 'hCode', this)"></td>
+            <td><input type="text" value="${tool.type || 'cut'}" maxlength="20" onchange="updateTool(${index}, 'type', this.value)" onblur="validateToolField(${index}, 'type', this)"></td>
             <td>
                 <div class="action-buttons">
                     <button class="btn btn-danger btn-small" onclick="deleteTool(${index})">Delete</button>
@@ -85,9 +146,97 @@ function populateToolsTable() {
     });
 }
 
+function sortTable(column) {
+    if (sortColumn === column) {
+        sortDirection = sortDirection === 'asc' ? 'desc' : 'asc';
+    } else {
+        sortColumn = column;
+        sortDirection = 'asc';
+    }
+    populateToolsTable();
+}
+
 function updateTool(index, field, value) {
     if (editingTools[index]) {
         editingTools[index][field] = value;
+    }
+}
+
+function validateToolField(index, field, input) {
+    const tool = editingTools[index];
+    if (!tool) return;
+    
+    let isValid = true;
+    let errorMessage = '';
+    
+    switch (field) {
+        case 'id':
+            const idNum = parseInt(input.value);
+            if (isNaN(idNum) || idNum < 1) {
+                isValid = false;
+                errorMessage = 'Tool ID must be a positive number';
+            } else {
+                // Check for duplicate IDs
+                const duplicate = editingTools.find((t, i) => i !== index && t.id === 'T' + idNum);
+                if (duplicate) {
+                    isValid = false;
+                    errorMessage = 'Tool ID must be unique';
+                }
+            }
+            break;
+            
+        case 'name':
+            if (!input.value.trim()) {
+                isValid = false;
+                errorMessage = 'Tool name is required';
+            }
+            break;
+            
+        case 'description':
+            if (!input.value.trim()) {
+                isValid = false;
+                errorMessage = 'Description is required';
+            }
+            break;
+            
+        case 'width':
+            const width = parseFloat(input.value);
+            if (isNaN(width) || width < 0.1 || width > 100) {
+                isValid = false;
+                errorMessage = 'Width must be between 0.1 and 100 mm';
+            }
+            break;
+            
+        case 'hCode':
+            const hCode = parseInt(input.value);
+            if (isNaN(hCode) || hCode < 1 || hCode > 999) {
+                isValid = false;
+                errorMessage = 'H-Code must be between 1 and 999';
+            } else {
+                // Check for duplicate H-Codes
+                const duplicate = editingTools.find((t, i) => i !== index && t.hCode === hCode.toString());
+                if (duplicate) {
+                    isValid = false;
+                    errorMessage = 'H-Code must be unique';
+                }
+            }
+            break;
+            
+        case 'type':
+            if (!input.value.trim()) {
+                isValid = false;
+                errorMessage = 'Type is required';
+            }
+            break;
+    }
+    
+    if (!isValid) {
+        input.style.borderColor = '#dc3545';
+        input.title = errorMessage;
+        showError(errorMessage);
+    } else {
+        input.style.borderColor = '#555';
+        input.title = '';
     }
 }
 
@@ -99,28 +248,96 @@ function deleteTool(index) {
 }
 
 function addNewTool() {
+    // Find the next available ID
+    const existingIds = editingTools.map(t => parseInt(t.id.replace(/[^\d]/g, ''))).filter(id => !isNaN(id));
+    const nextId = existingIds.length > 0 ? Math.max(...existingIds) + 1 : 1;
+    
+    // Find the next available H-Code
+    const existingHCodes = editingTools.map(t => parseInt(t.hCode)).filter(code => !isNaN(code));
+    const nextHCode = existingHCodes.length > 0 ? Math.max(...existingHCodes) + 1 : 1;
+    
     const newTool = {
-        id: 'T' + (editingTools.length + 1),
-        name: 'New Tool',
-        description: 'New tool description',
+        id: 'T' + nextId,
+        name: '',
+        description: '',
         width: 1,
-        hCode: 'H' + (editingTools.length + 1),
+        hCode: nextHCode.toString(),
         type: 'cut'
     };
     
     editingTools.push(newTool);
     populateToolsTable();
+    
+    // Focus on the name field of the new tool
+    setTimeout(() => {
+        const newRow = document.getElementById('toolsTableBody').lastElementChild;
+        if (newRow) {
+            const nameInput = newRow.querySelector('input[type="text"]');
+            if (nameInput) {
+                nameInput.focus();
+            }
+        }
+    }, 100);
 }
 
 async function saveTools() {
     try {
+        // Validate all tools before saving
+        const validationErrors = [];
+        
+        editingTools.forEach((tool, index) => {
+            if (!tool.id || !tool.id.trim()) {
+                validationErrors.push(`Tool ${index + 1}: ID is required`);
+            }
+            if (!tool.name || !tool.name.trim()) {
+                validationErrors.push(`Tool ${index + 1}: Name is required`);
+            }
+            if (!tool.description || !tool.description.trim()) {
+                validationErrors.push(`Tool ${index + 1}: Description is required`);
+            }
+            if (!tool.width || tool.width < 0.1) {
+                validationErrors.push(`Tool ${index + 1}: Width must be at least 0.1 mm`);
+            }
+            if (!tool.hCode || !tool.hCode.trim()) {
+                validationErrors.push(`Tool ${index + 1}: H-Code is required`);
+            }
+            if (!tool.type || !tool.type.trim()) {
+                validationErrors.push(`Tool ${index + 1}: Type is required`);
+            }
+        });
+        
+        // Check for duplicate IDs
+        const ids = editingTools.map(t => t.id);
+        const duplicateIds = ids.filter((id, index) => ids.indexOf(id) !== index);
+        if (duplicateIds.length > 0) {
+            validationErrors.push(`Duplicate Tool IDs found: ${duplicateIds.join(', ')}`);
+        }
+        
+        // Check for duplicate H-Codes
+        const hCodes = editingTools.map(t => t.hCode);
+        const duplicateHCodes = hCodes.filter((code, index) => hCodes.indexOf(code) !== index);
+        if (duplicateHCodes.length > 0) {
+            validationErrors.push(`Duplicate H-Codes found: ${duplicateHCodes.join(', ')}`);
+        }
+        
+        if (validationErrors.length > 0) {
+            showError('Validation errors:\n' + validationErrors.join('\n'));
+            return;
+        }
+        
         if (!currentProfile) {
             showError('No profile selected');
             return;
         }
         
+        // Convert tools back to the expected format (add H prefix to hCode)
+        const toolsToSave = editingTools.map(tool => ({
+            ...tool,
+            hCode: 'H' + tool.hCode // Add H prefix back for saving
+        }));
+        
         // Update currentTools with editingTools
-        currentTools = JSON.parse(JSON.stringify(editingTools));
+        currentTools = JSON.parse(JSON.stringify(toolsToSave));
         
         // Save tools to profile using existing method
         const response = await window.electronAPI.saveMachineTools(currentTools, 'replace');
@@ -435,12 +652,16 @@ function displayTools() {
         console.log(`Creating tool card ${index + 1}:`, tool);
         const toolCard = document.createElement('div');
         toolCard.className = 'tool-card';
+        
+        // Extract numeric part from H-Code (remove H prefix)
+        const hCodeDisplay = tool.hCode ? tool.hCode.replace(/^H/, '') : 'N/A';
+        
         toolCard.innerHTML = `
             <h6>${tool.id || 'Unknown'}</h6>
             <div><strong>${tool.name || 'Unnamed Tool'}</strong></div>
             <div>${tool.description || 'No description'}</div>
             <div>Width: ${tool.width || 0}mm</div>
-            <div>H-Code: ${tool.hCode || 'N/A'}</div>
+            <div>H-Code: ${hCodeDisplay}</div>
         `;
         toolGrid.appendChild(toolCard);
     });

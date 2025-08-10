@@ -232,6 +232,19 @@
             position: sticky;
             top: 0;
             z-index: 10;
+            user-select: none;
+        }
+
+        .tools-table th:hover {
+            background: #2a2a2a;
+        }
+
+        .tools-table th.sortable {
+            cursor: pointer;
+        }
+
+        .tools-table th.sortable:hover {
+            background: #2a2a2a;
         }
 
         .tools-table tr:hover {
@@ -716,12 +729,12 @@ G60 X0</textarea>
                     <table class="tools-table">
                         <thead>
                             <tr>
-                                <th>Tool ID</th>
-                                <th>Name</th>
-                                <th>Description</th>
-                                <th>Width (mm)</th>
-                                <th>H-Code</th>
-                                <th>Type</th>
+                                <th class="sortable" onclick="sortTable('id')">Tool ID ↕</th>
+                                <th class="sortable" onclick="sortTable('name')">Name ↕</th>
+                                <th class="sortable" onclick="sortTable('description')">Description ↕</th>
+                                <th class="sortable" onclick="sortTable('width')">Width (mm) ↕</th>
+                                <th class="sortable" onclick="sortTable('hCode')">H-Code ↕</th>
+                                <th class="sortable" onclick="sortTable('type')">Type ↕</th>
                                 <th>Actions</th>
                             </tr>
                         </thead>
