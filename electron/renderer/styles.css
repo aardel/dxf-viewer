@@ -482,6 +482,11 @@ label.group-by-pt input[type="checkbox"] {
     margin-top: auto; /* pin to bottom of side panel */
     width: 100%;
     flex-shrink: 0;
+    position: sticky; /* keep within side panel */
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 1;
 }
 
 .tab-button {
