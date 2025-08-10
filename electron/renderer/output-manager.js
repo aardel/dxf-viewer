@@ -148,13 +148,13 @@ async function loadCurrentProfile() {
         let currentProfileName = null;
         
         if (mainProfileSelect && mainProfileSelect.value && mainProfileSelect.value !== 'custom') {
-            currentProfileName = mainProfileSelect.value.trim(); // Remove whitespace
+            currentProfileName = mainProfileSelect.value.trim();
         } else {
             // Fallback: try to get from main window via IPC
             try {
                 currentProfileName = await window.electronAPI.getMainWindowCurrentProfile();
                 if (currentProfileName) {
-                    currentProfileName = currentProfileName.trim(); // Remove whitespace
+                    currentProfileName = currentProfileName.trim();
                 }
             } catch (ipcError) {
                 console.log('IPC getMainWindowCurrentProfile failed, trying alternative method');
@@ -162,7 +162,7 @@ async function loadCurrentProfile() {
                 try {
                     const profile = await window.electronAPI.getCurrentProfile();
                     if (profile) {
-                        currentProfileName = (profile.id || profile.name).trim(); // Remove whitespace
+                        currentProfileName = (profile.id || profile.name).trim();
                     }
                 } catch (oldIpcError) {
                     console.log('All IPC methods failed');
@@ -170,34 +170,39 @@ async function loadCurrentProfile() {
             }
         }
         
-        // If still no profile name, try to get from localStorage or use first available
+        // If still no profile name, use the first available profile
         if (!currentProfileName && availableProfiles.length > 0) {
-            // Use the first available profile as fallback
             currentProfileName = (availableProfiles[0].filename || availableProfiles[0].name).trim();
             console.log('Using first available profile as fallback:', currentProfileName);
         }
         
         if (currentProfileName) {
+            // Handle the profile mapping - "MTL_Flatbed" should map to "mtl.xml"
+            let actualProfileName = currentProfileName;
+            if (currentProfileName === 'MTL_Flatbed') {
+                actualProfileName = 'mtl.xml';
+            }
+            
             // Find the profile in available profiles
             const profile = availableProfiles.find(p => 
-                (p.id || p.name || p.filename) === currentProfileName ||
-                p.filename === currentProfileName
+                (p.id || p.name || p.filename) === actualProfileName ||
+                p.filename === actualProfileName ||
+                p.name === actualProfileName
             );
             
             if (profile) {
                 currentProfile = profile;
-                
-                // Select the current profile in dropdown
                 const profileSelect = document.getElementById('profileSelect');
                 if (profileSelect) {
                     profileSelect.value = profile.filename || profile.id || profile.name;
                 }
-                
-                // Load profile configuration immediately
                 await loadProfileConfiguration(profile);
+                console.log('Successfully loaded profile:', profile.name || profile.filename);
             } else {
                 console.warn('Current profile not found in available profiles:', currentProfileName);
-                // Use first available profile as fallback
+                console.log('Available profiles:', availableProfiles.map(p => p.name || p.filename));
+                
+                // If the profile doesn't exist, use the first available one
                 if (availableProfiles.length > 0) {
                     currentProfile = availableProfiles[0];
                     const profileSelect = document.getElementById('profileSelect');
@@ -205,10 +210,10 @@ async function loadCurrentProfile() {
                         profileSelect.value = currentProfile.filename || currentProfile.id || currentProfile.name;
                     }
                     await loadProfileConfiguration(currentProfile);
+                    console.log('Using first available profile as fallback:', currentProfile.name || currentProfile.filename);
                 }
             }
         }
-        
     } catch (error) {
         console.error('Error loading current profile:', error);
         showError('Failed to load current profile');
@@ -597,15 +602,15 @@ function setupEventListeners() {
         newProfileBtn.addEventListener('click', async () => {
             showModal('Create New Profile', 'Enter new profile name:', '', async (profileName) => {
                 try {
-                    // Create a new profile based on current one
+                    // Create a completely new, independent profile
                     const newProfile = {
                         name: profileName.trim(),
-                        description: 'New profile created from ' + (currentProfile?.name || 'default'),
+                        description: 'New independent profile',
                         filename: `${profileName.trim().toLowerCase().replace(/\s+/g, '_')}.xml`
                     };
                     
-                    // Save the new profile
-                    await window.electronAPI.saveXmlProfile(newProfile.filename, {
+                    // Create a complete, independent profile structure
+                    const newProfileData = {
                         profileInfo: {
                             name: newProfile.name,
                             description: newProfile.description,
@@ -616,8 +621,36 @@ function setupEventListeners() {
                         },
                         units: {
                             feedInchMachine: false
+                        },
+                        tools: {
+                            tool: [
+                                {
+                                    id: 'T1',
+                                    name: 'Default Tool',
+                                    description: 'Default cutting tool',
+                                    width: 1,
+                                    hCode: 'H1',
+                                    type: 'cut'
+                                }
+                            ]
+                        },
+                        mappingWorkflow: {
+                            mapping: []
+                        },
+                        optimization: {
+                            strategy: 'nearest',
+                            enableOptimization: true
+                        },
+                        outputSettings: {
+                            enableLineNumbers: false,
+                            scaleCommand: '',
+                            header: '',
+                            footer: ''
                         }
-                    });
+                    };
+                    
+                    // Save the new independent profile
+                    await window.electronAPI.saveXmlProfile(newProfile.filename, newProfileData);
                     
                     // Refresh the profile list
                     await loadAvailableProfiles();
@@ -647,18 +680,23 @@ function setupEventListeners() {
                         filename: `${copyName.trim().toLowerCase().replace(/\s+/g, '_')}.xml`
                     };
                     
-                    // Load the current profile data and save as copy
+                    // Load the current profile data and create an independent copy
                     const currentProfileData = await window.electronAPI.loadXmlProfile(currentProfile.filename || currentProfile.id);
                     if (currentProfileData) {
-                        // Update the profile info for the copy
-                        currentProfileData.profileInfo = {
-                            ...currentProfileData.profileInfo,
+                        // Create a deep copy and update the profile info for independence
+                        const copiedProfileData = JSON.parse(JSON.stringify(currentProfileData));
+                        
+                        // Update the profile metadata to make it independent
+                        copiedProfileData.profileInfo = {
+                            ...copiedProfileData.profileInfo,
                             name: copyProfile.name,
                             description: copyProfile.description,
-                            lastModified: new Date().toISOString()
+                            lastModified: new Date().toISOString(),
+                            created: new Date().toISOString()
                         };
                         
-                        await window.electronAPI.saveXmlProfile(copyProfile.filename, currentProfileData);
+                        // Save the independent copy
+                        await window.electronAPI.saveXmlProfile(copyProfile.filename, copiedProfileData);
                         
                         // Refresh the profile list
                         await loadAvailableProfiles();
