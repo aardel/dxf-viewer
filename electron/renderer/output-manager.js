@@ -59,28 +59,28 @@ async function loadAllConfiguration() {
 async function loadAvailableProfiles() {
     try {
         const profiles = await window.electronAPI.loadXmlProfiles();
-        availableProfiles = profiles || [];
+        availableProfiles = profiles.map(profile => ({
+            ...profile,
+            name: profile.name ? profile.name.trim().replace(/[\r\n]/g, '') : profile.name,
+            filename: profile.filename ? profile.filename.trim() : profile.filename
+        }));
+        
+        console.log('Loaded profiles:', availableProfiles);
         
         const profileSelect = document.getElementById('profileSelect');
         if (profileSelect) {
             profileSelect.innerHTML = '';
             
-            if (availableProfiles.length === 0) {
-                profileSelect.innerHTML = '<option value="">No profiles available</option>';
-            } else {
-                availableProfiles.forEach(profile => {
-                    const option = document.createElement('option');
-                    option.value = profile.id || profile.name;
-                    option.textContent = profile.name || profile.id;
-                    profileSelect.appendChild(option);
-                });
-            }
+            availableProfiles.forEach(profile => {
+                const option = document.createElement('option');
+                option.value = profile.filename || profile.id || profile.name;
+                option.textContent = profile.name || profile.filename;
+                profileSelect.appendChild(option);
+            });
         }
         
-        console.log('Loaded profiles:', availableProfiles);
-        
     } catch (error) {
-        console.error('Error loading profiles:', error);
+        console.error('Error loading available profiles:', error);
         showError('Failed to load profiles');
     }
 }
