@@ -1501,21 +1501,27 @@ function updateUnifiedDimensions() {
         if (!b) { drawingInfoEl.style.display = 'none'; return; }
         const w = Math.abs(b.maxX - b.minX);
         const h = Math.abs(b.maxY - b.minY);
+        // CFF2 SCALE note: detect first SCALE record value if provided by parser
+        let scaleNote = '';
+        try {
+            const s = geoms.find(g => g?.properties?.scale)?.properties?.scale;
+            if (currentFileFormat !== 'dxf' && typeof s === 'number' && s !== 1) {
+                scaleNote = ` (CFF2 SCALE: ${s})`;
+            }
+        } catch {}
         // Determine unit label per format
         let unit = 'unknown';
         let unitName = 'Unknown';
         if (currentFileFormat === 'dds') {
             const u = geoms.find(g => g.properties?.unitCode)?.properties?.unitCode || 'unknown';
-            const override = importUnitOverrideEl?.value || 'auto';
-            unit = override !== 'auto' ? override : u;
+            unit = u;
             unitName = (u === 'mm' ? 'Millimeters' : (u === 'in' ? 'Inches' : 'Unknown'));
         } else if (currentFileFormat === 'cf2' || currentFileFormat === 'cff2') {
-            const override = importUnitOverrideEl?.value || 'auto';
-            const inf = override !== 'auto' ? { unit: override } : inferUnitsFromGeometry(geoms);
+            const inf = inferUnitsFromGeometry(geoms);
             unit = inf.unit;
             unitName = (unit === 'mm' ? 'Millimeters' : unit === 'in' ? 'Inches' : 'Unknown');
         }
-        dimsEl.textContent = `${w.toFixed(3)} × ${h.toFixed(3)} ${unit}`;
+        dimsEl.textContent = `${w.toFixed(3)} × ${h.toFixed(3)} ${unit}${scaleNote}`;
         unitsEl.textContent = unitName;
         drawingInfoEl.style.display = 'block';
     } catch {}
