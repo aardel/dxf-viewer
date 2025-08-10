@@ -651,31 +651,43 @@ function updateImportPanelForUnified() {
                     const g = overlayGroups[k];
                     const [pen, ...rest] = k.split('-');
                     const layer = rest.join('-');
-                    const lineTypeName = resolveMappedLineTypeName('cff2', k);
-                    const mappedClass = lineTypeName ? 'mapped' : 'unmapped';
+                    const entry = exactRulesCache.get(`cff2|${k}`);
+                    const ltName = entry?.lineTypeId ? getLineTypeName(String(entry.lineTypeId)) : '';
+                    const isEnabled = !!(entry && entry.enabled !== false && entry.lineTypeId);
+                    const isDisabledRule = !!(entry && entry.lineTypeId && entry.enabled === false);
+                    const mappingText = isEnabled ? ltName : (isDisabledRule ? 'NO OUTPUT' : 'UNMAPPED');
+                    const mappedClass = isEnabled ? 'mapped' : (isDisabledRule ? 'disabled' : 'unmapped');
+                    const checked = (g.visible && !isDisabledRule) ? 'checked' : '';
+                    if (isDisabledRule && overlayGroups[k]) overlayGroups[k].visible = false;
                     parts.push(`
                       <tr class="group-child" data-parent-group="${gid}" style="display:none;" data-key="${k}">
-                        <td><input type="checkbox" class="unified-layer-visible output-toggle ${mappedClass}" data-key="${k}" ${g.visible ? 'checked' : ''} /></td>
+                        <td><input type="checkbox" class="unified-layer-visible output-toggle ${mappedClass}" data-key="${k}" ${checked} ${isDisabledRule ? 'title="Disabled rule: no output"' : ''} /></td>
                         <td><span class="color-swatch" style="background:${g.displayColor}"></span></td>
                         <td>${Number(pen || 0).toFixed(2)}</td>
                         <td>${pen}</td>
                         <td>${layer}</td>
                         <td><button class="btn btn-small btn-secondary goto-mapping-btn" data-key="${k}" title="Open Mapping">→</button></td>
-                        <td class="lt-name">${lineTypeName || 'UNMAPPED'}</td>
+                        <td class="lt-name">${mappingText}</td>
                       </tr>`);
                 } else {
                     const g = overlayGroups[k];
                     const [color, rawKerf, unit] = k.split('|');
-                    const lineTypeName = resolveMappedLineTypeName('dds', k);
-                    const mappedClass = lineTypeName ? 'mapped' : 'unmapped';
+                    const entry = exactRulesCache.get(`dds|${k}`);
+                    const ltName = entry?.lineTypeId ? getLineTypeName(String(entry.lineTypeId)) : '';
+                    const isEnabled = !!(entry && entry.enabled !== false && entry.lineTypeId);
+                    const isDisabledRule = !!(entry && entry.lineTypeId && entry.enabled === false);
+                    const mappingText = isEnabled ? ltName : (isDisabledRule ? 'NO OUTPUT' : 'UNMAPPED');
+                    const mappedClass = isEnabled ? 'mapped' : (isDisabledRule ? 'disabled' : 'unmapped');
+                    const checked = (g.visible && !isDisabledRule) ? 'checked' : '';
+                    if (isDisabledRule && overlayGroups[k]) overlayGroups[k].visible = false;
                     parts.push(`
                       <tr class="group-child" data-parent-group="${gid}" style="display:none;" data-key="${k}">
-                        <td><input type="checkbox" class="unified-layer-visible output-toggle ${mappedClass}" data-key="${k}" ${g.visible ? 'checked' : ''} /></td>
+                        <td><input type="checkbox" class="unified-layer-visible output-toggle ${mappedClass}" data-key="${k}" ${checked} ${isDisabledRule ? 'title="Disabled rule: no output"' : ''} /></td>
                         <td><span class="color-swatch" style="background:${g.displayColor}"></span></td>
                         <td title="raw: ${rawKerf} ${unit}">${(unit==='in' ? Number(rawKerf||0)*72 : unit==='mm' ? Number(rawKerf||0)/25.4*72 : Number(rawKerf||0)).toFixed(2)}</td>
                         <td>${color}</td>
                         <td><button class="btn btn-small btn-secondary goto-mapping-btn" data-key="${k}" title="Open Mapping">→</button></td>
-                        <td class="lt-name">${lineTypeName || 'UNMAPPED'}</td>
+                        <td class="lt-name">${mappingText}</td>
                       </tr>`);
                 }
             });
@@ -710,31 +722,43 @@ function updateImportPanelForUnified() {
                 const parts = k.split('-');
                 const pen = parts[0] ?? '';
                 const layer = parts.slice(1).join('-');
-                const lineTypeName = resolveMappedLineTypeName('cff2', k);
-                const mappedClass = lineTypeName ? 'mapped' : 'unmapped';
+                const entry = exactRulesCache.get(`cff2|${k}`);
+                const ltName = entry?.lineTypeId ? getLineTypeName(String(entry.lineTypeId)) : '';
+                const isEnabled = !!(entry && entry.enabled !== false && entry.lineTypeId);
+                const isDisabledRule = !!(entry && entry.lineTypeId && entry.enabled === false);
+                const mappingText = isEnabled ? ltName : (isDisabledRule ? 'NO OUTPUT' : 'UNMAPPED');
+                const mappedClass = isEnabled ? 'mapped' : (isDisabledRule ? 'disabled' : 'unmapped');
+                const checked = (g.visible && !isDisabledRule) ? 'checked' : '';
+                if (isDisabledRule && overlayGroups[k]) overlayGroups[k].visible = false;
                 return `
                   <tr data-key="${k}">
-                    <td><input type="checkbox" class="unified-layer-visible output-toggle ${mappedClass}" data-key="${k}" ${g.visible ? 'checked' : ''} /></td>
+                    <td><input type="checkbox" class="unified-layer-visible output-toggle ${mappedClass}" data-key="${k}" ${checked} ${isDisabledRule ? 'title="Disabled rule: no output"' : ''} /></td>
                     <td><span class="color-swatch" style="background:${g.displayColor}"></span></td>
                     <td>${Number(pen || 0).toFixed(2)}</td>
                     <td>${pen}</td>
                     <td>${layer}</td>
                     <td><button class="btn btn-small btn-secondary goto-mapping-btn" data-key="${k}" title="Open Mapping">→</button></td>
-                    <td class="lt-name">${lineTypeName || 'UNMAPPED'}</td>
+                    <td class="lt-name">${mappingText}</td>
                   </tr>`;
             }
             if (isDds) {
                 const [color, rawKerf, unit] = k.split('|');
-                const lineTypeName = resolveMappedLineTypeName('dds', k);
-                const mappedClass = lineTypeName ? 'mapped' : 'unmapped';
+                const entry = exactRulesCache.get(`dds|${k}`);
+                const ltName = entry?.lineTypeId ? getLineTypeName(String(entry.lineTypeId)) : '';
+                const isEnabled = !!(entry && entry.enabled !== false && entry.lineTypeId);
+                const isDisabledRule = !!(entry && entry.lineTypeId && entry.enabled === false);
+                const mappingText = isEnabled ? ltName : (isDisabledRule ? 'NO OUTPUT' : 'UNMAPPED');
+                const mappedClass = isEnabled ? 'mapped' : (isDisabledRule ? 'disabled' : 'unmapped');
+                const checked = (g.visible && !isDisabledRule) ? 'checked' : '';
+                if (isDisabledRule && overlayGroups[k]) overlayGroups[k].visible = false;
                 return `
                   <tr data-key="${k}">
-                    <td><input type="checkbox" class="unified-layer-visible output-toggle ${mappedClass}" data-key="${k}" ${g.visible ? 'checked' : ''} /></td>
+                    <td><input type="checkbox" class="unified-layer-visible output-toggle ${mappedClass}" data-key="${k}" ${checked} ${isDisabledRule ? 'title="Disabled rule: no output"' : ''} /></td>
                     <td><span class="color-swatch" style="background:${g.displayColor}"></span></td>
                     <td title="raw: ${rawKerf} ${unit}">${(unit==='in' ? Number(rawKerf||0)*72 : unit==='mm' ? Number(rawKerf||0)/25.4*72 : Number(rawKerf||0)).toFixed(2)}</td>
                     <td>${color}</td>
                     <td><button class="btn btn-small btn-secondary goto-mapping-btn" data-key="${k}" title="Open Mapping">→</button></td>
-                    <td class="lt-name">${lineTypeName || 'UNMAPPED'}</td>
+                    <td class="lt-name">${mappingText}</td>
                   </tr>`;
             }
             return `
@@ -846,18 +870,21 @@ function updateImportPanelForUnified() {
         });
     });
 
-    // Apply disabled class for rows mapped=false but with rule disabled (if we detect it)
+    // Ensure disabled rules show as NO OUTPUT and force checkbox off with blue glow
     Array.from(layerTableEl.querySelectorAll('tr[data-key]')).forEach(tr => {
         const k = tr.getAttribute('data-key');
         const cb = tr.querySelector('.output-toggle');
         if (!cb) return;
         const fmt = isDds ? 'dds' : (isCff2 ? 'cff2' : '');
-        if (fmt) {
-            const id = exactRulesCache.get(`${fmt}|${k}`);
-            // We don't have enabled flag in cache; rely on Mapping text: if unmapped, keep mapped/unmapped class; if mapped but checkbox off, show disabled blue
+        if (!fmt) return;
+        const entry = exactRulesCache.get(`${fmt}|${k}`);
+        if (entry && entry.lineTypeId && entry.enabled === false) {
             const mappedCell = tr.querySelector('.lt-name');
-            if (mappedCell && /UNMAPPED/i.test(mappedCell.textContent)) return;
-            if (!cb.checked) cb.classList.add('disabled');
+            if (mappedCell) mappedCell.textContent = 'NO OUTPUT';
+            cb.checked = false;
+            cb.classList.remove('mapped','unmapped');
+            cb.classList.add('disabled');
+            if (overlayGroups[k]) overlayGroups[k].visible = false;
         }
     });
 
