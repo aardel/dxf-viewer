@@ -11,7 +11,7 @@
             </Version>
             <Created>2025-08-02
             </Created>
-            <LastModified>2025-08-10
+            <LastModified>2025-08-05
             </LastModified>
             <Author>Aaron Delia
             </Author>
@@ -87,22 +87,22 @@
             </ValidateWidths>
             <RespectManualBreaks>true
             </RespectManualBreaks>
-            <Priority mode="tool">
-                <Mode>tool
+        <Priority mode="tool">
+            <Mode>tool
                 </Mode>
-                <PriorityItem order="1" value="T20"/>
-                <PriorityItem order="2" value="T33"/>
-                <PriorityItem order="3" value="T35"/>
-                <PriorityItem order="4" value="__LINE_BREAK__"/>
-                <PriorityItem order="5" value="T2"/>
-                <PriorityItem order="6" value="T3"/>
-                <PriorityItem order="7" value="T4"/>
-                <PriorityItem order="8" value="T12"/>
-                <PriorityItem order="9" value="T13"/>
-                <PriorityItem order="10" value="T14"/>
-                <PriorityItem order="11" value="__LINE_BREAK__"/>
-                <PriorityItem order="12" value="T22"/>
-            </Priority>
+            <PriorityItem order="1" value="T20"/>
+            <PriorityItem order="2" value="T33"/>
+            <PriorityItem order="3" value="T35"/>
+            <PriorityItem order="4" value="__LINE_BREAK__"/>
+            <PriorityItem order="5" value="T2"/>
+            <PriorityItem order="6" value="T3"/>
+            <PriorityItem order="7" value="T4"/>
+            <PriorityItem order="8" value="T12"/>
+            <PriorityItem order="9" value="T13"/>
+            <PriorityItem order="10" value="T14"/>
+            <PriorityItem order="11" value="__LINE_BREAK__"/>
+            <PriorityItem order="12" value="T22"/>
+        </Priority>
         </Optimization>
         <GCode>
             <RapidMove>G0
@@ -146,6 +146,35 @@
             <Format>N{number}
             </Format>
         </LineNumbers>
+        
+        
+    
+    <MappingWorkflow>
+        <LineTypeToTool>
+            <LineTypeMapping LineType="2pt CW" Tool="T2"/>
+            <LineTypeMapping LineType="3pt CW" Tool="T3"/>
+            <LineTypeMapping LineType="4pt CW" Tool="T4"/>
+            <LineTypeMapping LineType="2pt Puls" Tool="T12"/>
+            <LineTypeMapping LineType="3pt Puls" Tool="T13"/>
+            <LineTypeMapping LineType="4pt Puls" Tool="T14"/>
+            <LineTypeMapping LineType="Fast Engrave" Tool="T20"/>
+            <LineTypeMapping LineType="Fine Cut Pulse" Tool="T22"/>
+            <LineTypeMapping LineType="Fine Cut CW" Tool="T22"/>
+            <LineTypeMapping LineType="Nozzle Engrave" Tool="T33"/>
+            <LineTypeMapping LineType="Engrave" Tool="T22"/>
+            <LineTypeMapping LineType="Milling 1" Tool="T100"/>
+            <LineTypeMapping LineType="Milling 2" Tool="T101"/>
+            <LineTypeMapping LineType="Milling 3" Tool="T102"/>
+            <LineTypeMapping LineType="Milling 4" Tool="T103"/>
+            <LineTypeMapping LineType="Milling 5" Tool="T104"/>
+            <LineTypeMapping LineType="Milling 6" Tool="T105"/>
+            <LineTypeMapping LineType="Milling 7" Tool="T106"/>
+            <LineTypeMapping LineType="Milling 8" Tool="T107"/>
+        </LineTypeToTool>
+    </MappingWorkflow>
+    
+        
+    
         <OutputSettings>
             <DefaultSavePath>/Users/aarondelia/Downloads
             </DefaultSavePath>
@@ -154,27 +183,4 @@
             <AutoSaveEnabled>true
             </AutoSaveEnabled>
         </OutputSettings>
-        <MappingWorkflow>
-            <LineTypeToTool>
-                <LineTypeMapping LineType="2pt CW" Tool="T2"/>
-                <LineTypeMapping LineType="3pt CW" Tool="T3"/>
-                <LineTypeMapping LineType="4pt CW" Tool="T4"/>
-                <LineTypeMapping LineType="2pt Puls" Tool="T12"/>
-                <LineTypeMapping LineType="3pt Puls" Tool="T13"/>
-                <LineTypeMapping LineType="4pt Puls" Tool="T14"/>
-                <LineTypeMapping LineType="Fast Engrave" Tool="T20"/>
-                <LineTypeMapping LineType="Fine Cut Pulse" Tool="T22"/>
-                <LineTypeMapping LineType="Fine Cut CW" Tool="T22"/>
-                <LineTypeMapping LineType="Nozzle Engrave" Tool="T33"/>
-                <LineTypeMapping LineType="Engrave" Tool="T22"/>
-                <LineTypeMapping LineType="Milling 1" Tool="T100"/>
-                <LineTypeMapping LineType="Milling 2" Tool="T101"/>
-                <LineTypeMapping LineType="Milling 3" Tool="T102"/>
-                <LineTypeMapping LineType="Milling 4" Tool="T103"/>
-                <LineTypeMapping LineType="Milling 5" Tool="T104"/>
-                <LineTypeMapping LineType="Milling 6" Tool="T105"/>
-                <LineTypeMapping LineType="Milling 7" Tool="T106"/>
-                <LineTypeMapping LineType="Milling 8" Tool="T107"/>
-            </LineTypeToTool>
-        </MappingWorkflow>
     </PostprocessorProfile>
