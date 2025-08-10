@@ -156,123 +156,37 @@
                             </div>
                         </div>
 
-                        <!-- Quick Configuration -->
+                        <!-- Configuration Note -->
                         <div class="settings-section">
-                            <h5>Quick Configuration</h5>
-                            <div class="config-shortcuts">
-                                <button class="btn btn-primary config-btn" id="openToolConfigBtn">
-                                    <span class="config-icon">🔧</span>
-                                    <div class="config-text">
-                                        <div class="config-title">Tool Configuration</div>
-                                        <div class="config-desc">Manage tools (T1, T2, T3) and cutting parameters</div>
-                                    </div>
-                                </button>
-                                
-                                <button class="btn btn-primary config-btn" id="openMappingConfigBtn">
-                                    <span class="config-icon">🎯</span>
-                                    <div class="config-text">
-                                        <div class="config-title">Line Type Mapping</div>
-                                        <div class="config-desc">Map DXF layers/colors to machine tools</div>
-                                    </div>
-                                </button>
-                                
-                                <button class="btn btn-primary config-btn" id="openHeaderConfigBtn">
-                                    <span class="config-icon">📋</span>
-                                    <div class="config-text">
-                                        <div class="config-title">Header & Footer Config</div>
-                                        <div class="config-desc">Configure DIN file headers, line numbers, and program end</div>
-                                    </div>
-                                </button>
-                            </div>
+                            <h5>⚙️ Machine Configuration</h5>
+                            <p>All machine-specific settings (tools, cutting priority, line type mapping, header/footer configuration) have been moved to the <strong>Output Manager</strong> for better organization.</p>
+                            <p>Click the "⚙️ Output Manager" button above to access all configuration options in a dedicated window.</p>
                         </div>
 
-                        <!-- Optimization Strategy -->
+                        <!-- Basic Output Settings -->
                         <div class="settings-section">
-                            <h5>Cutting Optimization</h5>
-                            <div class="optimization-settings">
-                                <div class="setting-row">
-                                    <label for="primaryStrategy">Primary Strategy:</label>
-                                    <select id="primaryStrategy" class="form-select">
-                                        <option value="tool_grouped">Group by Tool (Minimize tool changes)</option>
-                                        <option value="priority_order" selected>Priority Order (Follow cutting sequence)</option>
-                                    </select>
-                                </div>
-
-                        <!-- Bridges Handling (DDS/CFF2) -->
-                        <div class="settings-section">
-                            <h5>Bridges (DDS/CFF2)</h5>
-                            <div class="optimization-options">
+                            <h5>💾 Basic Output Settings</h5>
+                            <p>Quick access to essential output settings. For advanced configuration, use the Output Manager.</p>
+                            
+                            <div class="form-group">
                                 <label>
                                     <input type="checkbox" id="enableBridgesOutput" checked>
-                                    Output with bridges (split toolpaths around bridge gaps)
+                                    Output with bridges (DDS/CFF2)
                                 </label>
                             </div>
-                        </div>
-                                
-                                <div class="setting-row">
-                                    <label for="withinGroupOptimization">Path Optimization:</label>
-                                    <select id="withinGroupOptimization" class="form-select">
-                                        <option value="closest_path">Closest Path First</option>
-                                        <option value="zigzag_horizontal">Zig-Zag Horizontal</option>
-                                        <option value="zigzag_vertical">Zig-Zag Vertical</option>
-                                        <option value="spiral_out">Spiral Outward</option>
-                                        <option value="spiral_in">Spiral Inward</option>
-                                        <option value="left_to_right">Left to Right</option>
-                                        <option value="bottom_to_top">Bottom to Top</option>
-                                        <option value="no_optimization">No Optimization</option>
-                                    </select>
-                                </div>
-                                
-                                <div class="optimization-options">
-                                    <label>
-                                        <input type="checkbox" id="includeComments" checked>
-                                        Include operation comments in DIN file
-                                    </label>
-                                    <label>
-                                        <input type="checkbox" id="validateWidths" checked>
-                                        Validate cutting widths vs tool capabilities
-                                    </label>
-                                    <label>
-                                        <input type="checkbox" id="respectManualBreaks" checked>
-                                        Respect manual priority breaks
-                                    </label>
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <!-- File Output Settings -->
-                        <div class="settings-section">
-                            <h5>File Output Settings</h5>
-                            <p>Configure default save location and filename formatting for generated DIN files.</p>
                             
-                            <div class="output-settings">
-                                <div class="output-setting-group">
-                                    <label for="defaultSavePath">Default Save Location:</label>
-                                    <div class="path-input-group">
-                                        <textarea id="defaultSavePath" class="form-textarea path-textarea" placeholder="No default path set" readonly rows="2"></textarea>
-                                        <div class="path-buttons">
-                                            <button id="browseSavePathBtn" class="btn btn-secondary">Browse</button>
-                                            <button id="clearSavePathBtn" class="btn btn-tertiary">Clear</button>
-                                        </div>
-                                    </div>
-                                    <div class="setting-help">When no path is set, a save dialog will open for each file.</div>
-                                </div>
-                                
-                                <div class="output-setting-group">
-                                    <label for="filenameFormat">Filename Format:</label>
-                                    <input type="text" id="filenameFormat" class="form-input" value="{original_name}.din" placeholder="e.g., {original_name}.din">
-                                    <div class="setting-help">
-                                        Available variables: {original_name}, {date}, {time}, {timestamp}, {width}, {height}
-                                    </div>
-                                </div>
-                                
-                                <div class="output-setting-group">
-                                    <label>
-                                        <input type="checkbox" id="autoSaveEnabled" checked>
-                                        Auto-save to default location (skip dialog)
-                                    </label>
-                                    <div class="setting-help">When enabled, files will be saved directly to the default location without showing a dialog.</div>
-                                </div>
+                            <div class="form-group">
+                                <label>
+                                    <input type="checkbox" id="includeComments" checked>
+                                    Include operation comments in DIN file
+                                </label>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label>
+                                    <input type="checkbox" id="validateWidths" checked>
+                                    Validate cutting widths vs tool capabilities
+                                </label>
                             </div>
                         </div>
                         

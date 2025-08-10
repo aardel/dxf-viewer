@@ -37,6 +37,9 @@
             cursor: pointer;
             border-radius: 6px;
             transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 6px;
         }
         .tab-button.active {
             background: linear-gradient(135deg, #00BFFF 0%, #0099CC 100%);
@@ -70,6 +73,9 @@
             margin-bottom: 0.5rem;
             font-size: 14px;
             text-shadow: 0 1px 2px rgba(0,0,0,0.3);
+            display: flex;
+            align-items: center;
+            gap: 8px;
         }
         .form-group label {
             display: block;
@@ -90,22 +96,140 @@
             gap: 10px;
             margin-top: 1rem;
         }
+        .tool-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+        .tool-card {
+            background: #2c2c2c;
+            border: 1px solid #444;
+            border-radius: 6px;
+            padding: 1rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        .tool-card:hover {
+            border-color: #00BFFF;
+            background: #333;
+        }
+        .tool-card.selected {
+            border-color: #00BFFF;
+            background: #1a3a4a;
+        }
+        .priority-lists {
+            display: flex;
+            gap: 2rem;
+            margin-top: 1rem;
+        }
+        .priority-list {
+            flex: 1;
+            background: #2c2c2c;
+            border: 1px solid #444;
+            border-radius: 6px;
+            padding: 1rem;
+            min-height: 300px;
+        }
+        .priority-list h6 {
+            color: #00BFFF;
+            margin-bottom: 1rem;
+            text-align: center;
+        }
+        .priority-item {
+            background: #333;
+            border: 1px solid #555;
+            border-radius: 4px;
+            padding: 0.5rem;
+            margin-bottom: 0.5rem;
+            cursor: move;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .priority-item:hover {
+            background: #3a3a3a;
+        }
+        .priority-controls {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            justify-content: center;
+            padding: 0 1rem;
+        }
+        .mapping-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+        .mapping-card {
+            background: #2c2c2c;
+            border: 1px solid #444;
+            border-radius: 6px;
+            padding: 1rem;
+        }
+        .mapping-card h6 {
+            color: #00BFFF;
+            margin-bottom: 0.5rem;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .color-indicator {
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            display: inline-block;
+        }
+        .preview-area {
+            background: #1a1a1a;
+            border: 1px solid #444;
+            border-radius: 6px;
+            padding: 1rem;
+            font-family: monospace;
+            font-size: 12px;
+            min-height: 200px;
+            max-height: 400px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+        }
+        .two-column {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2rem;
+        }
+        .checkbox-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+        .checkbox-group label {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            cursor: pointer;
+        }
+        .checkbox-group input[type="checkbox"] {
+            margin: 0;
+        }
     </style>
 </head>
 <body>
     <div class="output-manager-container">
         <div class="tab-buttons-container">
-            <button class="tab-button active" data-tab="profile">Profile</button>
-            <button class="tab-button" data-tab="tools">Tools</button>
-            <button class="tab-button" data-tab="paths">Paths & Filenames</button>
-            <button class="tab-button" data-tab="optimization">Optimization</button>
-            <button class="tab-button" data-tab="validation">Validation</button>
-            <button class="tab-button" data-tab="format">Format Specifics</button>
+            <button class="tab-button active" data-tab="profile">📋 Profile</button>
+            <button class="tab-button" data-tab="tools">🔧 Tools & Parameters</button>
+            <button class="tab-button" data-tab="priority">🎯 Cutting Priority</button>
+            <button class="tab-button" data-tab="mapping">🔗 Line Type Mapping</button>
+            <button class="tab-button" data-tab="header">📄 Header & Footer</button>
+            <button class="tab-button" data-tab="output">💾 Output Settings</button>
         </div>
 
+        <!-- Profile Tab -->
         <div id="profileTab" class="tab-content active">
             <div class="settings-section">
-                <h5>Profile Settings</h5>
+                <h5>📋 Profile Settings</h5>
                 <div class="form-group">
                     <label for="profileSelect">Active Profile:</label>
                     <select id="profileSelect" class="form-select">
@@ -138,34 +262,264 @@
             </div>
         </div>
 
+        <!-- Tools Tab -->
         <div id="toolsTab" class="tab-content">
             <div class="settings-section">
-                <h5>Tool Configuration</h5>
-                <p>Manage tool parameters (T1, T2, T3) and cutting capabilities.</p>
-                <button class="btn btn-primary">Open Tool Manager</button>
+                <h5>🔧 Tool Configuration</h5>
+                <p>Configure your machine tools (T1-T4) and their parameters.</p>
+                
+                <div class="button-group">
+                    <button class="btn btn-secondary" id="refreshToolsBtn">🔄 Refresh</button>
+                    <button class="btn btn-primary" id="editToolsBtn">Edit Tools</button>
+                </div>
+                
+                <div class="tool-grid" id="toolGrid">
+                    <!-- Tools will be loaded here -->
+                </div>
+            </div>
+            
+            <div class="settings-section">
+                <h5>⚙️ Tool Parameters</h5>
+                <div class="two-column">
+                    <div>
+                        <h6>Cutting Speeds (mm/min)</h6>
+                        <div class="form-group">
+                            <label for="engravingSpeed">Engraving Speed:</label>
+                            <input type="number" id="engravingSpeed" class="form-input" value="1200">
+                        </div>
+                        <div class="form-group">
+                            <label for="cuttingSpeed">Cutting Speed:</label>
+                            <input type="number" id="cuttingSpeed" class="form-input" value="800">
+                        </div>
+                        <div class="form-group">
+                            <label for="perforationSpeed">Perforation Speed:</label>
+                            <input type="number" id="perforationSpeed" class="form-input" value="600">
+                        </div>
+                    </div>
+                    <div>
+                        <h6>Tool Change Settings</h6>
+                        <div class="form-group">
+                            <label for="toolChangeTime">Tool Change Time (seconds):</label>
+                            <input type="number" id="toolChangeTime" class="form-input" value="5">
+                        </div>
+                        <div class="form-group">
+                            <label for="toolChangeCommand">Tool Change Command:</label>
+                            <input type="text" id="toolChangeCommand" class="form-input" placeholder="e.g., M6">
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
 
-        <div id="pathsTab" class="tab-content">
+        <!-- Cutting Priority Tab -->
+        <div id="priorityTab" class="tab-content">
             <div class="settings-section">
-                <h5>File Output Paths & Naming</h5>
-                <div class="form-group">
-                    <label for="defaultSavePath">Default Save Path:</label>
-                    <input type="text" id="defaultSavePath" class="form-input" placeholder="No default path set">
+                <h5>🎯 Cutting Priority Configuration</h5>
+                <p>Set the order in which tools will be used during cutting operations. This determines the sequence of tool changes and cutting operations.</p>
+                
+                <div class="priority-lists">
+                    <div class="priority-list">
+                        <h6>Available Items</h6>
+                        <div id="availableItems">
+                            <!-- Available tools will be loaded here -->
+                        </div>
+                    </div>
+                    
+                    <div class="priority-controls">
+                        <button class="btn btn-primary" id="addToPriority">Add →</button>
+                        <button class="btn btn-secondary" id="removeFromPriority">← Remove</button>
+                        <button class="btn btn-warning" id="insertBreak">Insert Break</button>
+                    </div>
+                    
+                    <div class="priority-list">
+                        <h6>Priority Order</h6>
+                        <div id="priorityOrder">
+                            <!-- Priority order will be loaded here -->
+                        </div>
+                    </div>
                 </div>
+            </div>
+        </div>
+
+        <!-- Line Type Mapping Tab -->
+        <div id="mappingTab" class="tab-content">
+            <div class="settings-section">
+                <h5>🔗 Line Type Mapping</h5>
+                <p>Map internal line types to machine tools for cutting operations.</p>
+                
+                <div class="mapping-grid" id="mappingGrid">
+                    <!-- Line type mappings will be loaded here -->
+                </div>
+                
+                <div class="button-group">
+                    <button class="btn btn-primary" id="addLineTypeBtn">+ Add Line Type</button>
+                    <button class="btn btn-secondary" id="autoMapBtn">Auto Map Common</button>
+                    <button class="btn btn-danger" id="clearMappingsBtn">Clear All</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Header & Footer Tab -->
+        <div id="headerTab" class="tab-content">
+            <div class="two-column">
+                <div>
+                    <div class="settings-section">
+                        <h5>📄 Header Settings</h5>
+                        <div class="form-group">
+                            <label for="machineType">Machine Type:</label>
+                            <select id="machineType" class="form-select">
+                                <option value="metric">Metric Machine (native metric)</option>
+                                <option value="imperial">Imperial Machine (native imperial)</option>
+                            </select>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="headerTemplate">Header Template:</label>
+                            <input type="text" id="headerTemplate" class="form-input" value="{filename} / - size: {width} x {height} / {timestamp}">
+                            <small>Variables: {filename}, {width}, {height}, {timestamp}, {user}, {material}</small>
+                        </div>
+                        
+                        <div class="checkbox-group">
+                            <label>
+                                <input type="checkbox" id="includeFileInfo" checked>
+                                File information
+                            </label>
+                            <label>
+                                <input type="checkbox" id="includeProgramStart" checked>
+                                Program start marker (%1)
+                            </label>
+                            <label>
+                                <input type="checkbox" id="includeDrawingBounds" checked>
+                                Drawing bounds
+                            </label>
+                            <label>
+                                <input type="checkbox" id="includeOperationCount" checked>
+                                Operation count
+                            </label>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="initialCommands">Initial Setup Commands:</label>
+                            <textarea id="initialCommands" class="form-input" rows="4" placeholder="G90&#10;G60 X0">G90
+G60 X0</textarea>
+                        </div>
+                    </div>
+                </div>
+                
+                <div>
+                    <div class="settings-section">
+                        <h5>👁️ Live Preview</h5>
+                        <div class="form-group">
+                            <label>Header Preview:</label>
+                            <div class="preview-area" id="headerPreview">
+                                Loading header preview...
+                            </div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>Footer Preview:</label>
+                            <div class="preview-area" id="footerPreview">
+                                Loading footer preview...
+                            </div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>Header Statistics:</label>
+                            <div id="headerStats">
+                                <div>Total Lines: -</div>
+                                <div>Comment Lines: -</div>
+                                <div>Command Lines: -</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Output Settings Tab -->
+        <div id="outputTab" class="tab-content">
+            <div class="settings-section">
+                <h5>💾 File Output Settings</h5>
+                <p>Configure default save location and filename formatting for generated DIN files.</p>
+                
+                <div class="form-group">
+                    <label for="defaultSavePath">Default Save Location:</label>
+                    <input type="text" id="defaultSavePath" class="form-input" placeholder="No default path set">
+                    <div class="button-group">
+                        <button class="btn btn-secondary" id="browsePathBtn">Browse</button>
+                        <button class="btn btn-tertiary" id="clearPathBtn">Clear</button>
+                    </div>
+                    <small>When no path is set, a save dialog will open for each file.</small>
+                </div>
+                
                 <div class="form-group">
                     <label for="filenameTemplate">Filename Template:</label>
                     <input type="text" id="filenameTemplate" class="form-input" value="{original_name}.din" placeholder="e.g., {original_name}.din">
+                    <small>Available variables: {original_name}, {date}, {time}, {timestamp}, {width}, {height}</small>
+                </div>
+                
+                <div class="form-group">
+                    <label>
+                        <input type="checkbox" id="autoSaveEnabled" checked>
+                        Auto-save to default location (skip dialog)
+                    </label>
+                    <small>When enabled, files will be saved directly to the default location without showing a dialog.</small>
                 </div>
             </div>
-        </div>
-
-        <div id="optimizationTab" class="tab-content">
+            
             <div class="settings-section">
-                <h5>Cutting Optimization Strategies</h5>
+                <h5>⚙️ Line Numbers & G-Code</h5>
+                <div class="two-column">
+                    <div>
+                        <h6>Line Numbers Settings</h6>
+                        <div class="form-group">
+                            <label>
+                                <input type="checkbox" id="enableLineNumbers" checked>
+                                Enable line numbers
+                            </label>
+                        </div>
+                        <div class="form-group">
+                            <label for="startNumber">Start Number:</label>
+                            <input type="number" id="startNumber" class="form-input" value="10">
+                        </div>
+                        <div class="form-group">
+                            <label for="increment">Increment:</label>
+                            <input type="number" id="increment" class="form-input" value="1">
+                        </div>
+                        <div class="form-group">
+                            <label for="formatTemplate">Format Template:</label>
+                            <input type="text" id="formatTemplate" class="form-input" value="N{number}">
+                            <small>Variables: {number} - will be replaced with actual line number</small>
+                        </div>
+                    </div>
+                    <div>
+                        <h6>G-Code Commands</h6>
+                        <div class="form-group">
+                            <label for="homeCommand">Home Command:</label>
+                            <input type="text" id="homeCommand" class="form-input" value="G0 X0 Y0">
+                        </div>
+                        <div class="form-group">
+                            <label for="programEndCommand">Program End Command:</label>
+                            <textarea id="programEndCommand" class="form-input" rows="3" placeholder="M30">M30</textarea>
+                            <small>Common end commands: M30 (End of Program), M02 (End of Program), M99 (End of Subprogram)</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="settings-section">
+                <h5>🎯 Cutting Optimization</h5>
                 <div class="form-group">
-                    <label for="optimizationStrategy">Optimization Strategy:</label>
+                    <label for="optimizationStrategy">Primary Strategy:</label>
                     <select id="optimizationStrategy" class="form-select">
+                        <option value="tool_grouped">Group by Tool (Minimize tool changes)</option>
+                        <option value="priority_order" selected>Priority Order (Follow cutting sequence)</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label for="pathOptimization">Path Optimization:</label>
+                    <select id="pathOptimization" class="form-select">
                         <option value="closest_path">Closest Path First</option>
                         <option value="zigzag_horizontal">Zig-Zag Horizontal</option>
                         <option value="zigzag_vertical">Zig-Zag Vertical</option>
@@ -176,48 +530,29 @@
                         <option value="no_optimization">No Optimization</option>
                     </select>
                 </div>
-                <div class="form-group">
+                
+                <div class="checkbox-group">
                     <label>
                         <input type="checkbox" id="enableBridges" checked>
-                        Enable bridges (DDS/CFF2)
+                        Output with bridges (DDS/CFF2)
                     </label>
-                </div>
-            </div>
-        </div>
-
-        <div id="validationTab" class="tab-content">
-            <div class="settings-section">
-                <h5>Validation Checks</h5>
-                <div class="form-group">
-                    <label>
-                        <input type="checkbox" id="validateWidths" checked>
-                        Validate cutting widths vs tool capabilities
-                    </label>
-                </div>
-                <div class="form-group">
                     <label>
                         <input type="checkbox" id="includeComments" checked>
                         Include operation comments in DIN file
                     </label>
-                </div>
-            </div>
-        </div>
-
-        <div id="formatTab" class="tab-content">
-            <div class="settings-section">
-                <h5>Format Specific Settings</h5>
-                <p>View format-specific details and overrides.</p>
-                <div class="form-group">
-                    <label>DXF Scaling:</label>
-                    <p>Uses INSUNITS from file</p>
-                </div>
-                <div class="form-group">
-                    <label>DDS/CFF2 Units:</label>
-                    <p>Detected from geometry analysis</p>
+                    <label>
+                        <input type="checkbox" id="validateWidths" checked>
+                        Validate cutting widths vs tool capabilities
+                    </label>
+                    <label>
+                        <input type="checkbox" id="respectManualBreaks" checked>
+                        Respect manual priority breaks
+                    </label>
                 </div>
             </div>
         </div>
     </div>
+    
     <script src="output-manager.js"></script>
 </body>
 </html>
