@@ -1174,6 +1174,40 @@ ipcMain.handle('get-current-profile', async () => {
     }
 });
 
+// Get the current profile from the main window's dropdown selection
+ipcMain.handle('get-main-window-current-profile', async () => {
+    try {
+        // Get the main window
+        const mainWindow = BrowserWindow.getAllWindows().find(win => 
+            win.webContents.getURL().includes('index.html')
+        );
+        
+        if (mainWindow) {
+            // Execute script in main window to get current profile
+            const result = await mainWindow.webContents.executeJavaScript(`
+                (() => {
+                    const select = document.getElementById('postprocessorProfile');
+                    if (select && select.value && select.value !== 'custom') {
+                        return select.value;
+                    }
+                    return null;
+                })()
+            `);
+            
+            if (result) {
+                return result;
+            }
+        }
+        
+        // Fallback to default
+        return 'default_metric.xml';
+        
+    } catch (error) {
+        console.error('Error getting main window current profile:', error);
+        return 'default_metric.xml';
+    }
+});
+
 // Parse XML profile to JavaScript object
 function parseXMLProfile(xmlContent) {
     const parser = new DOMParser();

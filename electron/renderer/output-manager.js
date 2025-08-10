@@ -87,18 +87,67 @@ async function loadAvailableProfiles() {
 
 async function loadCurrentProfile() {
     try {
-        const profile = await window.electronAPI.getCurrentProfile();
-        currentProfile = profile;
+        // Try to get the current profile from the main application's dropdown first
+        const mainProfileSelect = document.querySelector('#postprocessorProfile');
+        let currentProfileName = null;
         
-        if (profile) {
-            // Select the current profile in dropdown
-            const profileSelect = document.getElementById('profileSelect');
-            if (profileSelect) {
-                profileSelect.value = profile.id || profile.name;
+        if (mainProfileSelect && mainProfileSelect.value && mainProfileSelect.value !== 'custom') {
+            currentProfileName = mainProfileSelect.value;
+        } else {
+            // Fallback: try to get from main window via IPC
+            try {
+                currentProfileName = await window.electronAPI.getMainWindowCurrentProfile();
+            } catch (ipcError) {
+                console.log('IPC getMainWindowCurrentProfile failed, trying alternative method');
+                // Try the old method as last resort
+                try {
+                    const profile = await window.electronAPI.getCurrentProfile();
+                    if (profile) {
+                        currentProfileName = profile.id || profile.name;
+                    }
+                } catch (oldIpcError) {
+                    console.log('All IPC methods failed');
+                }
             }
+        }
+        
+        // If still no profile name, try to get from localStorage or use first available
+        if (!currentProfileName && availableProfiles.length > 0) {
+            // Use the first available profile as fallback
+            currentProfileName = availableProfiles[0].filename || availableProfiles[0].name;
+            console.log('Using first available profile as fallback:', currentProfileName);
+        }
+        
+        if (currentProfileName) {
+            // Find the profile in available profiles
+            const profile = availableProfiles.find(p => 
+                (p.id || p.name || p.filename) === currentProfileName ||
+                p.filename === currentProfileName
+            );
             
-            // Load profile configuration immediately
-            await loadProfileConfiguration(profile);
+            if (profile) {
+                currentProfile = profile;
+                
+                // Select the current profile in dropdown
+                const profileSelect = document.getElementById('profileSelect');
+                if (profileSelect) {
+                    profileSelect.value = profile.filename || profile.id || profile.name;
+                }
+                
+                // Load profile configuration immediately
+                await loadProfileConfiguration(profile);
+            } else {
+                console.warn('Current profile not found in available profiles:', currentProfileName);
+                // Use first available profile as fallback
+                if (availableProfiles.length > 0) {
+                    currentProfile = availableProfiles[0];
+                    const profileSelect = document.getElementById('profileSelect');
+                    if (profileSelect) {
+                        profileSelect.value = currentProfile.filename || currentProfile.id || currentProfile.name;
+                    }
+                    await loadProfileConfiguration(currentProfile);
+                }
+            }
         }
         
     } catch (error) {
