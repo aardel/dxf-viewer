@@ -280,18 +280,28 @@ async function loadTools() {
     try {
         if (!currentProfile) return;
         
-        const tools = await window.electronAPI.getToolsFromProfile(currentProfile.id || currentProfile.name);
+        console.log('Loading tools for profile:', currentProfile.id || currentProfile.name);
+        const response = await window.electronAPI.getToolsFromProfile(currentProfile.id || currentProfile.name);
         
-        // Ensure tools is an array
-        if (Array.isArray(tools)) {
-            currentTools = tools;
-        } else if (tools && typeof tools === 'object') {
-            // If tools is an object, convert to array
-            currentTools = Object.values(tools);
+        // Handle the response format from IPC
+        if (response && response.success && response.data) {
+            const tools = response.data;
+            
+            // Ensure tools is an array
+            if (Array.isArray(tools)) {
+                currentTools = tools;
+            } else if (tools && typeof tools === 'object') {
+                // If tools is an object, convert to array
+                currentTools = Object.values(tools);
+            } else {
+                currentTools = [];
+            }
         } else {
+            console.warn('No tools data in response:', response);
             currentTools = [];
         }
         
+        console.log('Loaded tools:', currentTools.length, 'tools');
         displayTools();
         
     } catch (error) {
@@ -331,18 +341,28 @@ async function loadLineTypeMappings() {
     try {
         if (!currentProfile) return;
         
-        const mappings = await window.electronAPI.getLineTypeMappingsFromProfile(currentProfile.id || currentProfile.name);
+        console.log('Loading line type mappings for profile:', currentProfile.id || currentProfile.name);
+        const response = await window.electronAPI.getLineTypeMappingsFromProfile(currentProfile.id || currentProfile.name);
         
-        // Ensure mappings is an array
-        if (Array.isArray(mappings)) {
-            currentMappings = mappings;
-        } else if (mappings && typeof mappings === 'object') {
-            // If mappings is an object, convert to array
-            currentMappings = Object.values(mappings);
+        // Handle the response format from IPC
+        if (response && response.success && response.data) {
+            const mappings = response.data;
+            
+            // Ensure mappings is an array
+            if (Array.isArray(mappings)) {
+                currentMappings = mappings;
+            } else if (mappings && typeof mappings === 'object') {
+                // If mappings is an object, convert to array
+                currentMappings = Object.values(mappings);
+            } else {
+                currentMappings = [];
+            }
         } else {
+            console.warn('No mappings data in response:', response);
             currentMappings = [];
         }
         
+        console.log('Loaded mappings:', currentMappings.length, 'mappings');
         displayLineTypeMappings();
         
     } catch (error) {
@@ -400,18 +420,28 @@ async function loadCuttingPriority() {
     try {
         if (!currentProfile) return;
         
-        const priorityConfig = await window.electronAPI.loadPriorityConfiguration(currentProfile.id || currentProfile.name);
+        console.log('Loading cutting priority for profile:', currentProfile.id || currentProfile.name);
+        const response = await window.electronAPI.loadPriorityConfiguration(currentProfile.id || currentProfile.name);
         
-        // Ensure priority items is an array
-        if (priorityConfig && Array.isArray(priorityConfig.items)) {
-            currentPriorityOrder = priorityConfig.items;
-        } else if (priorityConfig && typeof priorityConfig === 'object') {
-            // If priorityConfig is an object, try to extract items
-            currentPriorityOrder = priorityConfig.items || Object.values(priorityConfig) || [];
+        // Handle the response format from IPC
+        if (response && response.success && response.data) {
+            const priorityConfig = response.data;
+            
+            // Ensure priorityConfig.items is an array
+            if (priorityConfig && Array.isArray(priorityConfig.items)) {
+                currentPriorityOrder = priorityConfig.items;
+            } else if (priorityConfig && priorityConfig.items && typeof priorityConfig.items === 'object') {
+                // If items is an object, convert to array
+                currentPriorityOrder = Object.values(priorityConfig.items);
+            } else {
+                currentPriorityOrder = [];
+            }
         } else {
+            console.warn('No priority data in response:', response);
             currentPriorityOrder = [];
         }
         
+        console.log('Loaded priority order:', currentPriorityOrder.length, 'items');
         displayCuttingPriority();
         
     } catch (error) {
