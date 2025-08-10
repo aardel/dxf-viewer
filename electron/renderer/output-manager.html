@@ -1,104 +1,224 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Output Manager</title>
-  <link rel="stylesheet" href="styles.css" />
-  <style>
-    .om-container { display:flex; flex-direction:column; height:100vh; background:#1f1f1f; }
-    .om-header { padding:12px 16px; border-bottom:1px solid #404040; font-weight:600; color:#fff; }
-    .om-tabs { display:flex; gap:8px; padding:8px 12px; border-bottom:1px solid #333; }
-    .om-tab { background:#2c2c2c; color:#ccc; border:none; padding:8px 12px; border-radius:6px; cursor:pointer; }
-    .om-tab.active { background:#0099cc; color:#fff; }
-    .om-body { flex:1; overflow:auto; padding:16px; color:#eee; }
-    .om-section { background:#2c2c2c; border:1px solid #3a3a3a; border-radius:8px; padding:16px; margin-bottom:12px; }
-    .row { display:flex; gap:12px; align-items:center; }
-    label { color:#ddd; }
-    select, input[type="text"], textarea { background:#202020; color:#fff; border:1px solid #444; border-radius:6px; padding:6px 8px; }
-    .om-footer { display:flex; justify-content:flex-end; gap:8px; padding:12px; border-top:1px solid #404040; }
-  </style>
+    <title>Output Manager</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="styles.css">
+    <style>
+        /* Specific styles for Output Manager */
+        body {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            overflow: hidden;
+        }
+        .output-manager-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background: #2a2a2a;
+            color: #e0e0e0;
+            padding: 1rem;
+            overflow: hidden;
+        }
+        .tab-buttons-container {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 1rem;
+            border-bottom: 1px solid #404040;
+            padding-bottom: 8px;
+        }
+        .tab-button {
+            background: #3a3a3a;
+            border: 1px solid #404040;
+            color: #bbb;
+            padding: 0.5rem 1rem;
+            cursor: pointer;
+            border-radius: 6px;
+            transition: all 0.2s ease;
+        }
+        .tab-button.active {
+            background: linear-gradient(135deg, #00BFFF 0%, #0099CC 100%);
+            color: #ffffff;
+            box-shadow: inset 0 2px 4px rgba(0,0,0,0.3);
+        }
+        .tab-button:hover:not(.active) {
+            background: #4a4a4a;
+            color: #fff;
+        }
+        .tab-content {
+            flex: 1;
+            overflow-y: auto;
+            display: none; /* Hidden by default */
+            padding-right: 10px; /* For scrollbar */
+        }
+        .tab-content.active {
+            display: block;
+        }
+        .settings-section {
+            background: linear-gradient(135deg, #3a3a3a 0%, #333 100%);
+            border-radius: 8px;
+            padding: 1rem;
+            margin-bottom: 1rem;
+            overflow: hidden;
+            border: 1px solid #404040;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+        }
+        .settings-section h5 {
+            color: #00BFFF;
+            margin-bottom: 0.5rem;
+            font-size: 14px;
+            text-shadow: 0 1px 2px rgba(0,0,0,0.3);
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            color: #ccc;
+        }
+        .form-select, .form-input {
+            width: 100%;
+            padding: 0.5rem;
+            border-radius: 4px;
+            border: 1px solid #555;
+            background-color: #333;
+            color: #eee;
+            margin-bottom: 1rem;
+        }
+        .button-group {
+            display: flex;
+            gap: 10px;
+            margin-top: 1rem;
+        }
+    </style>
 </head>
 <body>
-  <div class="om-container">
-    <div class="om-header">Output Manager</div>
-    <div class="om-tabs">
-      <button class="om-tab active" data-tab="profile">Profile</button>
-      <button class="om-tab" data-tab="tools">Tools</button>
-      <button class="om-tab" data-tab="paths">Paths & Filenames</button>
-      <button class="om-tab" data-tab="optimization">Optimization</button>
-      <button class="om-tab" data-tab="validation">Validation</button>
-      <button class="om-tab" data-tab="format">Format</button>
+    <div class="output-manager-container">
+        <div class="tab-buttons-container">
+            <button class="tab-button active" data-tab="profile">Profile</button>
+            <button class="tab-button" data-tab="tools">Tools</button>
+            <button class="tab-button" data-tab="paths">Paths & Filenames</button>
+            <button class="tab-button" data-tab="optimization">Optimization</button>
+            <button class="tab-button" data-tab="validation">Validation</button>
+            <button class="tab-button" data-tab="format">Format Specifics</button>
+        </div>
+
+        <div id="profileTab" class="tab-content active">
+            <div class="settings-section">
+                <h5>Profile Settings</h5>
+                <div class="form-group">
+                    <label for="profileSelect">Active Profile:</label>
+                    <select id="profileSelect" class="form-select">
+                        <option value="">Loading profiles...</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="outputUnits">Output Units:</label>
+                    <select id="outputUnits" class="form-select">
+                        <option value="mm">Millimeters</option>
+                        <option value="in">Inches</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="scaleCommand">Scale Command:</label>
+                    <input type="text" id="scaleCommand" class="form-input" placeholder="e.g., G51 X1.0 Y1.0 Z1.0">
+                </div>
+                <div class="form-group">
+                    <label>
+                        <input type="checkbox" id="includeLineNumbers" checked>
+                        Include line numbers
+                    </label>
+                </div>
+                <div class="button-group">
+                    <button class="btn btn-primary" id="refreshBtn">🔄 Refresh</button>
+                    <button class="btn btn-secondary">New Profile</button>
+                    <button class="btn btn-secondary">Copy Profile</button>
+                    <button class="btn btn-danger">Delete Profile</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="toolsTab" class="tab-content">
+            <div class="settings-section">
+                <h5>Tool Configuration</h5>
+                <p>Manage tool parameters (T1, T2, T3) and cutting capabilities.</p>
+                <button class="btn btn-primary">Open Tool Manager</button>
+            </div>
+        </div>
+
+        <div id="pathsTab" class="tab-content">
+            <div class="settings-section">
+                <h5>File Output Paths & Naming</h5>
+                <div class="form-group">
+                    <label for="defaultSavePath">Default Save Path:</label>
+                    <input type="text" id="defaultSavePath" class="form-input" placeholder="No default path set">
+                </div>
+                <div class="form-group">
+                    <label for="filenameTemplate">Filename Template:</label>
+                    <input type="text" id="filenameTemplate" class="form-input" value="{original_name}.din" placeholder="e.g., {original_name}.din">
+                </div>
+            </div>
+        </div>
+
+        <div id="optimizationTab" class="tab-content">
+            <div class="settings-section">
+                <h5>Cutting Optimization Strategies</h5>
+                <div class="form-group">
+                    <label for="optimizationStrategy">Optimization Strategy:</label>
+                    <select id="optimizationStrategy" class="form-select">
+                        <option value="closest_path">Closest Path First</option>
+                        <option value="zigzag_horizontal">Zig-Zag Horizontal</option>
+                        <option value="zigzag_vertical">Zig-Zag Vertical</option>
+                        <option value="spiral_out">Spiral Outward</option>
+                        <option value="spiral_in">Spiral Inward</option>
+                        <option value="left_to_right">Left to Right</option>
+                        <option value="bottom_to_top">Bottom to Top</option>
+                        <option value="no_optimization">No Optimization</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>
+                        <input type="checkbox" id="enableBridges" checked>
+                        Enable bridges (DDS/CFF2)
+                    </label>
+                </div>
+            </div>
+        </div>
+
+        <div id="validationTab" class="tab-content">
+            <div class="settings-section">
+                <h5>Validation Checks</h5>
+                <div class="form-group">
+                    <label>
+                        <input type="checkbox" id="validateWidths" checked>
+                        Validate cutting widths vs tool capabilities
+                    </label>
+                </div>
+                <div class="form-group">
+                    <label>
+                        <input type="checkbox" id="includeComments" checked>
+                        Include operation comments in DIN file
+                    </label>
+                </div>
+            </div>
+        </div>
+
+        <div id="formatTab" class="tab-content">
+            <div class="settings-section">
+                <h5>Format Specific Settings</h5>
+                <p>View format-specific details and overrides.</p>
+                <div class="form-group">
+                    <label>DXF Scaling:</label>
+                    <p>Uses INSUNITS from file</p>
+                </div>
+                <div class="form-group">
+                    <label>DDS/CFF2 Units:</label>
+                    <p>Detected from geometry analysis</p>
+                </div>
+            </div>
+        </div>
     </div>
-    <div class="om-body">
-      <div class="om-tabpanel" id="tab-profile">
-        <div class="om-section">
-          <div class="row">
-            <label>Active Profile:</label>
-            <select id="omProfile"></select>
-            <button id="omNew">+ New</button>
-            <button id="omCopy">Copy</button>
-            <button id="omEdit">Edit</button>
-            <button id="omRefresh">Refresh</button>
-          </div>
-        </div>
-        <div class="om-section">
-          <div class="row"><label>Output Units:</label><select id="omUnits"><option value="mm">Millimeters (mm)</option><option value="in">Inches (in)</option></select></div>
-          <div class="row"><label>Scaling Header Command:</label><input type="text" id="omScaleCmd" placeholder="G75 X=P2027 Y=P2027" /></div>
-          <div class="row"><label>Line Numbers:</label><input type="checkbox" id="omLineNumbers" checked /></div>
-        </div>
-      </div>
-      <div class="om-tabpanel" id="tab-tools" style="display:none;">
-        <div class="om-section">Tools configuration (placeholder)</div>
-      </div>
-      <div class="om-tabpanel" id="tab-paths" style="display:none;">
-        <div class="om-section">
-          <div class="row"><label>Default Save Location:</label><input type="text" id="omSavePath" style="width:60%" /><button id="omBrowse">Browse</button></div>
-          <div class="row"><label>Filename Template:</label><input type="text" id="omFilename" value="{original_name}.din" /></div>
-          <div class="row"><label>Auto-save:</label><input type="checkbox" id="omAutosave" /></div>
-        </div>
-      </div>
-      <div class="om-tabpanel" id="tab-optimization" style="display:none;">
-        <div class="om-section">
-          <div class="row"><label>Primary Strategy:</label><select id="omStrategy"><option value="closest_path">Closest Path First</option><option value="priority_order">Priority Order</option></select></div>
-          <div class="row"><label>Respect manual breaks:</label><input type="checkbox" id="omManualBreaks" checked /></div>
-          <div class="row"><label>Output with bridges (DDS/CFF2):</label><input type="checkbox" id="omBridges" checked /></div>
-        </div>
-      </div>
-      <div class="om-tabpanel" id="tab-validation" style="display:none;">
-        <div class="om-section">
-          <div class="row"><label>Include comments:</label><input type="checkbox" id="omComments" checked /></div>
-          <div class="row"><label>Validate widths vs tool:</label><input type="checkbox" id="omValidateWidths" checked /></div>
-        </div>
-      </div>
-      <div class="om-tabpanel" id="tab-format" style="display:none;">
-        <div class="om-section">Format specifics (read-only summary)</div>
-      </div>
-    </div>
-    <div class="om-footer">
-      <button id="omClose">Close</button>
-    </div>
-  </div>
-  <script>
-    const tabs = document.querySelectorAll('.om-tab');
-    const panels = {
-      profile: document.getElementById('tab-profile'),
-      tools: document.getElementById('tab-tools'),
-      paths: document.getElementById('tab-paths'),
-      optimization: document.getElementById('tab-optimization'),
-      validation: document.getElementById('tab-validation'),
-      format: document.getElementById('tab-format')
-    };
-    tabs.forEach(btn => {
-      btn.addEventListener('click', () => {
-        tabs.forEach(b => b.classList.remove('active'));
-        btn.classList.add('active');
-        Object.values(panels).forEach(p => p.style.display = 'none');
-        const p = panels[btn.dataset.tab]; if (p) p.style.display = 'block';
-      });
-    });
-    document.getElementById('omClose').addEventListener('click', ()=> window.close());
-  </script>
+    <script src="output-manager.js"></script>
 </body>
 </html>
 

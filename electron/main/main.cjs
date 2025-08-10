@@ -1116,6 +1116,64 @@ ipcMain.handle('delete-xml-profile', async (event, filename) => {
     }
 });
 
+// Get current profile
+ipcMain.handle('get-current-profile', async () => {
+    try {
+        // Get the current profile from the active profile setting
+        const profilesDir = getProfilesDirectory();
+        const activeProfilePath = path.join(profilesDir, 'active_profile.txt');
+        
+        let currentProfileName = 'default_metric.xml'; // Default fallback
+        
+        if (fs.existsSync(activeProfilePath)) {
+            const activeProfileContent = fs.readFileSync(activeProfilePath, 'utf8').trim();
+            if (activeProfileContent) {
+                currentProfileName = activeProfileContent;
+            }
+        }
+        
+        // Ensure the profile file exists
+        const profilePath = path.join(profilesDir, currentProfileName);
+        if (!fs.existsSync(profilePath)) {
+            // Fallback to default if active profile doesn't exist
+            currentProfileName = 'default_metric.xml';
+        }
+        
+        // Load profile info
+        const profilePathFinal = path.join(profilesDir, currentProfileName);
+        if (fs.existsSync(profilePathFinal)) {
+            const xmlContent = fs.readFileSync(profilePathFinal, 'utf8');
+            const parser = new DOMParser();
+            const xmlDoc = parser.parseFromString(xmlContent, 'text/xml');
+            
+            const profileInfo = xmlDoc.getElementsByTagName('ProfileInfo')[0];
+            if (profileInfo) {
+                const name = profileInfo.getElementsByTagName('Name')[0]?.textContent || currentProfileName;
+                const description = profileInfo.getElementsByTagName('Description')[0]?.textContent || '';
+                
+                return {
+                    id: currentProfileName,
+                    name: name,
+                    description: description,
+                    filename: currentProfileName
+                };
+            }
+        }
+        
+        // Return default profile info if file doesn't exist or can't be parsed
+        return {
+            id: currentProfileName,
+            name: 'Default Metric',
+            description: 'Default metric profile',
+            filename: currentProfileName
+        };
+        
+    } catch (error) {
+        console.error('Error getting current profile:', error);
+        throw new Error(`Failed to get current profile: ${error.message}`);
+    }
+});
+
 // Parse XML profile to JavaScript object
 function parseXMLProfile(xmlContent) {
     const parser = new DOMParser();

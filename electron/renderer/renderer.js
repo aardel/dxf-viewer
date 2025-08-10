@@ -3635,7 +3635,11 @@ document.getElementById('clearBtn').addEventListener('click', clearViewer);
 document.getElementById('fitBtn').addEventListener('click', fitToView);
 lineTypesBtn.addEventListener('click', openLineTypesManager);
 togglePanelBtn.addEventListener('click', toggleSidePanel);
-// Add keyboard shortcut and placeholder hook to open Output Manager
+
+// Output Manager button and keyboard shortcut
+document.getElementById('openOutputManagerBtn').addEventListener('click', () => {
+    window.electronAPI.openOutputManager();
+});
 document.addEventListener('keydown', (e)=>{
     if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'o' && e.shiftKey) {
         try { window.electronAPI.openOutputManager(); } catch {}
