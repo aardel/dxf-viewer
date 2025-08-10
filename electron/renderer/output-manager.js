@@ -7,6 +7,62 @@ let currentTools = [];
 let currentMappings = [];
 let currentPriorityOrder = [];
 
+// Global variables for modal management
+let modalCallback = null;
+let modalType = null;
+
+// Modal management functions
+function showModal(title, placeholder, defaultValue = '', callback) {
+    modalCallback = callback;
+    modalType = 'input';
+    
+    document.getElementById('modalTitle').textContent = title;
+    document.getElementById('modalInput').placeholder = placeholder;
+    document.getElementById('modalInput').value = defaultValue;
+    document.getElementById('modalOverlay').style.display = 'flex';
+    
+    // Focus the input
+    setTimeout(() => {
+        document.getElementById('modalInput').focus();
+    }, 100);
+}
+
+function closeModal() {
+    document.getElementById('modalOverlay').style.display = 'none';
+    modalCallback = null;
+    modalType = null;
+}
+
+function confirmModal() {
+    if (modalType === 'input') {
+        const value = document.getElementById('modalInput').value.trim();
+        if (value) {
+            modalCallback(value);
+        }
+    }
+    closeModal();
+}
+
+// Add event listeners for modal
+document.addEventListener('DOMContentLoaded', function() {
+    // Modal confirm button
+    document.getElementById('modalConfirmBtn').addEventListener('click', confirmModal);
+    
+    // Modal input enter key
+    document.getElementById('modalInput').addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+            confirmModal();
+        }
+    });
+    
+    // Modal overlay click to close
+    document.getElementById('modalOverlay').addEventListener('click', function(e) {
+        if (e.target === this) {
+            closeModal();
+        }
+    });
+});
+
 // Initialize the Output Manager when the window loads
 document.addEventListener('DOMContentLoaded', async () => {
     console.log('Output Manager window loaded');
@@ -539,8 +595,7 @@ function setupEventListeners() {
     const newProfileBtn = document.getElementById('newProfileBtn');
     if (newProfileBtn) {
         newProfileBtn.addEventListener('click', async () => {
-            const profileName = prompt('Enter new profile name:');
-            if (profileName && profileName.trim()) {
+            showModal('Create New Profile', 'Enter new profile name:', '', async (profileName) => {
                 try {
                     // Create a new profile based on current one
                     const newProfile = {
@@ -571,7 +626,7 @@ function setupEventListeners() {
                     console.error('Error creating new profile:', error);
                     showError('Failed to create new profile');
                 }
-            }
+            });
         });
     }
     
@@ -583,8 +638,7 @@ function setupEventListeners() {
                 return;
             }
             
-            const copyName = prompt(`Enter name for copy of "${currentProfile.name}":`, `${currentProfile.name} Copy`);
-            if (copyName && copyName.trim()) {
+            showModal('Copy Profile', `Enter name for copy of "${currentProfile.name}":`, `${currentProfile.name} Copy`, async (copyName) => {
                 try {
                     // Copy the current profile
                     const copyProfile = {
@@ -616,7 +670,7 @@ function setupEventListeners() {
                     console.error('Error copying profile:', error);
                     showError('Failed to copy profile');
                 }
-            }
+            });
         });
     }
     
