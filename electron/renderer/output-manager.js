@@ -172,22 +172,16 @@ async function loadCurrentProfile() {
         
         // If still no profile name, use the first available profile
         if (!currentProfileName && availableProfiles.length > 0) {
-            currentProfileName = (availableProfiles[0].filename || availableProfiles[0].name).trim();
+            currentProfileName = (availableProfiles[0].name || availableProfiles[0].filename).trim();
             console.log('Using first available profile as fallback:', currentProfileName);
         }
         
         if (currentProfileName) {
-            // Handle the profile mapping - "MTL_Flatbed" should map to "mtl.xml"
-            let actualProfileName = currentProfileName;
-            if (currentProfileName === 'MTL_Flatbed') {
-                actualProfileName = 'mtl.xml';
-            }
-            
-            // Find the profile in available profiles
+            // Find the profile in available profiles by name or filename
             const profile = availableProfiles.find(p => 
-                (p.id || p.name || p.filename) === actualProfileName ||
-                p.filename === actualProfileName ||
-                p.name === actualProfileName
+                p.name === currentProfileName ||
+                p.filename === currentProfileName ||
+                (p.filename && p.filename.replace('.xml', '') === currentProfileName.replace('.xml', ''))
             );
             
             if (profile) {
@@ -197,12 +191,12 @@ async function loadCurrentProfile() {
                     profileSelect.value = profile.filename || profile.id || profile.name;
                 }
                 await loadProfileConfiguration(profile);
-                console.log('Successfully loaded profile:', profile.name || profile.filename);
+                console.log('Successfully loaded current profile:', profile.name);
             } else {
                 console.warn('Current profile not found in available profiles:', currentProfileName);
-                console.log('Available profiles:', availableProfiles.map(p => p.name || p.filename));
+                console.log('Available profiles:', availableProfiles.map(p => ({ name: p.name, filename: p.filename })));
                 
-                // If the profile doesn't exist, use the first available one
+                // If not found, use the first available profile
                 if (availableProfiles.length > 0) {
                     currentProfile = availableProfiles[0];
                     const profileSelect = document.getElementById('profileSelect');
@@ -210,7 +204,7 @@ async function loadCurrentProfile() {
                         profileSelect.value = currentProfile.filename || currentProfile.id || currentProfile.name;
                     }
                     await loadProfileConfiguration(currentProfile);
-                    console.log('Using first available profile as fallback:', currentProfile.name || currentProfile.filename);
+                    console.log('Using first available profile as fallback:', currentProfile.name);
                 }
             }
         }
@@ -576,10 +570,18 @@ function setupEventListeners() {
         profileSelect.addEventListener('change', async (e) => {
             const selectedProfileId = e.target.value;
             if (selectedProfileId) {
-                const profile = availableProfiles.find(p => (p.id || p.name) === selectedProfileId);
+                // Find profile by filename, name, or id
+                const profile = availableProfiles.find(p => 
+                    p.filename === selectedProfileId ||
+                    p.name === selectedProfileId ||
+                    p.id === selectedProfileId
+                );
                 if (profile) {
                     currentProfile = profile;
-                    await loadAllConfiguration();
+                    await loadProfileConfiguration(profile);
+                    console.log('Switched to profile:', profile.name);
+                } else {
+                    console.warn('Selected profile not found:', selectedProfileId);
                 }
             }
         });
