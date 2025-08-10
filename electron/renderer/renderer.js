@@ -661,7 +661,7 @@ function updateImportPanelForUnified() {
                     if (isDisabledRule && overlayGroups[k]) overlayGroups[k].visible = false;
                     parts.push(`
                       <tr class="group-child" data-parent-group="${gid}" style="display:none;" data-key="${k}">
-                        <td><input type="checkbox" class="unified-layer-visible output-toggle ${mappedClass}" data-key="${k}" ${checked} ${isDisabledRule ? 'title="Disabled rule: no output"' : ''} /></td>
+                        <td><input type="checkbox" class="unified-layer-visible output-toggle ${mappedClass}" data-key="${k}" ${checked} ${isDisabledRule ? 'disabled title="Disabled rule: no output"' : ''} /></td>
                         <td><span class="color-swatch" style="background:${g.displayColor}"></span></td>
                         <td>${Number(pen || 0).toFixed(2)}</td>
                         <td>${pen}</td>
@@ -682,7 +682,7 @@ function updateImportPanelForUnified() {
                     if (isDisabledRule && overlayGroups[k]) overlayGroups[k].visible = false;
                     parts.push(`
                       <tr class="group-child" data-parent-group="${gid}" style="display:none;" data-key="${k}">
-                        <td><input type="checkbox" class="unified-layer-visible output-toggle ${mappedClass}" data-key="${k}" ${checked} ${isDisabledRule ? 'title="Disabled rule: no output"' : ''} /></td>
+                        <td><input type="checkbox" class="unified-layer-visible output-toggle ${mappedClass}" data-key="${k}" ${checked} ${isDisabledRule ? 'disabled title="Disabled rule: no output"' : ''} /></td>
                         <td><span class="color-swatch" style="background:${g.displayColor}"></span></td>
                         <td title="raw: ${rawKerf} ${unit}">${(unit==='in' ? Number(rawKerf||0)*72 : unit==='mm' ? Number(rawKerf||0)/25.4*72 : Number(rawKerf||0)).toFixed(2)}</td>
                         <td>${color}</td>
@@ -732,7 +732,7 @@ function updateImportPanelForUnified() {
                 if (isDisabledRule && overlayGroups[k]) overlayGroups[k].visible = false;
                 return `
                   <tr data-key="${k}">
-                    <td><input type="checkbox" class="unified-layer-visible output-toggle ${mappedClass}" data-key="${k}" ${checked} ${isDisabledRule ? 'title="Disabled rule: no output"' : ''} /></td>
+                    <td><input type="checkbox" class="unified-layer-visible output-toggle ${mappedClass}" data-key="${k}" ${checked} ${isDisabledRule ? 'disabled title="Disabled rule: no output"' : ''} /></td>
                     <td><span class="color-swatch" style="background:${g.displayColor}"></span></td>
                     <td>${Number(pen || 0).toFixed(2)}</td>
                     <td>${pen}</td>
@@ -753,7 +753,7 @@ function updateImportPanelForUnified() {
                 if (isDisabledRule && overlayGroups[k]) overlayGroups[k].visible = false;
                 return `
                   <tr data-key="${k}">
-                    <td><input type="checkbox" class="unified-layer-visible output-toggle ${mappedClass}" data-key="${k}" ${checked} ${isDisabledRule ? 'title="Disabled rule: no output"' : ''} /></td>
+                    <td><input type="checkbox" class="unified-layer-visible output-toggle ${mappedClass}" data-key="${k}" ${checked} ${isDisabledRule ? 'disabled title="Disabled rule: no output"' : ''} /></td>
                     <td><span class="color-swatch" style="background:${g.displayColor}"></span></td>
                     <td title="raw: ${rawKerf} ${unit}">${(unit==='in' ? Number(rawKerf||0)*72 : unit==='mm' ? Number(rawKerf||0)/25.4*72 : Number(rawKerf||0)).toFixed(2)}</td>
                     <td>${color}</td>
@@ -884,6 +884,7 @@ function updateImportPanelForUnified() {
             cb.checked = false;
             cb.classList.remove('mapped','unmapped');
             cb.classList.add('disabled');
+            cb.disabled = true;
             if (overlayGroups[k]) overlayGroups[k].visible = false;
         }
     });
