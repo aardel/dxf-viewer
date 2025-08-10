@@ -204,9 +204,7 @@ groupByPtToggleEl?.addEventListener('change', ()=>{
     updateImportPanelForUnified();
 });
 if (groupByPtToggleEl) groupByPtToggleEl.checked = localStorage.getItem('groupByPt') === '1';
-// Settings overrides
-const importUnitOverrideEl = document.getElementById('importUnitOverride');
-const outputUnitOverrideEl = document.getElementById('outputUnitOverride');
+// Settings: only display unit is user selectable (mm/in)
 // Rules cache for exact-key mapping (DXF/DDS/CFF2)
 let exactRulesCache = new Map(); // key: `${format}|${key}` -> { lineTypeId, enabled }
 // Internal line types cache for display color resolution
@@ -252,24 +250,7 @@ if (window.electronAPI?.onRulesUpdated) {
     });
 }
 
-// Persist and read unit overrides
-function loadUnitOverrides() {
-    try {
-        const iu = localStorage.getItem('importUnitOverride') || 'auto';
-        const ou = localStorage.getItem('outputUnitOverride') || 'mm';
-        if (importUnitOverrideEl) importUnitOverrideEl.value = iu;
-        if (outputUnitOverrideEl) outputUnitOverrideEl.value = ou;
-    } catch {}
-}
-function saveUnitOverrides() {
-    try {
-        if (importUnitOverrideEl) localStorage.setItem('importUnitOverride', importUnitOverrideEl.value || 'auto');
-        if (outputUnitOverrideEl) localStorage.setItem('outputUnitOverride', outputUnitOverrideEl.value || 'mm');
-    } catch {}
-}
-loadUnitOverrides();
-importUnitOverrideEl?.addEventListener('change', ()=>{ saveUnitOverrides(); updateUnifiedDimensions(); updateFormatIndicator(currentFileFormat); });
-outputUnitOverrideEl?.addEventListener('change', ()=>{ saveUnitOverrides(); });
+// No import/output unit overrides to persist
 
 const lineTypesBtn = document.getElementById('lineTypesBtn');
 const panelToggleIcon = document.getElementById('panelToggleIcon');
@@ -1195,14 +1176,11 @@ function updateFormatIndicator(ext) {
         if (currentFileFormat === 'dds') {
             const geoms = window.unifiedGeometries || [];
             let unit = geoms.find(g => g?.properties?.unitCode)?.properties?.unitCode || 'unknown';
-            const override = importUnitOverrideEl?.value || 'auto';
-            if (override !== 'auto') unit = override;
             label = `DDS / ${unit}`;
         } else if (currentFileFormat === 'cf2' || currentFileFormat === 'cff2') {
             // Try inference
             const geoms = window.unifiedGeometries || [];
-            const override = importUnitOverrideEl?.value || 'auto';
-            const inf = override !== 'auto' ? { unit: override, confidence: 0 } : inferUnitsFromGeometry(geoms);
+            const inf = inferUnitsFromGeometry(geoms);
             label = `CFF2 / ${inf.unit}${inf.confidence ? ` (${Math.round(inf.confidence*100)}%)` : ''}`;
         } else if (currentFileFormat === 'dxf') {
             const u = getDXFUnits();
@@ -2330,12 +2308,12 @@ function initCanvasControls() {
             }
             if (viewer && camera && controls) {
                 const panDistance = getViewerPanDistance();
-                const target = controls.target.clone();
-                target.y += panDistance;
-                controls.target.copy(target);
-                camera.position.y += panDistance;
-                controls.update();
-                viewer.Render();
+            const target = controls.target.clone();
+            target.y += panDistance;
+            controls.target.copy(target);
+            camera.position.y += panDistance;
+            controls.update();
+            viewer.Render();
             }
         });
     }
@@ -2347,12 +2325,12 @@ function initCanvasControls() {
             }
             if (viewer && camera && controls) {
                 const panDistance = getViewerPanDistance();
-                const target = controls.target.clone();
-                target.y -= panDistance;
-                controls.target.copy(target);
-                camera.position.y -= panDistance;
-                controls.update();
-                viewer.Render();
+            const target = controls.target.clone();
+            target.y -= panDistance;
+            controls.target.copy(target);
+            camera.position.y -= panDistance;
+            controls.update();
+            viewer.Render();
             }
         });
     }
@@ -2365,12 +2343,12 @@ function initCanvasControls() {
             }
             if (viewer && camera && controls) {
                 const panDistance = getViewerPanDistance();
-                const target = controls.target.clone();
-                target.x -= panDistance;
-                controls.target.copy(target);
-                camera.position.x -= panDistance;
-                controls.update();
-                viewer.Render();
+            const target = controls.target.clone();
+            target.x -= panDistance;
+            controls.target.copy(target);
+            camera.position.x -= panDistance;
+            controls.update();
+            viewer.Render();
             }
         });
     }
@@ -2383,12 +2361,12 @@ function initCanvasControls() {
             }
             if (viewer && camera && controls) {
                 const panDistance = getViewerPanDistance();
-                const target = controls.target.clone();
-                target.x += panDistance;
-                controls.target.copy(target);
-                camera.position.x += panDistance;
-                controls.update();
-                viewer.Render();
+            const target = controls.target.clone();
+            target.x += panDistance;
+            controls.target.copy(target);
+            camera.position.x += panDistance;
+            controls.update();
+            viewer.Render();
             }
         });
     }

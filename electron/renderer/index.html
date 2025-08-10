@@ -303,46 +303,24 @@
                             </label>
                         </div>
                         
-                        <div class="settings-section">
-                            <h5>Display Units</h5>
-                            <p>Override DXF units and display dimensions in your preferred units.</p>
-                            <div class="unit-selector">
-                                <label for="unitOverride">Display units:</label>
-                                <select id="unitOverride" class="form-select">
-                                    <option value="auto">Auto (Use DXF units)</option>
-                                    <option value="mm">Millimeters (mm)</option>
-                                    <option value="cm">Centimeters (cm)</option>
-                                    <option value="m">Meters (m)</option>
-                                    <option value="in">Inches (in)</option>
-                                    <option value="ft">Feet (ft)</option>
-                                </select>
-                            </div>
-
-                            <div class="unit-selector" style="margin-top:10px;">
-                                <h5>Import/Output Units Override</h5>
-                                <div style="display:flex; gap:12px; flex-wrap:wrap;">
-                                  <div>
-                                    <label for="importUnitOverride">Import units (DDS/CFF2 only):</label>
-                                    <select id="importUnitOverride" class="form-select">
-                                        <option value="auto">Auto Detect</option>
-                                        <option value="mm">Millimeters (mm)</option>
-                                        <option value="in">Inches (in)</option>
-                                    </select>
-                                  </div>
-                                  <div>
-                                    <label for="outputUnitOverride">Output units (DIN):</label>
-                                    <select id="outputUnitOverride" class="form-select">
+                            <div class="settings-section">
+                                <h5>Display Units</h5>
+                                <p>Choose how dimensions are displayed in the UI. Geometry is never scaled by this setting.</p>
+                                <div class="unit-selector">
+                                    <label for="unitOverride">Display units:</label>
+                                    <select id="unitOverride" class="form-select">
                                         <option value="mm" selected>Millimeters (mm)</option>
                                         <option value="in">Inches (in)</option>
                                     </select>
-                                  </div>
                                 </div>
-                                <p class="setting-help">Input override affects unit labels and display only; geometry values are not changed. Output override controls DIN generation units.</p>
+                                <div class="unit-note" style="margin-top:8px; font-size: 12px; color:#bfbfbf;">
+                                    Output units are defined by the selected postprocessor profile (e.g. Default Metric or Default Inch).
+                                </div>
                             </div>
                             
                             <div class="scaling-selector">
-                                <label class="scaling-label">Scaling factor:</label>
-                                <p class="scaling-description">Apply scaling when DXF was exported with incorrect scale.</p>
+                                <label class="scaling-label">Scaling factor (DXF only):</label>
+                                <p class="scaling-description">Apply scaling when DXF was exported with incorrect scale. CFF2 uses its internal SCALE value automatically.</p>
                                 <select id="scalingDropdown" class="form-select">
                                     <option value="1">1:1 (No scaling)</option>
                                     <option value="2">2:1 (×2)</option>
