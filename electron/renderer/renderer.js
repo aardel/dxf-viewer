@@ -4510,32 +4510,8 @@ function initializePostprocessorManagement() {
     // Load available XML profiles into dropdown
     loadAvailableXmlProfiles();
     
-    // Profile management buttons
-    const createProfileBtn = document.getElementById('createProfileBtn');
-    const copyProfileBtn = document.getElementById('copyProfileBtn');
-    const editProfileBtn = document.getElementById('editProfileBtn');
-    const refreshProfileBtn = document.getElementById('refreshProfileBtn');
-    const deleteProfileBtn = document.getElementById('deleteProfileBtn');
-    
-    createProfileBtn?.addEventListener('click', () => {
-        createNewProfile();
-    });
-    
-    copyProfileBtn?.addEventListener('click', () => {
-        copyCurrentProfile();
-    });
-    
-    editProfileBtn?.addEventListener('click', () => {
-        editCurrentProfile();
-    });
-    
-    refreshProfileBtn?.addEventListener('click', () => {
-        refreshProfileDropdown();
-    });
-    
-    deleteProfileBtn?.addEventListener('click', () => {
-        deleteCurrentProfile();
-    });
+    // Profile management buttons have been moved to Output Manager
+    // Only the profile dropdown and Output Manager button remain in the main UI
 }
 
 // Get the currently selected profile filename
