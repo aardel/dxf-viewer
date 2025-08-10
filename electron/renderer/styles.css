@@ -232,10 +232,11 @@ body {
     flex: 1;
     margin-top: 100px;
     height: calc(100vh - 100px);
+    align-items: stretch;
 }
 
 .viewer-container {
-    flex: 1;
+    flex: 1 1 auto;
     position: relative;
     background: #1a1a1a;
     margin: 1rem;
@@ -265,7 +266,10 @@ body {
     display: flex;
     flex-direction: column;
     transition: width 0.3s ease, min-width 0.3s ease;
-    position: relative;
+    position: sticky; /* stick to right side */
+    right: 0;
+    top: 100px; /* same as main-content top margin */
+    height: calc(100vh - 100px);
     box-shadow: -4px 0 8px rgba(0,0,0,0.3);
 }
 
