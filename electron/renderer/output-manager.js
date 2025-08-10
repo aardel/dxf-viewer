@@ -609,37 +609,41 @@ function setupEventListeners() {
                         filename: `${profileName.trim().toLowerCase().replace(/\s+/g, '_')}.xml`
                     };
                     
-                    // Create a complete, independent profile structure
+                    // Create a complete, independent profile structure that matches XML generator expectations
                     const newProfileData = {
+                        ShowConfigIssuesOnStartup: false,
                         profileInfo: {
                             name: newProfile.name,
                             description: newProfile.description,
                             version: '1.0',
-                            created: new Date().toISOString(),
-                            lastModified: new Date().toISOString(),
+                            created: new Date().toISOString().split('T')[0],
+                            lastModified: new Date().toISOString().split('T')[0],
                             author: 'User'
                         },
                         units: {
-                            feedInchMachine: false
+                            feedInchMachine: false,
+                            scalingHeader: {
+                                enabled: false,
+                                parameter: '',
+                                scaleCommand: '',
+                                comment: ''
+                            }
                         },
                         tools: {
-                            tool: [
-                                {
-                                    id: 'T1',
-                                    name: 'Default Tool',
-                                    description: 'Default cutting tool',
-                                    width: 1,
-                                    hCode: 'H1',
-                                    type: 'cut'
-                                }
-                            ]
+                            T1: {
+                                name: 'Default Tool',
+                                description: 'Default cutting tool',
+                                width: 1,
+                                hCode: 'H1'
+                            }
                         },
-                        mappingWorkflow: {
-                            mapping: []
-                        },
+                        lineTypeMappings: {},
                         optimization: {
-                            strategy: 'nearest',
-                            enableOptimization: true
+                            primaryStrategy: 'nearest',
+                            withinGroupOptimization: 'closest_path',
+                            includeComments: true,
+                            validateWidths: true,
+                            respectManualBreaks: true
                         },
                         outputSettings: {
                             enableLineNumbers: false,
@@ -687,13 +691,12 @@ function setupEventListeners() {
                         const copiedProfileData = JSON.parse(JSON.stringify(currentProfileData));
                         
                         // Update the profile metadata to make it independent
-                        copiedProfileData.profileInfo = {
-                            ...copiedProfileData.profileInfo,
-                            name: copyProfile.name,
-                            description: copyProfile.description,
-                            lastModified: new Date().toISOString(),
-                            created: new Date().toISOString()
-                        };
+                        if (copiedProfileData.profileInfo) {
+                            copiedProfileData.profileInfo.name = copyProfile.name;
+                            copiedProfileData.profileInfo.description = copyProfile.description;
+                            copiedProfileData.profileInfo.lastModified = new Date().toISOString().split('T')[0];
+                            copiedProfileData.profileInfo.created = new Date().toISOString().split('T')[0];
+                        }
                         
                         // Save the independent copy
                         await window.electronAPI.saveXmlProfile(copyProfile.filename, copiedProfileData);
