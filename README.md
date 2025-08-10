@@ -119,6 +119,31 @@ Pending:
 - Preselects the current Local Line Type and includes a color picker.
 - Saving writes an exact-key rule and syncs to the active profile; main UI updates immediately.
 
+### Import/Output Unit Overrides (Settings)
+
+- Import units (DDS/CFF2): Auto Detect (default), Millimeters, Inches.
+  - Affects headers and dimensions labels only; does not rescale geometry.
+  - DDS: when Auto, uses median raw width heuristic (1–6 pt range) to choose in/mm.
+  - CFF2: when Auto, uses geometry-based inference (grid-fit and plausibility) to choose in/mm.
+- Output units (DIN): Millimeters or Inches.
+  - Used during DIN generation (geometry unchanged; conversion applied at emit-time).
+
+### Parsing Summary
+
+- DXF
+  - Parser: `src/parser/DxfParser.js` (via `DxfViewer` stack)
+  - Extracts: layers, ACI color, entities (LINE/ARC/etc.), text, hatches.
+  - Units: DXF `$INSUNITS` (header). Display can be overridden in Settings.
+- DDS
+  - Parser: `src/parsers/DdsParser.js`
+  - Entities: LINE (x1 y1 x2 y2 color width bridges bridgeWidth), ARC (start/end/center radius color width bridges bridgeWidth)
+  - Keys: `{colorNumber, rawWidth, unitCode}`; `unitCode` auto-detected (in/mm) by median width in 1–6 pt range.
+  - Bridges: `bridgeCount`, `bridgeWidth` supported.
+- CFF2/CF2
+  - Parser: `src/parsers/Cf2Parser.js`
+  - Keys: `{pen, layer}` with `pt` from pen. Bridges if present.
+  - Units: geometry unit unspecified; only line width is in points. Header shows inferred in/mm (or Unknown) unless overridden.
+
 ## Application Structure
 
 ```
