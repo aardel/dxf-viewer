@@ -2201,7 +2201,9 @@ function initBackgroundColorSlider() {
     });
 }
 // Canvas control utilities
+let controlsInitialized = false;
 function initCanvasControls() {
+    if (controlsInitialized) return;
     const zoomInBtn = document.getElementById('zoomInBtn');
     const zoomOutBtn = document.getElementById('zoomOutBtn');
     const panUpBtn = document.getElementById('panUpBtn');
@@ -2210,61 +2212,60 @@ function initCanvasControls() {
     const panDownBtn = document.getElementById('panDownBtn');
     const fitToViewBtn = document.getElementById('fitToViewBtn');
     
-    if (!viewer || !viewer.controls) return;
-    
-    const controls = viewer.controls;
-    const camera = viewer.camera;
+    // Helper functions for overlay (DDS/CFF2)
+    function overlayZoomAtCenter(factor) {
+        ensureOverlayCanvas();
+        if (!overlayCanvas) return;
+        const mx = overlayCanvas.width / 2;
+        const my = overlayCanvas.height / 2;
+        const model = canvasToModel(mx, my);
+        const newScale = Math.max(0.0001, Math.min(1000, overlayView.scale * factor));
+        overlayView.scale = newScale;
+        overlayView.offsetX = mx - model.x * newScale;
+        overlayView.offsetY = my + model.y * newScale;
+        drawOverlay();
+    }
+    function overlayPan(dxPx, dyPx) {
+        ensureOverlayCanvas();
+        if (!overlayCanvas) return;
+        overlayView.offsetX += dxPx;
+        overlayView.offsetY += dyPx;
+        drawOverlay();
+    }
+    function getOverlayPanPixels() {
+        ensureOverlayCanvas();
+        const base = Math.max(overlayCanvas?.width || 0, overlayCanvas?.height || 0);
+        return Math.max(5, Math.floor(base * 0.04));
+    }
+
+    // Helper for viewer (DXF)
+    const controls = viewer?.controls;
+    const camera = viewer?.camera;
     const zoomFactor = 1.15; // Slightly reduced zoom factor for smoother zooming
     
-    // Smart pan distance calculation based on drawing size
-    function getSmartPanDistance() {
-        if (!viewer || !viewer.bounds) {
-            return 5; // Fallback to small distance if no bounds available
-        }
-        
+    // Smart pan distance calculation based on drawing size (DXF)
+    function getViewerPanDistance() {
+        if (!viewer || !viewer.bounds) return 5;
         try {
-            let bounds = viewer.bounds;
-            
-            // Try to get original bounds if available (for scaled content)
-            if (viewer._originalBounds) {
-                bounds = viewer._originalBounds;
-            } else if (viewer.GetBounds) {
-                bounds = viewer.GetBounds();
-            }
-            
-            if (!bounds) {
-                return 5; // Fallback
-            }
-            
-            // Calculate drawing dimensions
+            let bounds = viewer._originalBounds || viewer.GetBounds?.() || viewer.bounds;
+            if (!bounds) return 5;
             const drawingWidth = Math.abs(bounds.maxX - bounds.minX);
             const drawingHeight = Math.abs(bounds.maxY - bounds.minY);
             const drawingSize = Math.max(drawingWidth, drawingHeight);
-            
-            // Base pan distance as a percentage of drawing size
-            // Use between 2% and 8% of the drawing size, adjusted by zoom level
-            let basePanDistance = drawingSize * 0.04; // 4% of drawing size
-            
-            // Adjust based on zoom level - more zoomed in = smaller pan distance
-            const zoomAdjustment = Math.max(0.1, Math.min(2.0, 1 / camera.zoom));
-            
-            // Final pan distance with reasonable limits
-            const panDistance = Math.max(0.1, Math.min(drawingSize * 0.1, basePanDistance * zoomAdjustment));
-            
-            console.log(`Smart pan: Drawing size=${drawingSize.toFixed(2)}, Zoom=${camera.zoom.toFixed(3)}, Pan distance=${panDistance.toFixed(3)}`);
-            
-            return panDistance;
-            
-        } catch (error) {
-            console.warn('Error calculating smart pan distance:', error);
-            return 5; // Fallback
-        }
+            const basePanDistance = drawingSize * 0.04;
+            const zoomAdjustment = Math.max(0.1, Math.min(2.0, 1 / (camera?.zoom || 1)));
+            return Math.max(0.1, Math.min(drawingSize * 0.1, basePanDistance * zoomAdjustment));
+        } catch { return 5; }
     }
     
     // Zoom controls
     if (zoomInBtn) {
         zoomInBtn.addEventListener('click', () => {
-            if (camera.zoom) {
+            if (currentFileFormat === 'dds' || currentFileFormat === 'cf2' || currentFileFormat === 'cff2') {
+                overlayZoomAtCenter(zoomFactor);
+                return;
+            }
+            if (viewer && camera && controls) {
                 camera.zoom *= zoomFactor;
                 camera.updateProjectionMatrix();
                 controls.update();
@@ -2275,7 +2276,11 @@ function initCanvasControls() {
     
     if (zoomOutBtn) {
         zoomOutBtn.addEventListener('click', () => {
-            if (camera.zoom) {
+            if (currentFileFormat === 'dds' || currentFileFormat === 'cf2' || currentFileFormat === 'cff2') {
+                overlayZoomAtCenter(1 / zoomFactor);
+                return;
+            }
+            if (viewer && camera && controls) {
                 camera.zoom /= zoomFactor;
                 camera.updateProjectionMatrix();
                 controls.update();
@@ -2287,48 +2292,72 @@ function initCanvasControls() {
     // Pan controls with smart distance calculation
     if (panUpBtn) {
         panUpBtn.addEventListener('click', () => {
-            const panDistance = getSmartPanDistance();
-            const target = controls.target.clone();
-            target.y += panDistance;
-            controls.target.copy(target);
-            camera.position.y += panDistance;
-            controls.update();
-            viewer.Render();
+            if (currentFileFormat === 'dds' || currentFileFormat === 'cf2' || currentFileFormat === 'cff2') {
+                overlayPan(0, -getOverlayPanPixels());
+                return;
+            }
+            if (viewer && camera && controls) {
+                const panDistance = getViewerPanDistance();
+                const target = controls.target.clone();
+                target.y += panDistance;
+                controls.target.copy(target);
+                camera.position.y += panDistance;
+                controls.update();
+                viewer.Render();
+            }
         });
     }
     if (panDownBtn) {
         panDownBtn.addEventListener('click', () => {
-            const panDistance = getSmartPanDistance();
-            const target = controls.target.clone();
-            target.y -= panDistance;
-            controls.target.copy(target);
-            camera.position.y -= panDistance;
-            controls.update();
-            viewer.Render();
+            if (currentFileFormat === 'dds' || currentFileFormat === 'cf2' || currentFileFormat === 'cff2') {
+                overlayPan(0, getOverlayPanPixels());
+                return;
+            }
+            if (viewer && camera && controls) {
+                const panDistance = getViewerPanDistance();
+                const target = controls.target.clone();
+                target.y -= panDistance;
+                controls.target.copy(target);
+                camera.position.y -= panDistance;
+                controls.update();
+                viewer.Render();
+            }
         });
     }
     
     if (panLeftBtn) {
         panLeftBtn.addEventListener('click', () => {
-            const panDistance = getSmartPanDistance();
-            const target = controls.target.clone();
-            target.x -= panDistance;
-            controls.target.copy(target);
-            camera.position.x -= panDistance;
-            controls.update();
-            viewer.Render();
+            if (currentFileFormat === 'dds' || currentFileFormat === 'cf2' || currentFileFormat === 'cff2') {
+                overlayPan(-getOverlayPanPixels(), 0);
+                return;
+            }
+            if (viewer && camera && controls) {
+                const panDistance = getViewerPanDistance();
+                const target = controls.target.clone();
+                target.x -= panDistance;
+                controls.target.copy(target);
+                camera.position.x -= panDistance;
+                controls.update();
+                viewer.Render();
+            }
         });
     }
     
     if (panRightBtn) {
         panRightBtn.addEventListener('click', () => {
-            const panDistance = getSmartPanDistance();
-            const target = controls.target.clone();
-            target.x += panDistance;
-            controls.target.copy(target);
-            camera.position.x += panDistance;
-            controls.update();
-            viewer.Render();
+            if (currentFileFormat === 'dds' || currentFileFormat === 'cf2' || currentFileFormat === 'cff2') {
+                overlayPan(getOverlayPanPixels(), 0);
+                return;
+            }
+            if (viewer && camera && controls) {
+                const panDistance = getViewerPanDistance();
+                const target = controls.target.clone();
+                target.x += panDistance;
+                controls.target.copy(target);
+                camera.position.x += panDistance;
+                controls.update();
+                viewer.Render();
+            }
         });
     }
     
@@ -2353,6 +2382,7 @@ function initCanvasControls() {
             }
         });
     }
+    controlsInitialized = true;
 }
 
 // Update layer status summary

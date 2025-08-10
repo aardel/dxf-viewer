@@ -239,7 +239,6 @@ body {
     position: relative;
     background: #1a1a1a;
     margin: 1rem;
-    margin-right: 1rem;
     border-radius: 8px;
     box-shadow: 0 4px 16px rgba(0,0,0,0.4);
     overflow: hidden;
@@ -247,9 +246,7 @@ body {
     border: 1px solid #404040;
 }
 
-.viewer-container.full-width {
-    margin-right: 1rem;
-}
+.viewer-container.full-width { }
 
 /* Ensure the canvas wrapper fills available space so auto-resize works reliably */
 #viewer {
