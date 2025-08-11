@@ -199,8 +199,10 @@ async function saveOutputUnitsToProfile(units) {
     try {
         if (!currentProfile) return;
         
+        // Use the correct profile filename
+        const profileName = currentProfile.filename || currentProfile.id || currentProfile.name;
         // Save the units setting to the profile
-        await window.electronAPI.savePostprocessorConfig(currentProfile.id || currentProfile.name, {
+        await window.electronAPI.savePostprocessorConfig(profileName, {
             units: units
         });
         
@@ -601,8 +603,10 @@ async function loadLineTypeMappings() {
     try {
         if (!currentProfile) return;
         
-        console.log('Loading line type mappings for profile:', currentProfile.id || currentProfile.name);
-        const response = await window.electronAPI.getLineTypeMappingsFromProfile(currentProfile.id || currentProfile.name);
+        // Use the correct profile filename
+        const profileName = currentProfile.filename || currentProfile.id || currentProfile.name;
+        console.log('Loading line type mappings for profile:', profileName);
+        const response = await window.electronAPI.getLineTypeMappingsFromProfile(profileName);
         
         // Handle the response format from IPC
         if (response && response.success && response.data) {
@@ -680,8 +684,10 @@ async function loadCuttingPriority() {
     try {
         if (!currentProfile) return;
         
-        console.log('Loading cutting priority for profile:', currentProfile.id || currentProfile.name);
-        const response = await window.electronAPI.loadPriorityConfiguration(currentProfile.id || currentProfile.name);
+        // Use the correct profile filename
+        const profileName = currentProfile.filename || currentProfile.id || currentProfile.name;
+        console.log('Loading cutting priority for profile:', profileName);
+        const response = await window.electronAPI.loadPriorityConfiguration(profileName);
         
         // Handle the response format from IPC
         if (response && response.success && response.data) {
@@ -757,7 +763,9 @@ async function loadHeaderFooterConfig() {
     try {
         if (!currentProfile) return;
         
-        const config = await window.electronAPI.loadPostprocessorConfig(currentProfile.id || currentProfile.name);
+        // Use the correct profile filename
+        const profileName = currentProfile.filename || currentProfile.id || currentProfile.name;
+        const config = await window.electronAPI.loadPostprocessorConfig(profileName);
         
         if (config) {
             // Populate header settings
@@ -869,6 +877,8 @@ function setupEventListeners() {
                 if (profile) {
                     currentProfile = profile;
                     await loadProfileConfiguration(profile);
+                    // Reload all configuration data for the new profile
+                    await loadAllConfiguration();
                     console.log('Switched to profile:', profile.name);
                 } else {
                     console.warn('Selected profile not found:', selectedProfileId);
