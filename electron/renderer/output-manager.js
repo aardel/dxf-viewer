@@ -69,6 +69,11 @@ async function initializeOutputManager() {
             await window.electronAPI.updateOutputManagerTitle(currentProfile.name);
         }
         
+        // Initialize DIN File Structure preview after a short delay to ensure DOM is ready
+        setTimeout(() => {
+            updateDinFileStructurePreview();
+        }, 500);
+        
     } catch (error) {
         console.error('Error initializing Output Manager:', error);
         showError('Failed to initialize Output Manager');
@@ -1323,6 +1328,7 @@ async function loadHeaderFooterConfig() {
             
             // Update preview
             updateHeaderPreview();
+            updateDinFileStructurePreview();
         }
         
     } catch (error) {
@@ -1751,10 +1757,38 @@ function setupEventListeners() {
                     console.error('Error refreshing tool dropdowns:', error);
                 }
             }
+            
+            // Update preview when switching to DIN File Structure tab
+            if (targetTab === 'header') {
+                console.log('Switching to DIN File Structure tab - updating preview...');
+                setTimeout(() => {
+                    updateDinFileStructurePreview();
+                }, 100);
+            }
         });
     });
     
-    // Real-time preview updates
+    // Real-time preview updates for DIN File Structure
+    const dinFileStructureElements = [
+        'enableLineNumbers', 'startNumber', 'increment', 'formatTemplate',
+        'machineType', 'headerTemplate', 'includeFileInfo', 'includeProgramStart',
+        'includeDrawingBounds', 'includeOperationCount', 'scaleCommand', 'initialCommands',
+        'homeCommand', 'programEndCommand'
+    ];
+    
+    dinFileStructureElements.forEach(elementId => {
+        const element = document.getElementById(elementId);
+        if (element) {
+            if (element.type === 'checkbox') {
+                element.addEventListener('change', updateDinFileStructurePreview);
+            } else {
+                element.addEventListener('input', updateDinFileStructurePreview);
+                element.addEventListener('change', updateDinFileStructurePreview);
+            }
+        }
+    });
+    
+    // Legacy header preview updates (for backward compatibility)
     const headerTemplate = document.getElementById('headerTemplate');
     if (headerTemplate) {
         headerTemplate.addEventListener('input', updateHeaderPreview);
@@ -1803,6 +1837,159 @@ function hideToolsStatus() {
     if (statusElement) {
         statusElement.style.display = 'none';
     }
+}
+
+// Comprehensive live preview function for DIN File Structure
+function updateDinFileStructurePreview() {
+    console.log('Updating DIN File Structure preview...');
+    
+    const headerPreview = document.getElementById('headerPreview');
+    const footerPreview = document.getElementById('footerPreview');
+    const headerStats = document.getElementById('headerStats');
+    
+    if (!headerPreview || !footerPreview || !headerStats) {
+        console.warn('Preview elements not found');
+        return;
+    }
+    
+    // Get all current values from the form
+    const enableLineNumbers = document.getElementById('enableLineNumbers')?.checked || false;
+    const startNumber = parseInt(document.getElementById('startNumber')?.value) || 10;
+    const increment = parseInt(document.getElementById('increment')?.value) || 1;
+    const formatTemplate = document.getElementById('formatTemplate')?.value || 'N{number}';
+    
+    const machineType = document.getElementById('machineType')?.value || 'metric';
+    const headerTemplate = document.getElementById('headerTemplate')?.value || '{filename} / - size: {width} x {height} / {timestamp}';
+    const includeFileInfo = document.getElementById('includeFileInfo')?.checked || false;
+    const includeProgramStart = document.getElementById('includeProgramStart')?.checked || false;
+    const includeDrawingBounds = document.getElementById('includeDrawingBounds')?.checked || false;
+    const includeOperationCount = document.getElementById('includeOperationCount')?.checked || false;
+    const scaleCommand = document.getElementById('scaleCommand')?.value || '';
+    const initialCommands = document.getElementById('initialCommands')?.value || 'G90\nG60 X0';
+    
+    const homeCommand = document.getElementById('homeCommand')?.value || 'G0 X0 Y0';
+    const programEndCommand = document.getElementById('programEndCommand')?.value || 'M30';
+    
+    // Generate header preview
+    let headerLines = [];
+    let lineNumber = startNumber;
+    
+    // Helper function to add line with optional line number
+    const addLine = (content, isCommand = false) => {
+        let line = content;
+        if (enableLineNumbers) {
+            const lineNum = formatTemplate.replace('{number}', lineNumber.toString().padStart(4, '0'));
+            line = `${lineNum} ${content}`;
+            lineNumber += increment;
+        }
+        headerLines.push(line);
+    };
+    
+    // Program start marker
+    if (includeProgramStart) {
+        addLine('%1');
+    }
+    
+    // File information comment
+    if (includeFileInfo) {
+        const mockTemplate = headerTemplate
+            .replace('{filename}', 'example.dxf')
+            .replace('{width}', '100.0')
+            .replace('{height}', '50.0')
+            .replace('{timestamp}', new Date().toLocaleString())
+            .replace('{user}', 'Operator')
+            .replace('{material}', 'Steel');
+        addLine(`{ ${mockTemplate}`);
+    }
+    
+    // Drawing bounds
+    if (includeDrawingBounds) {
+        addLine('{ BOUNDS: X0.0 Y0.0 to X100.0 Y50.0');
+    }
+    
+    // Operation count
+    if (includeOperationCount) {
+        addLine('{ OPERATIONS: 25');
+    }
+    
+    // Scale command (if provided)
+    if (scaleCommand.trim()) {
+        addLine(scaleCommand, true);
+        addLine('{ Scaling applied');
+    }
+    
+    // Initial setup commands
+    const setupCommands = initialCommands.split('\n').filter(cmd => cmd.trim());
+    setupCommands.forEach(cmd => {
+        addLine(cmd.trim(), true);
+    });
+    
+    // Home command
+    addLine(homeCommand, true);
+    
+    // Add separator
+    addLine('{ BEGIN CUTTING OPERATIONS...');
+    
+    // Generate footer preview
+    let footerLines = [];
+    let footerLineNumber = lineNumber;
+    
+    const addFooterLine = (content, isCommand = false) => {
+        let line = content;
+        if (enableLineNumbers) {
+            const lineNum = formatTemplate.replace('{number}', footerLineNumber.toString().padStart(4, '0'));
+            line = `${lineNum} ${content}`;
+            footerLineNumber += increment;
+        }
+        footerLines.push(line);
+    };
+    
+    addFooterLine('{ END CUTTING OPERATIONS');
+    
+    // Program end commands
+    const endCommands = programEndCommand.split('\n').filter(cmd => cmd.trim());
+    endCommands.forEach(cmd => {
+        addFooterLine(cmd.trim(), true);
+    });
+    
+    addFooterLine('{ End of Program');
+    
+    // Update preview displays
+    headerPreview.innerHTML = headerLines.map(line => {
+        if (line.startsWith('{')) {
+            return `<span style="color: #888; font-style: italic;">${line}</span>`;
+        } else if (line.startsWith('G') || line.startsWith('M') || line.startsWith('%')) {
+            return `<span style="color: #4a90e2; font-weight: bold;">${line}</span>`;
+        } else {
+            return `<span style="color: #fff;">${line}</span>`;
+        }
+    }).join('<br>');
+    
+    footerPreview.innerHTML = footerLines.map(line => {
+        if (line.startsWith('{')) {
+            return `<span style="color: #888; font-style: italic;">${line}</span>`;
+        } else if (line.startsWith('G') || line.startsWith('M') || line.startsWith('%')) {
+            return `<span style="color: #4a90e2; font-weight: bold;">${line}</span>`;
+        } else {
+            return `<span style="color: #fff;">${line}</span>`;
+        }
+    }).join('<br>');
+    
+    // Update statistics
+    const totalLines = headerLines.length + footerLines.length;
+    const commentLines = headerLines.filter(line => line.includes('{')).length + 
+                        footerLines.filter(line => line.includes('{')).length;
+    const commandLines = totalLines - commentLines;
+    const estimatedSize = (headerLines.join('\n') + '\n' + footerLines.join('\n')).length;
+    
+    headerStats.innerHTML = `
+        <div>Total Lines: <span style="color: #4a90e2;">${totalLines}</span></div>
+        <div>Comment Lines: <span style="color: #888;">${commentLines}</span></div>
+        <div>Command Lines: <span style="color: #4a90e2;">${commandLines}</span></div>
+        <div>Estimated Size: <span style="color: #4a90e2;">${estimatedSize}</span> bytes</div>
+    `;
+    
+    console.log('DIN File Structure preview updated successfully');
 }
 
 // Export functions for potential use by other modules
