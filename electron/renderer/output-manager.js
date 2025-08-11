@@ -341,6 +341,12 @@ async function loadTools() {
         console.log('Loaded tools:', currentTools.length, 'tools');
         populateMainToolsTable();
         
+        // Also refresh line type mappings to ensure tool dropdowns are updated
+        if (currentMappings && currentMappings.length > 0) {
+            console.log('Refreshing line type mappings after tools loaded');
+            displayLineTypeMappings();
+        }
+        
     } catch (error) {
         console.error('Error loading tools:', error);
         currentTools = []; // Set empty array on error
@@ -679,8 +685,14 @@ async function loadLineTypeMappings() {
 }
 
 function displayLineTypeMappings() {
+    console.log('Displaying line type mappings. currentTools length:', currentTools ? currentTools.length : 'undefined');
+    console.log('Current mappings:', currentMappings);
+    
     const tableBody = document.getElementById('lineTypeMappingTableBody');
-    if (!tableBody) return;
+    if (!tableBody) {
+        console.error('Line type mapping table body not found');
+        return;
+    }
     
     tableBody.innerHTML = '';
     
@@ -746,13 +758,18 @@ function createMappingTableRow(mapping, index) {
 }
 
 function createToolDropdownOptions(selectedToolId) {
+    console.log('Creating tool dropdown options. currentTools:', currentTools);
+    console.log('Selected tool ID:', selectedToolId);
+    
     if (!Array.isArray(currentTools) || currentTools.length === 0) {
+        console.warn('No tools available for dropdown');
         return '<option value="">No tools available</option>';
     }
     
     return currentTools.map(tool => {
         const selected = tool.id === selectedToolId ? 'selected' : '';
         const displayName = `${tool.id} (${tool.width || 0}mm - ${tool.name || tool.description || 'No description'})`;
+        console.log(`Tool option: ${tool.id} - ${tool.name} - ${tool.description} - Display: ${displayName}`);
         return `<option value="${tool.id}" ${selected}>${displayName}</option>`;
     }).join('');
 }
