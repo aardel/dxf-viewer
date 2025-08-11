@@ -2495,7 +2495,9 @@ function updateUnifiedMappingStatus() {
 
     let totalLayers = keys.length;
     let mappedLayers = 0;
+    let noOutputLayers = 0;
     let unmappedLayerNames = [];
+    let noOutputLayerNames = [];
     let visibleMappedLayers = 0;
     let readyForGeneration = true;
     const generationBlockers = [];
@@ -2503,10 +2505,29 @@ function updateUnifiedMappingStatus() {
     for (const k of keys) {
         const entry = exactRulesCache.get(`${fmt}|${k}`);
         const hasEnabledMapping = !!(entry && entry.enabled && entry.lineTypeId);
+        const isNoOutputRule = !!(entry && entry.lineTypeId && entry.enabled === false);
+        
         if (hasEnabledMapping) {
             mappedLayers++;
+        } else if (isNoOutputRule) {
+            noOutputLayers++;
+            // Build a user-friendly name from key for NO OUTPUT layers
+            let display = k;
+            try {
+                if (fmt === 'dds') {
+                    const [color, rawKerf, unit] = k.split('|');
+                    const pt = (unit==='in' ? Number(rawKerf||0)*72 : unit==='mm' ? Number(rawKerf||0)/25.4*72 : Number(rawKerf||0));
+                    display = `${pt.toFixed(2)} pt · color ${color}`;
+                } else {
+                    const parts = k.split('-');
+                    const pen = parts[0] ?? '';
+                    const layer = parts.slice(1).join('-');
+                    display = `${Number(pen||0).toFixed(2)} pt · ${layer}`;
+                }
+            } catch {}
+            noOutputLayerNames.push(display);
         } else {
-            // Build a user-friendly name from key
+            // Build a user-friendly name from key for unmapped layers
             let display = k;
             try {
                 if (fmt === 'dds') {
@@ -2542,14 +2563,16 @@ function updateUnifiedMappingStatus() {
         generationBlockers.push('no visible layers');
     }
 
-    const unmappedLayers = totalLayers - mappedLayers;
+    const unmappedLayers = totalLayers - mappedLayers - noOutputLayers;
 
     const evt = new CustomEvent('mappingStatusUpdated', {
         detail: {
             totalLayers,
             mappedLayers,
             unmappedLayers,
+            noOutputLayers,
             unmappedLayerNames,
+            noOutputLayerNames,
             visibleMappedLayers,
             readyForGeneration,
             generationBlockers
@@ -2559,6 +2582,21 @@ function updateUnifiedMappingStatus() {
 }
 // Layer validation and warning functions
 function validateLayerMappings() {
+    // Handle DXF files (using currentLayerData)
+    if (typeof currentLayerData !== 'undefined' && currentLayerData) {
+        return validateDxfLayerMappings();
+    }
+    
+    // Handle unified formats (CFF2/DDS) using overlayGroups
+    if (typeof overlayGroups !== 'undefined' && overlayGroups && Object.keys(overlayGroups).length > 0) {
+        return validateUnifiedLayerMappings();
+    }
+    
+    // No data available
+    return { valid: false, warnings: [], unmappedLayers: [], hiddenLayers: [], includedLayers: [] };
+}
+
+function validateDxfLayerMappings() {
     if (!currentLayerData) return { valid: true, warnings: [] };
     
     // Aggregate layers by name, prioritize unmapped over hidden
@@ -2632,6 +2670,87 @@ function validateLayerMappings() {
     
     return {
         valid: unmappedLayers.length === 0 && includedLayers.length > 0,  // Valid if all layers are mapped AND at least one layer is visible
+        warnings,
+        unmappedLayers,
+        hiddenLayers,
+        includedLayers
+    };
+}
+
+function validateUnifiedLayerMappings() {
+    if (!overlayGroups || Object.keys(overlayGroups).length === 0) {
+        return { valid: false, warnings: [], unmappedLayers: [], hiddenLayers: [], includedLayers: [] };
+    }
+    
+    const keys = Object.keys(overlayGroups);
+    const fmt = currentFileFormat === 'dds' ? 'dds' : 'cff2';
+    
+    const unmappedLayers = [];
+    const hiddenLayers = [];
+    const includedLayers = [];
+    const warnings = [];
+    
+    for (const key of keys) {
+        const entry = exactRulesCache.get(`${fmt}|${key}`);
+        const isVisible = overlayGroups[key]?.visible !== false;
+        const isMapped = !!(entry && entry.enabled && entry.lineTypeId);
+        
+        // Build a user-friendly name from key
+        let displayName = key;
+        try {
+            if (fmt === 'dds') {
+                const [color, rawKerf, unit] = key.split('|');
+                const pt = (unit==='in' ? Number(rawKerf||0)*72 : unit==='mm' ? Number(rawKerf||0)/25.4*72 : Number(rawKerf||0));
+                displayName = `${pt.toFixed(2)} pt · color ${color}`;
+            } else {
+                const parts = key.split('-');
+                const pen = parts[0] ?? '';
+                const layer = parts.slice(1).join('-');
+                displayName = `${Number(pen||0).toFixed(2)} pt · ${layer}`;
+            }
+        } catch {}
+        
+        if (!isMapped) {
+            unmappedLayers.push({
+                name: displayName,
+                objectCount: 1, // Each key represents one layer/group
+                type: 'unmapped'
+            });
+        } else if (!isVisible) {
+            hiddenLayers.push({
+                name: displayName,
+                objectCount: 1,
+                type: 'hidden'
+            });
+        } else {
+            includedLayers.push({
+                name: displayName,
+                objectCount: 1,
+                type: 'included'
+            });
+        }
+    }
+    
+    // Generate warnings
+    if (unmappedLayers.length > 0) {
+        warnings.push({
+            type: 'unmapped',
+            count: unmappedLayers.length,
+            layers: unmappedLayers,
+            message: `${unmappedLayers.length} layer(s) are unmapped and will be skipped during DIN generation`
+        });
+    }
+    if (hiddenLayers.length > 0) {
+        warnings.push({
+            type: 'hidden',
+            count: hiddenLayers.length,
+            layers: hiddenLayers,
+            message: `${hiddenLayers.length} layer(s) are hidden and will be excluded from processing`
+        });
+    }
+    
+    return {
+        valid: unmappedLayers.length === 0 && includedLayers.length > 0,
         warnings,
         unmappedLayers,
         hiddenLayers,
@@ -2867,29 +2986,70 @@ function closeDinSuccessModal() {
 }
 
 function getProcessedLayersInfo() {
-    if (!currentLayerData) return [];
-    
     const processedLayers = [];
     const layerMap = new Map();
     
-    currentLayerData.forEach((layer, index) => {
-        const layerName = layer.parentLayer || layer.name;
-        const isVisible = document.getElementById(`layer-${index}`)?.checked || false;
-        const objectCount = layer.objectCount !== undefined ? layer.objectCount : (layer.objects ? layer.objects.length : 0);
-        
-        // Only include layers that are visible and mapped
-        if (isVisible && (layer.importFilterApplied || layer.lineType)) {
-            const existingLayer = layerMap.get(layerName);
-            if (existingLayer) {
-                existingLayer.objectCount += objectCount;
-            } else {
-                layerMap.set(layerName, {
-                    name: layerName,
-                    objectCount: objectCount
-                });
+    // Check for either DXF viewer (with scene) or unified format viewer (with overlayCanvas)
+    const hasDxfViewer = !!(viewer && viewer.scene);
+    const hasUnifiedViewer = !!(overlayCanvas && window.unifiedGeometries && window.unifiedGeometries.length > 0);
+    
+    if (hasDxfViewer && currentLayerData) {
+        // Handle DXF files
+        currentLayerData.forEach((layer, index) => {
+            const layerName = layer.parentLayer || layer.name;
+            const isVisible = document.getElementById(`layer-${index}`)?.checked || false;
+            const objectCount = layer.objectCount !== undefined ? layer.objectCount : (layer.objects ? layer.objects.length : 0);
+            
+            // Only include layers that are visible and mapped
+            if (isVisible && (layer.importFilterApplied || layer.lineType)) {
+                const existingLayer = layerMap.get(layerName);
+                if (existingLayer) {
+                    existingLayer.objectCount += objectCount;
+                } else {
+                    layerMap.set(layerName, {
+                        name: layerName,
+                        objectCount: objectCount
+                    });
+                }
             }
-        }
-    });
+        });
+    } else if (hasUnifiedViewer && overlayGroups) {
+        // Handle unified formats (CFF2/DDS)
+        const fmt = currentFileFormat === 'dds' ? 'dds' : 'cff2';
+        
+        Object.keys(overlayGroups).forEach(key => {
+            const group = overlayGroups[key];
+            if (group && group.visible) {
+                const entry = exactRulesCache.get(`${fmt}|${key}`);
+                if (entry && entry.lineTypeId) {
+                    // Build a user-friendly layer name
+                    let layerName = key;
+                    try {
+                        if (fmt === 'dds') {
+                            const [color, rawKerf, unit] = key.split('|');
+                            const pt = (unit==='in' ? Number(rawKerf||0)*72 : unit==='mm' ? Number(rawKerf||0)/25.4*72 : Number(rawKerf||0));
+                            layerName = `${pt.toFixed(2)} pt · color ${color}`;
+                        } else {
+                            const parts = key.split('-');
+                            const pen = parts[0] ?? '';
+                            const layer = parts.slice(1).join('-');
+                            layerName = `${Number(pen||0).toFixed(2)} pt · ${layer}`;
+                        }
+                    } catch {}
+                    
+                    const existingLayer = layerMap.get(layerName);
+                    if (existingLayer) {
+                        existingLayer.objectCount += group.count || 1;
+                    } else {
+                        layerMap.set(layerName, {
+                            name: layerName,
+                            objectCount: group.count || 1
+                        });
+                    }
+                }
+            }
+        });
+    }
     
     return Array.from(layerMap.values());
 }
@@ -2901,6 +3061,7 @@ window.fixLayerMappings = fixLayerMappings;
 window.closeDinSuccessModal = closeDinSuccessModal;
 
 function proceedWithDinGeneration() {
+    console.log('=== PROCEED WITH DIN GENERATION CALLED ===');
     closeLayerValidationModal();
     // Continue with actual DIN generation logic
     performDinGeneration();
@@ -3353,24 +3514,26 @@ async function handleOpenFile() {
                 // Switching to DXF: clear any overlay canvas/state first
                 destroyOverlayCanvas();
                 await loadDxfContent(fileName, fileResult.content, filePath);
-                } else if (ext === 'dds' || ext === 'cf2' || ext === 'cff2') {
-                    await refreshRulesCache();
-                    const res = await window.electronAPI.parseUnified(fileResult.content, fileName);
-                    if (!res.success) throw new Error(res.error || 'Failed to parse file');
-                    window.unifiedGeometries = res.data || [];
-                    // Show file name/size for unified formats
-                    try { showFileInfo(fileName, new Blob([fileResult.content]).size); } catch {}
-                    // Clear any DXF content and previous overlay
-                    try { if (viewer && viewer.Clear) viewer.Clear(); } catch {}
-                    destroyOverlayCanvas();
-                    hideDropZone();
-                    ensureOverlayCanvas();
-                    // Build groups and UI, then draw so colors are correct on first paint
-                    updateImportPanelForUnified();
-                    fitOverlayView();
-                    updateUnifiedDimensions();
-                    showStatus(`Loaded ${fileName} (${window.unifiedGeometries.length} entities)`, 'success');
-                    // Layer list is rendered by updateImportPanelForUnified(); do not overwrite it with a placeholder
+                            } else if (ext === 'dds' || ext === 'cf2' || ext === 'cff2') {
+                currentFilename = fileName; // Set the filename for unified formats
+                currentFilePath = filePath; // Set the file path for unified formats
+                await refreshRulesCache();
+                const res = await window.electronAPI.parseUnified(fileResult.content, fileName);
+                if (!res.success) throw new Error(res.error || 'Failed to parse file');
+                window.unifiedGeometries = res.data || [];
+                // Show file name/size for unified formats
+                try { showFileInfo(fileName, new Blob([fileResult.content]).size); } catch {}
+                // Clear any DXF content and previous overlay
+                try { if (viewer && viewer.Clear) viewer.Clear(); } catch {}
+                destroyOverlayCanvas();
+                hideDropZone();
+                ensureOverlayCanvas();
+                // Build groups and UI, then draw so colors are correct on first paint
+                updateImportPanelForUnified();
+                fitOverlayView();
+                updateUnifiedDimensions();
+                showStatus(`Loaded ${fileName} (${window.unifiedGeometries.length} entities)`, 'success');
+                // Layer list is rendered by updateImportPanelForUnified(); do not overwrite it with a placeholder
                 } else {
                     throw new Error('Unsupported file type');
                 }
@@ -3425,6 +3588,8 @@ function initDragAndDrop() {
                 destroyOverlayCanvas();
                 await loadDxfContent(sel.name, content);
             } else if (ext === 'dds' || ext === 'cf2' || ext === 'cff2') {
+                currentFilename = sel.name; // Set the filename for unified formats
+                currentFilePath = null; // No file path for dropped files
                 await refreshRulesCache();
                 const res = await window.electronAPI.parseUnified(content, sel.name);
                 if (!res.success) throw new Error(res.error || 'Failed to parse file');
@@ -4793,17 +4958,20 @@ function initializeDinGeneration() {
     });
     
     generateDinBtn?.addEventListener('click', async () => {
-        // Validate layer mappings and visibility before generating
-        const validation = validateLayerMappings();
-        
-        if (validation.warnings.length > 0) {
-            // Show warning modal and let user decide
-            showLayerValidationWarning(validation);
-        } else {
-            // No issues, but still show confirmation dialog with layers that will be processed
-            showLayerProcessingConfirmation(validation);
-        }
-    });
+    console.log('=== OUTPUT TAB BUTTON CLICKED ===');
+    // Validate layer mappings and visibility before generating
+    const validation = validateLayerMappings();
+    
+    if (validation.warnings.length > 0) {
+        console.log('Showing layer validation warning modal');
+        // Show warning modal and let user decide
+        showLayerValidationWarning(validation);
+    } else {
+        console.log('Showing layer processing confirmation modal');
+        // No issues, but still show confirmation dialog with layers that will be processed
+        showLayerProcessingConfirmation(validation);
+    }
+});
     
     // Initialize file output settings
     initializeFileOutputSettings();
@@ -4812,8 +4980,17 @@ function initializeDinGeneration() {
 // Preview DIN file content
 async function previewDinFile() {
     try {
-        if (!viewer || !viewer.scene || !currentPostprocessorConfig) {
-            showStatus('Load a DXF file and configure postprocessor first', 'warning');
+        if (!currentPostprocessorConfig) {
+            showStatus('Load a supported file (DXF/DDS/CFF2) and configure postprocessor first', 'warning');
+            return;
+        }
+        
+        // Check for either DXF viewer (with scene) or unified format viewer (with overlayCanvas)
+        const hasDxfViewer = !!(viewer && viewer.scene);
+        const hasUnifiedViewer = !!(overlayCanvas && window.unifiedGeometries && window.unifiedGeometries.length > 0);
+        
+        if (!hasDxfViewer && !hasUnifiedViewer) {
+            showStatus('Load a supported file (DXF/DDS/CFF2) and configure postprocessor first', 'warning');
             return;
         }
 
@@ -4847,8 +5024,17 @@ async function previewDinFile() {
 // Show advanced 2D visualization
 async function showAdvancedVisualization() {
     try {
-        if (!viewer || !viewer.scene || !currentPostprocessorConfig) {
-            showStatus('Load a DXF file and configure postprocessor first', 'warning');
+        if (!currentPostprocessorConfig) {
+            showStatus('Load a supported file (DXF/DDS/CFF2) and configure postprocessor first', 'warning');
+            return;
+        }
+        
+        // Check for either DXF viewer (with scene) or unified format viewer (with overlayCanvas)
+        const hasDxfViewer = !!(viewer && viewer.scene);
+        const hasUnifiedViewer = !!(overlayCanvas && window.unifiedGeometries && window.unifiedGeometries.length > 0);
+        
+        if (!hasDxfViewer && !hasUnifiedViewer) {
+            showStatus('Load a supported file (DXF/DDS/CFF2) and configure postprocessor first', 'warning');
             return;
         }
 
@@ -4883,9 +5069,20 @@ async function showAdvancedVisualization() {
 }
 // Generate DIN content silently (same logic as performDinGeneration but without file saving)
 async function generateDinContentSilently() {
+    console.log('=== GENERATE DIN CONTENT SILENTLY CALLED ===');
     try {
-        if (!viewer || !viewer.scene || !currentPostprocessorConfig) {
-            throw new Error('Load a DXF file and configure postprocessor first');
+
+        
+        if (!currentPostprocessorConfig) {
+            throw new Error('Load a supported file (DXF/DDS/CFF2) and configure postprocessor first');
+        }
+        
+        // Check for either DXF viewer (with scene) or unified format viewer (with overlayCanvas)
+        const hasDxfViewer = !!(viewer && viewer.scene);
+        const hasUnifiedViewer = !!(overlayCanvas && window.unifiedGeometries && window.unifiedGeometries.length > 0);
+        
+        if (!hasDxfViewer && !hasUnifiedViewer) {
+            throw new Error('Load a supported file (DXF/DDS/CFF2) and configure postprocessor first');
         }
 
         // VALIDATION: Check layer mappings BEFORE proceeding
@@ -4913,7 +5110,18 @@ async function generateDinContentSilently() {
         }
 
         // Extract entities from viewer, filtering by visibility and mappings
-        const entities = extractEntitiesFromViewer(true); // true = respect layer visibility AND mappings
+        let entities = [];
+        
+        if (hasDxfViewer) {
+            console.log('Using DXF entity extraction');
+            entities = extractEntitiesFromViewer(true); // true = respect layer visibility AND mappings
+        } else if (hasUnifiedViewer) {
+            console.log('Using unified format entity extraction');
+            entities = extractEntitiesFromUnifiedFormat(true); // true = respect layer visibility AND mappings
+        } else {
+            throw new Error('No valid viewer data found. Please load a supported file.');
+        }
+        
         if (entities.length === 0) {
             throw new Error('No valid entities found to process. Ensure layers are visible and properly mapped.');
         }
@@ -4994,12 +5202,36 @@ async function generateDinContentSilently() {
         }
 
         // Generate the actual DIN content using the same function as file generation
-    // Update bridges enabled flag from profile settings (DDS/CFF2 only)
-    if (configWithLineTypes.optimization?.enableBridges !== undefined) {
-        configWithLineTypes.bridges = configWithLineTypes.bridges || {};
-        configWithLineTypes.bridges.enabled = !!configWithLineTypes.optimization.enableBridges;
-    }
-        const dinContent = dinGenerator.generateDin(entities, configWithLineTypes, metadata);
+    // Get bridge setting from Output Manager (Output Settings tab)
+    const outputSettings = currentPostprocessorConfig?.outputSettings || {};
+    const enableBridges = outputSettings.enableBridges !== false; // Default to true if not set
+    
+    console.log('Bridge configuration from Output Settings:', {
+        outputSettings,
+        enableBridges,
+        currentPostprocessorConfig: currentPostprocessorConfig?.outputSettings,
+        fullConfig: currentPostprocessorConfig
+    });
+    
+    // Set bridge configuration for DIN generation
+    configWithLineTypes.bridges = configWithLineTypes.bridges || {};
+    configWithLineTypes.bridges.enabled = enableBridges;
+    console.log('Bridge configuration set for DIN generation:', configWithLineTypes.bridges);
+    
+    console.log('=== ABOUT TO CALL dinGenerator.generateDin() FROM generateDinContentSilently ===');
+    console.log('Entities being sent to DinGenerator:', entities.length);
+    entities.forEach((entity, index) => {
+        console.log(`Entity ${index}:`, {
+            type: entity.type,
+            layer: entity.layer,
+            bridgeCount: entity.bridgeCount,
+            bridgeWidth: entity.bridgeWidth,
+            hasBridges: !!entity.bridges,
+            bridgesLength: entity.bridges?.length
+        });
+    });
+    
+    const dinContent = dinGenerator.generateDin(entities, configWithLineTypes, metadata);
         console.log('DIN generation completed, content length:', dinContent.length);
         
         // Validate DIN content
@@ -5246,9 +5478,19 @@ window.generateDinFileSilently = generateDinFileSilently;
 window.processDxfFileSilently = processDxfFileSilently;
 // Generate and save DIN file
 async function performDinGeneration() {
+    console.log('=== PERFORM DIN GENERATION STARTED ===');
     try {
-        if (!viewer || !viewer.scene || !currentPostprocessorConfig) {
-            showStatus('Load a DXF file and configure postprocessor first', 'warning');
+        if (!currentPostprocessorConfig) {
+            showStatus('Load a supported file (DXF/DDS/CFF2) and configure postprocessor first', 'warning');
+            return;
+        }
+        
+        // Check for either DXF viewer (with scene) or unified format viewer (with overlayCanvas)
+        const hasDxfViewer = !!(viewer && viewer.scene);
+        const hasUnifiedViewer = !!(overlayCanvas && window.unifiedGeometries && window.unifiedGeometries.length > 0);
+        
+        if (!hasDxfViewer && !hasUnifiedViewer) {
+            showStatus('Load a supported file (DXF/DDS/CFF2) and configure postprocessor first', 'warning');
             return;
         }
 
@@ -5283,23 +5525,55 @@ async function performDinGeneration() {
         }
 
         // Extract entities from viewer, filtering by visibility and mappings
-        const entities = extractEntitiesFromViewer(true); // true = respect layer visibility
+        let entities = [];
+        
+        // Check if we have DXF viewer or unified format
+        if (viewer && viewer.scene) {
+            // DXF format - use DXF entity extraction
+            entities = extractEntitiesFromViewer(true); // true = respect layer visibility
+        } else if (overlayCanvas && window.unifiedGeometries && window.unifiedGeometries.length > 0) {
+            // Unified format (DDS/CFF2) - use unified entity extraction
+            entities = extractEntitiesFromUnifiedFormat(true); // true = respect layer visibility
+        }
+        
         if (entities.length === 0) {
             showStatus('No entities found to process', 'warning');
             return;
         }
+        
+        console.log('=== ENTITIES EXTRACTED SUCCESSFULLY, COUNT:', entities.length, '===');
 
+        // Get bridge setting from Output Manager (Output Settings tab)
+        const outputSettings = currentPostprocessorConfig?.outputSettings || {};
+        const enableBridges = outputSettings.enableBridges !== false; // Default to true if not set
+        
+        console.log('Bridge configuration from Output Settings:', {
+            outputSettings,
+            enableBridges,
+            currentPostprocessorConfig: currentPostprocessorConfig?.outputSettings,
+            fullConfig: currentPostprocessorConfig
+        });
+        
         // Get current settings
         const settings = getCurrentOptimizationSettings();
         
         // Note: Layer mapping warnings are now handled by the advanced visualization
         // No need for redundant status bar warnings
         
-        // Create config with line types data
+        // Create config with line types data and bridge settings
         const configWithLineTypes = {
             ...currentPostprocessorConfig,
-            lineTypes: lineTypesData
+            lineTypes: lineTypesData,
+            outputSettings: {
+                ...currentPostprocessorConfig.outputSettings,
+                enableBridges: enableBridges
+            }
         };
+        
+        // Set bridge configuration for DIN generation
+        configWithLineTypes.bridges = configWithLineTypes.bridges || {};
+        configWithLineTypes.bridges.enabled = enableBridges;
+        console.log('Bridge configuration set for DIN generation:', configWithLineTypes.bridges);
         
         // Generate DIN content
         const metadata = getFileMetadata();
@@ -5371,6 +5645,30 @@ async function performDinGeneration() {
                 console.warn('No machine tools found in postprocessor config for auto-mapping');
             }
         }
+        
+        // Log entities with bridges for debugging
+        const entitiesWithBridges = entities.filter(e => e.bridges && e.bridges.length > 0);
+        console.log(`Found ${entitiesWithBridges.length} entities with bridges out of ${entities.length} total entities`);
+        entitiesWithBridges.forEach((entity, index) => {
+            console.log(`Entity ${index}: ${entity.type} with ${entity.bridges.length} bridges of width ${entity.bridges[0]?.width || 'unknown'}`);
+        });
+        
+        // DEBUG: Log ALL entities to see their structure
+        console.log('=== ALL ENTITIES BEING SENT TO DIN GENERATOR ===');
+        entities.forEach((entity, index) => {
+            console.log(`Entity ${index}:`, {
+                type: entity.type,
+                layer: entity.layer,
+                bridgeCount: entity.bridgeCount,
+                bridgeWidth: entity.bridgeWidth,
+                hasBridges: !!entity.bridges,
+                bridgesLength: entity.bridges?.length,
+                bridges: entity.bridges
+            });
+        });
+        console.log('=== END ENTITIES DEBUG ===');
+        
+        console.log('=== ABOUT TO CALL dinGenerator.generateDin() ===');
         const dinContent = dinGenerator.generateDin(entities, configWithLineTypes, metadata);
         console.log('DIN generation completed, content length:', dinContent.length);
         
@@ -5381,11 +5679,8 @@ async function performDinGeneration() {
             return;
         }
 
-        // Save file using Electron API
-        const defaultFilename = currentFilename ? 
-            currentFilename.replace(/\.[^/.]+$/, '.din') : 'output.din';
-        
-        await saveDinFile(dinContent, defaultFilename, validation.stats);
+        // Save file using Electron API - let saveDinFile handle filename generation from profile
+        await saveDinFile(dinContent, null, validation.stats);
         
         // Remove the old status message since we now show a success dialog
         // showStatus(`Generated DIN file with ${validation.stats.totalLines} lines`, 'success');
@@ -5397,10 +5692,10 @@ async function performDinGeneration() {
 }
 // Initialize file output settings
 function initializeFileOutputSettings() {
-    const browseSavePathBtn = document.getElementById('browseSavePathBtn');
-    const clearSavePathBtn = document.getElementById('clearSavePathBtn');
+    const browseSavePathBtn = document.getElementById('browsePathBtn');
+    const clearSavePathBtn = document.getElementById('clearPathBtn');
     const defaultSavePathInput = document.getElementById('defaultSavePath');
-    const filenameFormatInput = document.getElementById('filenameFormat');
+    const filenameFormatInput = document.getElementById('filenameTemplate');
     const autoSaveEnabledCheckbox = document.getElementById('autoSaveEnabled');
     
     // Load saved settings
@@ -5445,7 +5740,7 @@ function loadFileOutputSettings() {
     if (!currentPostprocessorConfig) return;
     
     const defaultSavePathInput = document.getElementById('defaultSavePath');
-    const filenameFormatInput = document.getElementById('filenameFormat');
+    const filenameFormatInput = document.getElementById('filenameTemplate');
     const autoSaveEnabledCheckbox = document.getElementById('autoSaveEnabled');
     
     // Load from configuration
@@ -5462,18 +5757,25 @@ function loadFileOutputSettings() {
     if (autoSaveEnabledCheckbox) {
         autoSaveEnabledCheckbox.checked = outputSettings.autoSaveEnabled !== false;
     }
+    
+    // Load bridge setting
+    const enableBridgesCheckbox = document.getElementById('enableBridges');
+    if (enableBridgesCheckbox) {
+        enableBridgesCheckbox.checked = outputSettings.enableBridges !== false;
+    }
 }
 // Save file output settings to current profile (SAFE UPDATE - no data loss)
 async function saveFileOutputSettings() {
     const defaultSavePathInput = document.getElementById('defaultSavePath');
-    const filenameFormatInput = document.getElementById('filenameFormat');
+    const filenameFormatInput = document.getElementById('filenameTemplate');
     const autoSaveEnabledCheckbox = document.getElementById('autoSaveEnabled');
     
     // Prepare output settings object
     const outputSettings = {
         defaultSavePath: defaultSavePathInput?.value || '',
         filenameFormat: filenameFormatInput?.value || '{original_name}.din',
-        autoSaveEnabled: autoSaveEnabledCheckbox?.checked !== false
+        autoSaveEnabled: autoSaveEnabledCheckbox?.checked !== false,
+        enableBridges: document.getElementById('enableBridges')?.checked !== false
     };
     
     // Update local configuration (for immediate use)
@@ -5521,6 +5823,146 @@ function generateFilename(format, metadata) {
     
     return filename;
 }
+// Extract entities from unified formats (CFF2/DDS)
+function extractEntitiesFromUnifiedFormat(respectVisibility = false) {
+    const entities = [];
+    
+    console.log('extractEntitiesFromUnifiedFormat called, respectVisibility:', respectVisibility);
+    console.log('unifiedGeometries:', window.unifiedGeometries);
+    console.log('overlayGroups:', overlayGroups);
+    
+    if (!window.unifiedGeometries || !overlayGroups) {
+        console.warn('No unified format data available for entity extraction');
+        return entities;
+    }
+    
+    const geoms = window.unifiedGeometries;
+    const fmt = currentFileFormat === 'dds' ? 'dds' : 'cff2';
+    
+    console.log('Processing', geoms.length, 'unified geometries');
+    
+    geoms.forEach((geom, index) => {
+        try {
+            const key = getGroupKeyForGeometry(geom);
+            const group = overlayGroups[key];
+            
+            if (!group) {
+                console.warn(`No group found for geometry ${index} with key ${key}`);
+                return;
+            }
+            
+            // Check visibility if requested
+            if (respectVisibility && !group.visible) {
+                console.log(`Geometry ${index} - skipping due to visibility: ${key}`);
+                return;
+            }
+            
+            // Get mapping information
+            const entry = exactRulesCache.get(`${fmt}|${key}`);
+            const lineTypeId = entry?.lineTypeId;
+            const lineTypeName = lineTypeId ? getLineTypeName(String(lineTypeId)) : null;
+            
+            // Skip if no mapping and respectVisibility is true
+            if (respectVisibility && !lineTypeId) {
+                console.log(`Geometry ${index} - skipping due to no mapping: ${key}`);
+                return;
+            }
+            
+            // Build a user-friendly layer name
+            let layerName = key;
+            try {
+                if (fmt === 'dds') {
+                    const [color, rawKerf, unit] = key.split('|');
+                    const pt = (unit==='in' ? Number(rawKerf||0)*72 : unit==='mm' ? Number(rawKerf||0)/25.4*72 : Number(rawKerf||0));
+                    layerName = `${pt.toFixed(2)} pt · color ${color}`;
+                } else {
+                    const parts = key.split('-');
+                    const pen = parts[0] ?? '';
+                    const layer = parts.slice(1).join('-');
+                    layerName = `${Number(pen||0).toFixed(2)} pt · ${layer}`;
+                }
+            } catch {}
+            
+            const processedEntity = {
+                id: `unified_${index}`,
+                type: geom.type,
+                layer: layerName,
+                color: group.displayColor || '#66d9ef',
+                lineTypeId: lineTypeId,
+                lineType: lineTypeName,
+                originalEntity: geom,
+                key: key
+            };
+            
+            // Add type-specific properties
+            switch (geom.type) {
+                case 'LINE':
+                    processedEntity.start = { x: geom.start.x, y: geom.start.y };
+                    processedEntity.end = { x: geom.end.x, y: geom.end.y };
+                    // DEBUG: Log bridge data for LINE
+                    console.log(`LINE geometry ${index} bridge data:`, {
+                        hasBridges: !!geom.bridges,
+                        bridgesLength: geom.bridges?.length,
+                        bridges: geom.bridges,
+                        bridgeCount: geom.bridgeCount,
+                        bridgeWidth: geom.bridgeWidth
+                    });
+                    // Add bridge information if available
+                    if (geom.bridgeCount && geom.bridgeWidth) {
+                        processedEntity.bridgeCount = geom.bridgeCount;
+                        processedEntity.bridgeWidth = geom.bridgeWidth;
+                        // Create bridges array for compatibility
+                        processedEntity.bridges = Array(geom.bridgeCount).fill().map(() => ({ width: geom.bridgeWidth }));
+                        console.log(`LINE entity ${index} - BRIDGES ADDED:`, {
+                            bridgeCount: processedEntity.bridgeCount,
+                            bridgeWidth: processedEntity.bridgeWidth,
+                            bridges: processedEntity.bridges
+                        });
+                    }
+                    break;
+                case 'ARC':
+                    processedEntity.center = { x: geom.center.x, y: geom.center.y };
+                    processedEntity.start = { x: geom.start.x, y: geom.start.y };
+                    processedEntity.end = { x: geom.end.x, y: geom.end.y };
+                    processedEntity.radius = geom.radius;
+                    // DEBUG: Log bridge data for ARC
+                    console.log(`ARC geometry ${index} bridge data:`, {
+                        hasBridges: !!geom.bridges,
+                        bridgesLength: geom.bridges?.length,
+                        bridges: geom.bridges,
+                        bridgeCount: geom.bridgeCount,
+                        bridgeWidth: geom.bridgeWidth
+                    });
+                    // Add bridge information if available
+                    if (geom.bridgeCount && geom.bridgeWidth) {
+                        processedEntity.bridgeCount = geom.bridgeCount;
+                        processedEntity.bridgeWidth = geom.bridgeWidth;
+                        // Create bridges array for compatibility
+                        processedEntity.bridges = Array(geom.bridgeCount).fill().map(() => ({ width: geom.bridgeWidth }));
+                        console.log(`ARC entity ${index} - BRIDGES ADDED:`, {
+                            bridgeCount: processedEntity.bridgeCount,
+                            bridgeWidth: processedEntity.bridgeWidth,
+                            bridges: processedEntity.bridges
+                        });
+                    }
+                    break;
+                default:
+                    processedEntity.rawData = geom;
+                    break;
+            }
+            
+            entities.push(processedEntity);
+            console.log(`Added unified entity ${index}: ${geom.type} on layer '${layerName}'`);
+            
+        } catch (error) {
+            console.warn(`Error processing unified geometry ${index}:`, error);
+        }
+    });
+    
+    console.log('extractEntitiesFromUnifiedFormat completed, returning', entities.length, 'entities');
+    return entities;
+}
+
 // Extract entities from the DXF viewer
 function extractEntitiesFromViewer(respectVisibility = false) {
     const entities = [];
@@ -5727,18 +6169,34 @@ function getCurrentOptimizationSettings() {
 
 // Get file metadata for DIN header
 function getFileMetadata() {
-    const dimensions = getDrawingDimensions();
+    let dimensions;
+    let entityCount = 0;
+    
+    // Check for either DXF viewer (with scene) or unified format viewer (with overlayCanvas)
+    const hasDxfViewer = !!(viewer && viewer.scene);
+    const hasUnifiedViewer = !!(overlayCanvas && window.unifiedGeometries && window.unifiedGeometries.length > 0);
+    
+    if (hasDxfViewer) {
+        dimensions = getDrawingDimensions();
+        entityCount = extractEntitiesFromViewer().length;
+    } else if (hasUnifiedViewer) {
+        dimensions = getUnifiedBounds(window.unifiedGeometries);
+        entityCount = extractEntitiesFromUnifiedFormat().length;
+    } else {
+        dimensions = { width: 0, height: 0 };
+        entityCount = 0;
+    }
     
     return {
         filename: currentFilename || 'unknown.dxf',
         width: dimensions?.width || 0,
         height: dimensions?.height || 0,
-        entityCount: extractEntitiesFromViewer().length,
+        entityCount: entityCount,
         bounds: {
-            minX: 0,
-            minY: 0,
-            maxX: dimensions?.width || 0,
-            maxY: dimensions?.height || 0
+            minX: dimensions?.minX || 0,
+            minY: dimensions?.minY || 0,
+            maxX: dimensions?.maxX || (dimensions?.width || 0),
+            maxY: dimensions?.maxY || (dimensions?.height || 0)
         }
     };
 }
@@ -5775,14 +6233,25 @@ async function saveDinFile(content, defaultFilename, generationStats = null) {
         const defaultSavePath = outputSettings.defaultSavePath || '';
         const filenameFormat = outputSettings.filenameFormat || '{original_name}.din';
         
-        // Generate filename based on format
-        const metadata = {
-            originalName: currentFilename ? currentFilename.replace(/\.[^/.]+$/, '') : 'output',
-            width: getDrawingDimensions()?.width || 0,
-            height: getDrawingDimensions()?.height || 0
-        };
-        
-        const generatedFilename = generateFilename(filenameFormat, metadata);
+        // Generate filename based on format (use profile template if no defaultFilename provided)
+        let generatedFilename;
+        if (defaultFilename) {
+            generatedFilename = defaultFilename;
+        } else {
+            const metadata = {
+                originalName: currentFilename ? currentFilename.replace(/\.[^/.]+$/, '') : 'output',
+                width: getFileMetadata().width || 0,
+                height: getFileMetadata().height || 0
+            };
+            console.log('Filename generation debug:', {
+                filenameFormat,
+                metadata,
+                currentFilename,
+                outputSettings
+            });
+            generatedFilename = generateFilename(filenameFormat, metadata);
+            console.log('Generated filename:', generatedFilename);
+        }
         
         // Get processed layers info for success dialog
         const processedLayers = getProcessedLayersInfo();
@@ -6784,11 +7253,11 @@ function loadDxfLayersColumn() {
     
     layersList.innerHTML = '';
     
-    // Get layers from loaded DXF file
+    // Get layers from loaded file
     const dxfLayers = extractDxfLayers();
     
     if (dxfLayers.length === 0) {
-        layersList.innerHTML = '<div style="color: #888; text-align: center; padding: 2rem;">No DXF file loaded<br><small>Load a DXF file first</small></div>';
+        layersList.innerHTML = '<div style="color: #888; text-align: center; padding: 2rem;">No file loaded<br><small>Load a supported file first</small></div>';
         return;
     }
     
@@ -6816,7 +7285,7 @@ function loadDxfLayersColumn() {
     });
 }
 
-// Extract DXF layers from loaded file
+// Extract layers from loaded file
 function extractDxfLayers() {
     if (!viewer || !viewer.parsedDxf || !viewer.parsedDxf.entities) {
         return [];

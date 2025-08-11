@@ -21,6 +21,10 @@ class DinGenerator {
      * @returns {String} DIN file content
      */
     generateDin(entities, config, metadata = {}) {
+        console.error('🔥 FIRE LOG - DinGenerator.generateDin() CALLED - THIS SHOULD ALWAYS APPEAR 🔥');
+        console.warn('⚠️ WARNING LOG - If you see this, DinGenerator is working');
+        console.info('ℹ️ INFO LOG - generateDin method entered');
+        console.log('📝 NORMAL LOG - Standard console log');
         this.config = config;
         this.lineNumber = config.lineNumbers?.startNumber || 10;
         this.currentTool = null;
@@ -45,11 +49,39 @@ class DinGenerator {
             config: config  // Pass full config for priority phase access
         };
         
+        // DEBUG: Log entities before optimization
+        console.log('=== ENTITIES BEFORE OPTIMIZATION ===');
+        entities.forEach((entity, index) => {
+            console.log(`Entity ${index}:`, {
+                type: entity.type,
+                layer: entity.layer,
+                bridgeCount: entity.bridgeCount,
+                bridgeWidth: entity.bridgeWidth,
+                hasBridges: !!entity.bridges,
+                bridgesLength: entity.bridges?.length
+            });
+        });
+        console.log('=== END ENTITIES BEFORE OPTIMIZATION ===');
+        
         const optimizedEntities = this.optimizer.optimizePaths(
             entities, 
             toolsWithPriority,
             optimizationSettings
         );
+        
+        // DEBUG: Log entities after optimization
+        console.log('=== ENTITIES AFTER OPTIMIZATION ===');
+        optimizedEntities.forEach((entity, index) => {
+            console.log(`Optimized Entity ${index}:`, {
+                type: entity.type,
+                layer: entity.layer,
+                bridgeCount: entity.bridgeCount,
+                bridgeWidth: entity.bridgeWidth,
+                hasBridges: !!entity.bridges,
+                bridgesLength: entity.bridges?.length
+            });
+        });
+        console.log('=== END ENTITIES AFTER OPTIMIZATION ===');
 
         // Generate DIN content
         const dinLines = [];
@@ -192,9 +224,21 @@ class DinGenerator {
      * Generate commands for all entities
      */
     generateEntityCommands(entities) {
+        console.log('=== GENERATE ENTITY COMMANDS CALLED ===');
+        console.log('Number of entities:', entities.length);
+        
         const lines = [];
         
         const shouldHandleBridges = !!this.config?.bridges?.enabled;
+        
+        // DEBUG: Log bridge configuration
+        console.log('=== DIN GENERATOR BRIDGE DEBUG ===');
+        console.log('Bridge configuration:', {
+            configBridges: this.config?.bridges,
+            shouldHandleBridges: shouldHandleBridges,
+            configOutputSettings: this.config?.outputSettings
+        });
+        console.log('=== END BRIDGE CONFIG DEBUG ===');
 
         entities.forEach(entity => {
             // Check if tool change is needed
@@ -218,10 +262,27 @@ class DinGenerator {
                 this.currentTool = requiredTool;
             }
 
+            // DEBUG: Log bridge condition check
+            const bridgeCondition = shouldHandleBridges && (entity.type === 'LINE' || entity.type === 'ARC') && (entity.bridgeCount || 0) > 0 && (entity.bridgeWidth || 0) > 0;
+            console.log(`Entity ${entity.type} bridge condition:`, {
+                shouldHandleBridges,
+                isLineOrArc: (entity.type === 'LINE' || entity.type === 'ARC'),
+                bridgeCount: entity.bridgeCount || 0,
+                bridgeWidth: entity.bridgeWidth || 0,
+                bridgeCondition: bridgeCondition,
+                entityBridgeData: {
+                    bridgeCount: entity.bridgeCount,
+                    bridgeWidth: entity.bridgeWidth,
+                    bridges: entity.bridges
+                }
+            });
+            
             // Generate entity-specific commands (with bridge splitting if enabled)
-            if (shouldHandleBridges && (entity.type === 'LINE' || entity.type === 'ARC') && (entity.bridgeCount || 0) > 0 && (entity.bridgeWidth || 0) > 0) {
+            if (bridgeCondition) {
+                console.log(`✅ Using generateEntityDinWithBridges for ${entity.type}`);
                 lines.push(...this.generateEntityDinWithBridges(entity));
             } else {
+                console.log(`❌ Using generateEntityDin for ${entity.type}`);
                 lines.push(...this.generateEntityDin(entity));
             }
         });

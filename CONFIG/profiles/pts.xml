@@ -156,6 +156,8 @@
             </FilenameFormat>
             <AutoSaveEnabled>true
             </AutoSaveEnabled>
+            <EnableBridges>true
+            </EnableBridges>
         </OutputSettings>
         <MappingWorkflow>
             <LineTypeToTool>

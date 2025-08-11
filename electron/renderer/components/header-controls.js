@@ -56,6 +56,10 @@ class HeaderControls {
                         <span class="status-label">Unmapped:</span>
                         <span class="status-value unmapped-count">0</span>
                     </div>
+                    <div class="status-line">
+                        <span class="status-label">NO OUTPUT:</span>
+                        <span class="status-value no-output-count">0</span>
+                    </div>
                     <div class="unmapped-list"></div>
                 </div>
             </div>
@@ -92,6 +96,7 @@ class HeaderControls {
         this.elements.totalCount = this.elements.tooltip.querySelector('.total-count');
         this.elements.mappedCount = this.elements.tooltip.querySelector('.mapped-count');
         this.elements.unmappedCount = this.elements.tooltip.querySelector('.unmapped-count');
+        this.elements.noOutputCount = this.elements.tooltip.querySelector('.no-output-count');
         this.elements.unmappedList = this.elements.tooltip.querySelector('.unmapped-list');
         this.elements.btnIcon = this.elements.generateButton.querySelector('.btn-icon');
         this.elements.btnText = this.elements.generateButton.querySelector('.btn-text');
@@ -138,7 +143,9 @@ class HeaderControls {
             totalLayers: statusData.totalLayers || 0,
             mappedLayers: statusData.mappedLayers || 0,
             unmappedLayers: statusData.unmappedLayers || 0,
+            noOutputLayers: statusData.noOutputLayers || 0,
             unmappedLayerNames: statusData.unmappedLayerNames || [],
+            noOutputLayerNames: statusData.noOutputLayerNames || [],
             visibleMappedLayers: statusData.visibleMappedLayers || 0,
             readyForGeneration: statusData.readyForGeneration || false,
             generationBlockers: statusData.generationBlockers || []
@@ -216,24 +223,39 @@ class HeaderControls {
     }
 
     updateTooltipContent() {
-        const { totalLayers, mappedLayers, unmappedLayers, unmappedLayerNames, 
+        const { totalLayers, mappedLayers, unmappedLayers, noOutputLayers, unmappedLayerNames, noOutputLayerNames,
                 visibleMappedLayers, readyForGeneration, generationBlockers } = this.mappingStatus;
         
         this.elements.totalCount.textContent = totalLayers;
         this.elements.mappedCount.textContent = mappedLayers;
         this.elements.unmappedCount.textContent = unmappedLayers;
+        this.elements.noOutputCount.textContent = noOutputLayers;
+
+        // Build tooltip content
+        let tooltipContent = '';
+
+        // Add NO OUTPUT layers info if any
+        if (noOutputLayers > 0) {
+            const noOutputHtml = noOutputLayerNames
+                .map(layerName => `<div class="no-output-layer">• ${layerName}</div>`)
+                .join('');
+            tooltipContent += `
+                <div class="no-output-layers-title">NO OUTPUT Palettes:</div>
+                ${noOutputHtml}
+            `;
+        }
 
         // Update unmapped layers list
         if (unmappedLayerNames.length > 0) {
             const listHtml = unmappedLayerNames
                 .map(layerName => `<div class="unmapped-layer">• ${layerName}</div>`)
                 .join('');
-            this.elements.unmappedList.innerHTML = `
+            tooltipContent += `
                 <div class="unmapped-layers-title">Unmapped Layers:</div>
                 ${listHtml}
             `;
-        } else {
-            this.elements.unmappedList.innerHTML = '<div class="no-unmapped">All layers mapped!</div>';
+        } else if (noOutputLayers === 0) {
+            tooltipContent += '<div class="no-unmapped">All layers mapped!</div>';
         }
         
         // Add generation readiness info
@@ -241,7 +263,7 @@ class HeaderControls {
             const blockersHtml = generationBlockers
                 .map(blocker => `<div class="generation-blocker">• ${blocker}</div>`)
                 .join('');
-            this.elements.unmappedList.innerHTML += `
+            tooltipContent += `
                 <div class="generation-blockers-title">Generation Issues:</div>
                 ${blockersHtml}
             `;
@@ -249,10 +271,12 @@ class HeaderControls {
         
         // Add visible layers info if available
         if (typeof visibleMappedLayers !== 'undefined') {
-            this.elements.unmappedList.innerHTML += `
+            tooltipContent += `
                 <div class="visible-info">Visible mapped layers: ${visibleMappedLayers}</div>
             `;
         }
+
+        this.elements.unmappedList.innerHTML = tooltipContent;
     }
 
     showTooltip() {

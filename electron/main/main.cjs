@@ -3659,6 +3659,8 @@ function updateOutputSettingsOnly(profileContent, outputSettings) {
             </FilenameFormat>
             <AutoSaveEnabled>${outputSettings.autoSaveEnabled ? 'true' : 'false'}
             </AutoSaveEnabled>
+            <EnableBridges>${outputSettings.enableBridges !== false ? 'true' : 'false'}
+            </EnableBridges>
         </OutputSettings>`;
         
         // Add before closing PostprocessorProfile tag

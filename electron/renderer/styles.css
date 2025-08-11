@@ -3234,6 +3234,11 @@ input.output-toggle.disabled { outline: 2px solid rgba(70, 140, 255, 0.6); box-s
     color: #ffc107 !important;
 }
 
+.no-output-layer {
+    color: #6c757d !important;
+    font-style: italic;
+}
+
 .mapping-status {
     font-size: 8px;
     padding: 2px 4px;
@@ -3247,6 +3252,12 @@ input.output-toggle.disabled { outline: 2px solid rgba(70, 140, 255, 0.6); box-s
     background: rgba(255, 193, 7, 0.2);
     color: #ffc107;
     border: 1px solid rgba(255, 193, 7, 0.4);
+}
+
+.mapping-status.disabled {
+    background: rgba(108, 117, 125, 0.2);
+    color: #6c757d;
+    border: 1px solid rgba(108, 117, 125, 0.4);
 }
 
 /* Layer Status Bar */
