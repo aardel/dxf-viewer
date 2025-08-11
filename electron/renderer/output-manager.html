@@ -134,6 +134,8 @@
             border-radius: 6px;
             padding: 1rem;
             min-height: 300px;
+            max-height: 400px;
+            overflow-y: auto;
         }
         .priority-list h6 {
             color: #00BFFF;
@@ -146,13 +148,60 @@
             border-radius: 4px;
             padding: 0.5rem;
             margin-bottom: 0.5rem;
-            cursor: move;
+            cursor: pointer;
             display: flex;
-            justify-content: space-between;
             align-items: center;
+            gap: 0.5rem;
+            transition: all 0.2s ease;
         }
         .priority-item:hover {
             background: #3a3a3a;
+        }
+        .priority-item.selected {
+            background: #1a3a4a;
+            border-color: #00BFFF;
+            box-shadow: 0 0 8px rgba(0, 191, 255, 0.3);
+        }
+        .priority-item.break-item {
+            background: #4a3a1a;
+            border-color: #ffa500;
+        }
+        .priority-item.break-item:hover {
+            background: #5a4a2a;
+        }
+        .order-badge {
+            background: #00BFFF;
+            color: white;
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: bold;
+            flex-shrink: 0;
+        }
+        .priority-number {
+            background: #00BFFF;
+            color: white;
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: bold;
+            flex-shrink: 0;
+        }
+        .item-name {
+            flex: 1;
+            color: #e0e0e0;
+        }
+        .break-item .item-name {
+            color: #ffa500;
+            font-weight: bold;
         }
         .priority-controls {
             display: flex;
@@ -160,6 +209,14 @@
             gap: 1rem;
             justify-content: center;
             padding: 0 1rem;
+        }
+        .priority-order-controls {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+            justify-content: center;
+            padding: 0 1rem;
+            margin-top: 1rem;
         }
         .mapping-grid {
             display: grid;
@@ -511,6 +568,12 @@
                         <button class="btn btn-primary" id="addToPriority">Add →</button>
                         <button class="btn btn-secondary" id="removeFromPriority">← Remove</button>
                         <button class="btn btn-warning" id="insertBreak">Insert Break</button>
+                    </div>
+                    
+                    <div class="priority-order-controls">
+                        <button class="btn btn-info" id="moveUpBtn">↑ Move Up</button>
+                        <button class="btn btn-info" id="moveDownBtn">↓ Move Down</button>
+                        <button class="btn btn-success" id="savePriorityBtn">💾 Save Priority</button>
                     </div>
                     
                     <div class="priority-list">

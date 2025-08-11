@@ -718,6 +718,10 @@ async function loadCuttingPriority() {
     }
 }
 
+// Global variables for priority management
+let selectedAvailableItems = new Set();
+let selectedPriorityItems = new Set();
+
 function displayCuttingPriority() {
     const availableItems = document.getElementById('availableItems');
     const priorityOrder = document.getElementById('priorityOrder');
@@ -727,19 +731,36 @@ function displayCuttingPriority() {
     availableItems.innerHTML = '';
     priorityOrder.innerHTML = '';
     
-    // Display available tools (from currentTools)
-    if (Array.isArray(currentTools) && currentTools.length > 0) {
-        currentTools.forEach(tool => {
-            const item = document.createElement('div');
-            item.className = 'priority-item';
-            item.innerHTML = `
-                <span>${tool.id} - ${tool.name}</span>
-                <span class="tool-width">${tool.width || 0}mm</span>
-            `;
-            availableItems.appendChild(item);
+    // Get available tools (tools not in priority order)
+    const priorityToolIds = new Set();
+    if (Array.isArray(currentPriorityOrder)) {
+        currentPriorityOrder.forEach(item => {
+            if (item.value && item.value !== '__LINE_BREAK__') {
+                priorityToolIds.add(item.value);
+            }
         });
-    } else {
-        availableItems.innerHTML = '<div class="no-data">No tools available</div>';
+    }
+    
+    // Display available tools (from currentTools, excluding those already in priority)
+    if (Array.isArray(currentTools) && currentTools.length > 0) {
+        currentTools.forEach((tool, index) => {
+            if (!priorityToolIds.has(tool.id)) {
+                const item = document.createElement('div');
+                item.className = 'priority-item';
+                item.dataset.toolId = tool.id;
+                item.dataset.index = index;
+                item.onclick = () => toggleAvailableItemSelection(item);
+                item.innerHTML = `
+                    <span class="order-badge">${index + 1}</span>
+                    <span class="item-name">${tool.id} - ${tool.name || 'Unknown Tool'}</span>
+                `;
+                availableItems.appendChild(item);
+            }
+        });
+    }
+    
+    if (availableItems.children.length === 0) {
+        availableItems.innerHTML = '<div class="no-data">All tools are in priority order</div>';
     }
     
     // Display priority order
@@ -747,15 +768,177 @@ function displayCuttingPriority() {
         currentPriorityOrder.forEach((item, index) => {
             const priorityItem = document.createElement('div');
             priorityItem.className = 'priority-item';
-            priorityItem.innerHTML = `
-                <span class="priority-number">${index + 1}.</span>
-                <span>${item.name || item.id || 'Unknown Item'}</span>
-                <span class="tool-width">${item.width || 0}mm</span>
-            `;
+            priorityItem.dataset.index = index;
+            priorityItem.onclick = () => togglePriorityItemSelection(priorityItem);
+            
+            if (item.value === '__LINE_BREAK__') {
+                priorityItem.innerHTML = `
+                    <span class="priority-number">${index + 1}.</span>
+                    <span class="break-item">--- BREAK ---</span>
+                `;
+                priorityItem.classList.add('break-item');
+            } else {
+                // Find the tool details
+                const tool = Array.isArray(currentTools) ? currentTools.find(t => t.id === item.value) : null;
+                const toolName = tool ? tool.name : 'Unknown Tool';
+                priorityItem.innerHTML = `
+                    <span class="priority-number">${index + 1}.</span>
+                    <span class="item-name">${item.value} - ${toolName}</span>
+                `;
+            }
             priorityOrder.appendChild(priorityItem);
         });
     } else {
         priorityOrder.innerHTML = '<div class="no-data">No priority order set</div>';
+    }
+}
+
+function toggleAvailableItemSelection(item) {
+    if (selectedAvailableItems.has(item.dataset.toolId)) {
+        selectedAvailableItems.delete(item.dataset.toolId);
+        item.classList.remove('selected');
+    } else {
+        selectedAvailableItems.add(item.dataset.toolId);
+        item.classList.add('selected');
+    }
+}
+
+function togglePriorityItemSelection(item) {
+    const index = parseInt(item.dataset.index);
+    if (selectedPriorityItems.has(index)) {
+        selectedPriorityItems.delete(index);
+        item.classList.remove('selected');
+    } else {
+        selectedPriorityItems.add(index);
+        item.classList.add('selected');
+    }
+}
+
+function addSelectedItemsToPriority() {
+    if (selectedAvailableItems.size === 0) return;
+    
+    // Convert currentPriorityOrder to array if it's not already
+    if (!Array.isArray(currentPriorityOrder)) {
+        currentPriorityOrder = [];
+    }
+    
+    // Add selected items to priority order
+    selectedAvailableItems.forEach(toolId => {
+        currentPriorityOrder.push({
+            order: currentPriorityOrder.length + 1,
+            value: toolId
+        });
+    });
+    
+    // Clear selection and refresh display
+    selectedAvailableItems.clear();
+    displayCuttingPriority();
+}
+
+function removeSelectedItemsFromPriority() {
+    if (selectedPriorityItems.size === 0) return;
+    
+    // Convert to array and sort in descending order to remove from end first
+    const indicesToRemove = Array.from(selectedPriorityItems).sort((a, b) => b - a);
+    
+    indicesToRemove.forEach(index => {
+        if (index >= 0 && index < currentPriorityOrder.length) {
+            currentPriorityOrder.splice(index, 1);
+        }
+    });
+    
+    // Reorder remaining items
+    currentPriorityOrder.forEach((item, index) => {
+        item.order = index + 1;
+    });
+    
+    // Clear selection and refresh display
+    selectedPriorityItems.clear();
+    displayCuttingPriority();
+}
+
+function addBreakToPriority() {
+    if (!Array.isArray(currentPriorityOrder)) {
+        currentPriorityOrder = [];
+    }
+    
+    currentPriorityOrder.push({
+        order: currentPriorityOrder.length + 1,
+        value: '__LINE_BREAK__'
+    });
+    
+    displayCuttingPriority();
+}
+
+function moveSelectedItemsUp() {
+    if (selectedPriorityItems.size === 0) return;
+    
+    const indicesToMove = Array.from(selectedPriorityItems).sort((a, b) => a - b);
+    
+    indicesToMove.forEach(index => {
+        if (index > 0 && index < currentPriorityOrder.length) {
+            // Swap with previous item
+            const temp = currentPriorityOrder[index];
+            currentPriorityOrder[index] = currentPriorityOrder[index - 1];
+            currentPriorityOrder[index - 1] = temp;
+            
+            // Update selection
+            selectedPriorityItems.delete(index);
+            selectedPriorityItems.add(index - 1);
+        }
+    });
+    
+    // Reorder all items
+    currentPriorityOrder.forEach((item, index) => {
+        item.order = index + 1;
+    });
+    
+    displayCuttingPriority();
+}
+
+function moveSelectedItemsDown() {
+    if (selectedPriorityItems.size === 0) return;
+    
+    const indicesToMove = Array.from(selectedPriorityItems).sort((a, b) => b - a);
+    
+    indicesToMove.forEach(index => {
+        if (index >= 0 && index < currentPriorityOrder.length - 1) {
+            // Swap with next item
+            const temp = currentPriorityOrder[index];
+            currentPriorityOrder[index] = currentPriorityOrder[index + 1];
+            currentPriorityOrder[index + 1] = temp;
+            
+            // Update selection
+            selectedPriorityItems.delete(index);
+            selectedPriorityItems.add(index + 1);
+        }
+    });
+    
+    // Reorder all items
+    currentPriorityOrder.forEach((item, index) => {
+        item.order = index + 1;
+    });
+    
+    displayCuttingPriority();
+}
+
+async function savePriorityConfiguration() {
+    try {
+        if (!currentProfile) return;
+        
+        // Use the correct profile filename
+        const profileName = currentProfile.filename || currentProfile.id || currentProfile.name;
+        
+        // Save priority configuration to profile
+        await window.electronAPI.savePriorityConfiguration(profileName, {
+            items: currentPriorityOrder
+        });
+        
+        showSuccess('Priority configuration saved successfully');
+        
+    } catch (error) {
+        console.error('Error saving priority configuration:', error);
+        showError('Failed to save priority configuration');
     }
 }
 
@@ -1081,26 +1264,33 @@ function setupEventListeners() {
     // Cutting priority controls
     const addToPriority = document.getElementById('addToPriority');
     if (addToPriority) {
-        addToPriority.addEventListener('click', () => {
-            // Add selected available item to priority order
-            showInfo('Add to priority functionality coming soon');
-        });
+        addToPriority.addEventListener('click', addSelectedItemsToPriority);
     }
     
     const removeFromPriority = document.getElementById('removeFromPriority');
     if (removeFromPriority) {
-        removeFromPriority.addEventListener('click', () => {
-            // Remove selected priority item
-            showInfo('Remove from priority functionality coming soon');
-        });
+        removeFromPriority.addEventListener('click', removeSelectedItemsFromPriority);
     }
     
     const insertBreak = document.getElementById('insertBreak');
     if (insertBreak) {
-        insertBreak.addEventListener('click', () => {
-            // Insert manual break in priority order
-            showInfo('Insert break functionality coming soon');
-        });
+        insertBreak.addEventListener('click', addBreakToPriority);
+    }
+    
+    // Add move up/down buttons for priority order
+    const moveUpBtn = document.getElementById('moveUpBtn');
+    if (moveUpBtn) {
+        moveUpBtn.addEventListener('click', moveSelectedItemsUp);
+    }
+    
+    const moveDownBtn = document.getElementById('moveDownBtn');
+    if (moveDownBtn) {
+        moveDownBtn.addEventListener('click', moveSelectedItemsDown);
+    }
+    
+    const savePriorityBtn = document.getElementById('savePriorityBtn');
+    if (savePriorityBtn) {
+        savePriorityBtn.addEventListener('click', savePriorityConfiguration);
     }
     
     // Line type mapping controls
