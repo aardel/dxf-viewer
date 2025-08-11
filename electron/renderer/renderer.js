@@ -4495,9 +4495,20 @@ function initializePostprocessorManagement() {
     const postprocessorProfileSelect = document.getElementById('postprocessorProfile');
     
     // Profile selection change handler
-    postprocessorProfileSelect?.addEventListener('change', function() {
+    postprocessorProfileSelect?.addEventListener('change', async function() {
         const selectedProfile = this.value;
         if (selectedProfile && selectedProfile !== 'custom') {
+            // Save the selected profile preference
+            localStorage.setItem('lastSelectedProfile', selectedProfile);
+            console.log('Profile preference saved:', selectedProfile);
+            
+            // Also save to main process for persistence
+            try {
+                await window.electronAPI.saveActiveProfile(selectedProfile);
+            } catch (error) {
+                console.error('Failed to save active profile to main process:', error);
+            }
+            
             // Check if it's an XML profile (ends with .xml)
             if (selectedProfile.endsWith('.xml')) {
                 loadXmlProfileConfiguration(selectedProfile);
@@ -4548,11 +4559,18 @@ async function loadAvailableXmlProfiles() {
             select.appendChild(customOption);
         }
         
-        // Restore previous selection if it still exists, otherwise select first profile
+        // Restore previous selection if it still exists, otherwise try to restore saved preference
         if (currentSelection && select.querySelector(`option[value="${currentSelection}"]`)) {
             select.value = currentSelection;
-        } else if (profiles.length > 0) {
-            select.value = profiles[0].filename;
+        } else {
+            // Try to restore saved profile preference
+            const savedProfileName = localStorage.getItem('lastSelectedProfile');
+            if (savedProfileName && select.querySelector(`option[value="${savedProfileName}"]`)) {
+                select.value = savedProfileName;
+                console.log('Restored saved profile preference:', savedProfileName);
+            } else if (profiles.length > 0) {
+                select.value = profiles[0].filename;
+            }
         }
         
         return profiles;
@@ -4576,13 +4594,46 @@ async function loadFirstAvailableProfile() {
         const profiles = await loadAvailableXmlProfiles();
         
         if (profiles.length > 0) {
-            // Load first available profile
-            const firstProfile = profiles[0];
+            // Check for saved profile preference
+            const savedProfileName = localStorage.getItem('lastSelectedProfile');
+            let profileToLoad = null;
+            
+            if (savedProfileName) {
+                // Try to find the saved profile in available profiles
+                profileToLoad = profiles.find(p => 
+                    p.filename === savedProfileName || 
+                    p.name === savedProfileName ||
+                    p.filename.replace('.xml', '') === savedProfileName.replace('.xml', '')
+                );
+                
+                if (profileToLoad) {
+                    console.log('Loading saved profile preference:', profileToLoad.name);
+                } else {
+                    console.log('Saved profile not found, using first available profile');
+                }
+            }
+            
+            // If no saved profile or saved profile not found, use first available
+            if (!profileToLoad) {
+                profileToLoad = profiles[0];
+            }
+            
             const select = document.getElementById('postprocessorProfile');
             if (select) {
-                select.value = firstProfile.filename;
+                select.value = profileToLoad.filename;
             }
-            await loadXmlProfileConfiguration(firstProfile.filename);
+            await loadXmlProfileConfiguration(profileToLoad.filename);
+            
+            // Save the loaded profile as the current preference
+            localStorage.setItem('lastSelectedProfile', profileToLoad.filename);
+            console.log('Set current profile preference:', profileToLoad.filename);
+            
+            // Also save to main process for persistence
+            try {
+                await window.electronAPI.saveActiveProfile(profileToLoad.filename);
+            } catch (error) {
+                console.error('Failed to save active profile to main process:', error);
+            }
         } else {
             // No profiles exist, create a default one
             console.log('No XML profiles found, creating default profile');
@@ -4612,6 +4663,17 @@ async function createDefaultProfile() {
             select.value = 'default_profile.xml';
         }
         await loadXmlProfileConfiguration('default_profile.xml');
+        
+        // Save the newly created profile as the preference
+        localStorage.setItem('lastSelectedProfile', 'default_profile.xml');
+        console.log('Set newly created profile as preference: default_profile.xml');
+        
+        // Also save to main process for persistence
+        try {
+            await window.electronAPI.saveActiveProfile('default_profile.xml');
+        } catch (error) {
+            console.error('Failed to save active profile to main process:', error);
+        }
         
         showStatus('Created default profile', 'success');
     } catch (error) {

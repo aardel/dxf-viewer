@@ -49,6 +49,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     deleteXmlProfile: (filename) => ipcRenderer.invoke('delete-xml-profile', filename),
     getCurrentProfile: () => ipcRenderer.invoke('get-current-profile'),
     getMainWindowCurrentProfile: () => ipcRenderer.invoke('get-main-window-current-profile'),
+    saveActiveProfile: (profileName) => ipcRenderer.invoke('save-active-profile', profileName),
 
     // DXF Viewer API
     parseUnified: (content, filename) => ipcRenderer.invoke('parse-unified', content, filename),

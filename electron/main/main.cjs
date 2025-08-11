@@ -1181,7 +1181,7 @@ ipcMain.handle('get-current-profile', async () => {
         const profilesDir = getProfilesDirectory();
         const activeProfilePath = path.join(profilesDir, 'active_profile.txt');
         
-        let currentProfileName = 'default_metric.xml'; // Default fallback
+        let currentProfileName = 'mtl.xml'; // Default fallback to mtl.xml instead of default_metric.xml
         
         if (fs.existsSync(activeProfilePath)) {
             const activeProfileContent = fs.readFileSync(activeProfilePath, 'utf8').trim();
@@ -1194,7 +1194,7 @@ ipcMain.handle('get-current-profile', async () => {
         const profilePath = path.join(profilesDir, currentProfileName);
         if (!fs.existsSync(profilePath)) {
             // Fallback to default if active profile doesn't exist
-            currentProfileName = 'default_metric.xml';
+            currentProfileName = 'mtl.xml';
         }
         
         // Load profile info
@@ -1221,8 +1221,8 @@ ipcMain.handle('get-current-profile', async () => {
         // Return default profile info if file doesn't exist or can't be parsed
         return {
             id: currentProfileName,
-            name: 'Default Metric',
-            description: 'Default metric profile',
+            name: 'MTL Profile',
+            description: 'Default MTL profile',
             filename: currentProfileName
         };
         
@@ -1265,11 +1265,33 @@ ipcMain.handle('get-main-window-current-profile', async () => {
         }
         
         // Fallback to default
-        return 'default_metric.xml';
+        return 'mtl.xml';
         
     } catch (error) {
         console.error('Error getting main window current profile:', error);
-        return 'default_metric.xml';
+        return 'mtl.xml';
+    }
+});
+
+// Save active profile to file for persistence
+ipcMain.handle('save-active-profile', async (event, profileName) => {
+    try {
+        const profilesDir = getProfilesDirectory();
+        const activeProfilePath = path.join(profilesDir, 'active_profile.txt');
+        
+        // Ensure the profiles directory exists
+        if (!fs.existsSync(profilesDir)) {
+            fs.mkdirSync(profilesDir, { recursive: true });
+        }
+        
+        // Write the active profile name to file
+        fs.writeFileSync(activeProfilePath, profileName, 'utf8');
+        console.log('Active profile saved to file:', profileName);
+        
+        return { success: true };
+    } catch (error) {
+        console.error('Error saving active profile:', error);
+        return { success: false, error: error.message };
     }
 });
 
