@@ -414,6 +414,7 @@ function populateMainToolsTable() {
             <td><input type="text" value="${tool.type || 'cut'}" maxlength="20"></td>
             <td>
                 <div class="action-buttons">
+                    <button class="btn btn-secondary btn-small" onclick="duplicateMainTool(${index})" title="Duplicate this tool">Duplicate</button>
                     <button class="btn btn-danger btn-small" onclick="deleteMainTool(${index})">Delete</button>
                 </div>
             </td>
@@ -464,6 +465,58 @@ async function deleteMainTool(index) {
     } catch (error) {
         console.error('Error deleting tool:', error);
         showToolsStatus('❌ Error deleting tool', 'error');
+    }
+}
+
+async function duplicateMainTool(index) {
+    try {
+        if (index >= 0 && index < currentTools.length) {
+            const toolToDuplicate = currentTools[index];
+            
+            // Find the highest existing ID to generate a new unique ID
+            const existingIds = currentTools.map(tool => {
+                const idNum = parseInt(tool.id.toString().replace(/[^\d]/g, '')) || 0;
+                return idNum;
+            });
+            
+            const maxId = existingIds.length > 0 ? Math.max(...existingIds) : 0;
+            const newId = maxId + 1;
+            
+            // Find the highest existing H-Code to generate a new unique H-Code
+            const existingHCodes = currentTools.map(tool => {
+                const hCodeNum = parseInt(tool.hCode.toString().replace(/[^\d.]/g, '')) || 0;
+                return hCodeNum;
+            });
+            
+            const maxHCode = existingHCodes.length > 0 ? Math.max(...existingHCodes) : 0;
+            const newHCode = maxHCode + 1;
+            
+            // Create duplicated tool with new ID and H-Code
+            const duplicatedTool = {
+                id: `T${newId}`,
+                name: `${toolToDuplicate.name} (Copy)`,
+                description: toolToDuplicate.description,
+                width: toolToDuplicate.width,
+                hCode: `H${newHCode}`,
+                type: toolToDuplicate.type
+            };
+            
+            // Insert the duplicated tool right after the original tool
+            currentTools.splice(index + 1, 0, duplicatedTool);
+            
+            // Refresh the table to show the new tool
+            populateMainToolsTable();
+            
+            showToolsStatus(`✅ Tool "${toolToDuplicate.name}" duplicated successfully! New tool: ${duplicatedTool.name}`, 'success');
+            
+            // Automatically save the changes after duplication
+            await saveMainTools();
+        } else {
+            showToolsStatus('❌ Invalid tool index for duplication', 'error');
+        }
+    } catch (error) {
+        console.error('Error duplicating tool:', error);
+        showToolsStatus('❌ Error duplicating tool', 'error');
     }
 }
 
