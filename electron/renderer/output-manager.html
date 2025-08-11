@@ -98,6 +98,144 @@
             margin-top: 1rem;
             flex-direction: row !important;
         }
+
+        /* Line Type Mapping Table Styles */
+        .table-container {
+            background: #2a2a2a;
+            border-radius: 8px;
+            border: 1px solid #444;
+            overflow: auto;
+            margin-bottom: 1rem;
+        }
+
+        .line-type-mapping-table {
+            width: 100%;
+            border-collapse: collapse;
+            background: #2a2a2a;
+        }
+
+        .line-type-mapping-table th {
+            background: #333;
+            color: #fff;
+            font-weight: 600;
+            text-align: left;
+            padding: 1rem;
+            border-bottom: 2px solid #555;
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .line-type-mapping-table td {
+            padding: 1rem;
+            border-bottom: 1px solid #444;
+            vertical-align: middle;
+            font-size: 0.9rem;
+        }
+
+        .line-type-mapping-table tbody tr {
+            transition: background-color 0.2s ease;
+        }
+
+        .line-type-mapping-table tbody tr:hover {
+            background: #333;
+        }
+
+        .line-type-mapping-table tbody tr:last-child td {
+            border-bottom: none;
+        }
+
+        /* Line Type Column */
+        .line-type-name {
+            font-weight: 500;
+            color: #fff;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .line-type-icon {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #e74c3c;
+            flex-shrink: 0;
+        }
+
+        .line-type-details {
+            margin-top: 0.25rem;
+            font-size: 0.8rem;
+            color: #888;
+        }
+
+        /* Arrow Column */
+        .arrow-column {
+            text-align: center;
+            font-size: 1.2rem;
+            color: #4a90e2;
+            font-weight: bold;
+        }
+
+        /* Tool Dropdown */
+        .tool-selector {
+            width: 100%;
+            padding: 0.5rem;
+            background: #1a1a1a;
+            border: 1px solid #555;
+            border-radius: 4px;
+            color: #fff;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: border-color 0.2s ease;
+        }
+
+        .tool-selector:focus {
+            outline: none;
+            border-color: #4a90e2;
+            box-shadow: 0 0 0 2px rgba(74, 144, 226, 0.2);
+        }
+
+        .tool-selector:hover {
+            border-color: #666;
+        }
+
+        /* Actions Column */
+        .actions-column {
+            display: flex;
+            gap: 0.5rem;
+            justify-content: center;
+        }
+
+        .action-btn {
+            padding: 0.25rem 0.5rem;
+            border: none;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            background: #555;
+            color: #fff;
+        }
+
+        .action-btn:hover {
+            background: #666;
+        }
+
+        .action-btn.edit {
+            background: #4a90e2;
+        }
+
+        .action-btn.edit:hover {
+            background: #357abd;
+        }
+
+        .action-btn.delete {
+            background: #e74c3c;
+        }
+
+        .action-btn.delete:hover {
+            background: #c0392b;
+        }
         .tool-grid {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
@@ -623,13 +761,25 @@
                 <h5>🔗 Line Type Mapping</h5>
                 <p>Map internal line types to machine tools for cutting operations.</p>
                 
-                <div class="mapping-grid" id="mappingGrid">
-                    <!-- Line type mappings will be loaded here -->
+                <div class="table-container">
+                    <table class="line-type-mapping-table">
+                        <thead>
+                            <tr>
+                                <th>Line Type</th>
+                                <th style="width: 60px; text-align: center;">→</th>
+                                <th>Machine Tool</th>
+                                <th style="width: 100px;">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="lineTypeMappingTableBody">
+                            <!-- Table rows will be dynamically generated here -->
+                        </tbody>
+                    </table>
                 </div>
                 
                 <div class="button-group">
-                    <button class="btn btn-primary" id="addLineTypeBtn">+ Add Line Type</button>
-                    <button class="btn btn-secondary" id="autoMapBtn">Auto Map Common</button>
+                    <button class="btn btn-primary" id="saveMappingsBtn">💾 Save Mappings</button>
+                    <button class="btn btn-secondary" id="reloadMappingsBtn">🔄 Reload</button>
                     <button class="btn btn-danger" id="clearMappingsBtn">Clear All</button>
                 </div>
             </div>

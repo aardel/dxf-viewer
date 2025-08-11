@@ -679,46 +679,198 @@ async function loadLineTypeMappings() {
 }
 
 function displayLineTypeMappings() {
-    const mappingGrid = document.getElementById('mappingGrid');
-    if (!mappingGrid) return;
+    const tableBody = document.getElementById('lineTypeMappingTableBody');
+    if (!tableBody) return;
     
-    mappingGrid.innerHTML = '';
+    tableBody.innerHTML = '';
     
     if (!Array.isArray(currentMappings) || currentMappings.length === 0) {
-        mappingGrid.innerHTML = '<div class="no-data">No line type mappings found in profile</div>';
+        tableBody.innerHTML = `
+            <tr>
+                <td colspan="4" style="text-align: center; color: #888; padding: 2rem;">
+                    No line type mappings found in profile<br>
+                    <small>Add mappings to begin</small>
+                </td>
+            </tr>
+        `;
         return;
     }
     
-    currentMappings.forEach(mapping => {
-        const mappingCard = document.createElement('div');
-        mappingCard.className = 'mapping-card';
-        
-        // Ensure currentTools is available for tool selection
-        const toolOptions = Array.isArray(currentTools) ? currentTools.map(tool => 
-            `<option value="${tool.id}" ${mapping.toolId === tool.id ? 'selected' : ''}>
-                ${tool.id} (${tool.width || 0}mm - ${tool.description || 'No description'})
-            </option>`
-        ).join('') : '<option value="">No tools available</option>';
-        
-        mappingCard.innerHTML = `
-            <h6>
-                <span class="color-indicator" style="background: #ff0000;"></span>
-                ${mapping.lineTypeName || 'Unknown'}
-            </h6>
-            <div><strong>Operation:</strong> ${mapping.lineTypeName || 'Unknown'}</div>
-            <div><strong>Current Tool:</strong> ${mapping.toolId || 'None assigned'}</div>
-            <div class="form-group">
-                <label>Select Machine Tool:</label>
-                <select class="form-select tool-select" data-line-type="${mapping.lineTypeId || ''}">
-                    <option value="">Choose tool...</option>
-                    ${toolOptions}
-                </select>
-            </div>
-            <div><strong>Line Width:</strong> ${mapping.lineTypeName && mapping.lineTypeName.includes('pt') ? mapping.lineTypeName.split('pt')[0] + 'mm' : '1mm'}</div>
-            <div><strong>Tool Width:</strong> ${mapping.toolId && Array.isArray(currentTools) ? (currentTools.find(t => t.id === mapping.toolId)?.width || 0) + 'mm' : 'N/A'}</div>
-        `;
-        mappingGrid.appendChild(mappingCard);
+    currentMappings.forEach((mapping, index) => {
+        const row = createMappingTableRow(mapping, index);
+        tableBody.appendChild(row);
     });
+}
+
+function createMappingTableRow(mapping, index) {
+    const row = document.createElement('tr');
+    row.dataset.lineType = mapping.lineTypeName;
+    
+    // Create tool dropdown options
+    const toolOptions = createToolDropdownOptions(mapping.toolId);
+    
+    // Get operation type and line width
+    const operationType = getOperationType(mapping.lineTypeName);
+    const lineWidth = getLineWidth(mapping.lineTypeName);
+    
+    row.innerHTML = `
+        <td>
+            <div class="line-type-name">
+                <div class="line-type-icon"></div>
+                <div>
+                    <div>${mapping.lineTypeName || 'Unknown'}</div>
+                    <div class="line-type-details">
+                        ${operationType} • ${lineWidth}mm width
+                    </div>
+                </div>
+            </div>
+        </td>
+        <td class="arrow-column">→</td>
+        <td>
+            <select class="tool-selector" data-line-type="${mapping.lineTypeName}" onchange="updateMapping('${mapping.lineTypeName}', this.value)">
+                <option value="">-- Select Tool --</option>
+                ${toolOptions}
+            </select>
+        </td>
+        <td class="actions-column">
+            <button class="action-btn edit" onclick="editLineType('${mapping.lineTypeName}')" title="Edit Line Type">
+                ✏️
+            </button>
+            <button class="action-btn delete" onclick="removeMapping('${mapping.lineTypeName}')" title="Remove Mapping">
+                🗑️
+            </button>
+        </td>
+    `;
+    
+    return row;
+}
+
+function createToolDropdownOptions(selectedToolId) {
+    if (!Array.isArray(currentTools) || currentTools.length === 0) {
+        return '<option value="">No tools available</option>';
+    }
+    
+    return currentTools.map(tool => {
+        const selected = tool.id === selectedToolId ? 'selected' : '';
+        const displayName = `${tool.id} (${tool.width || 0}mm - ${tool.name || tool.description || 'No description'})`;
+        return `<option value="${tool.id}" ${selected}>${displayName}</option>`;
+    }).join('');
+}
+
+function getOperationType(lineTypeName) {
+    // Map line type names to operation types
+    const operationMap = {
+        'Fast Engrave': 'Engraving',
+        'Nozzle Engrave': 'Engraving',
+        'Engrave': 'Engraving',
+        'Fine Cut CW': 'Cutting',
+        'Fine Cut Pulse': 'Cutting',
+        '2pt CW': 'Cutting',
+        '3pt CW': 'Cutting',
+        '4pt CW': 'Cutting',
+        '2pt Puls': 'Pulsing',
+        '3pt Puls': 'Pulsing',
+        '4pt Puls': 'Pulsing',
+        'Milling 1': 'Milling',
+        'Milling 2': 'Milling',
+        'Milling 3': 'Milling',
+        'Milling 4': 'Milling',
+        'Milling 5': 'Milling',
+        'Milling 6': 'Milling',
+        'Milling 7': 'Milling',
+        'Milling 8': 'Milling'
+    };
+    
+    return operationMap[lineTypeName] || 'Operation';
+}
+
+function getLineWidth(lineTypeName) {
+    if (lineTypeName && lineTypeName.includes('pt')) {
+        const width = lineTypeName.split('pt')[0];
+        return width || 1;
+    }
+    return 1;
+}
+
+// Global function for dropdown changes
+window.updateMapping = function(lineTypeName, toolId) {
+    console.log(`Updating mapping: ${lineTypeName} → ${toolId}`);
+    
+    // Update mappings array
+    const existingIndex = currentMappings.findIndex(m => m.lineTypeName === lineTypeName);
+    
+    if (existingIndex !== -1) {
+        if (toolId) {
+            currentMappings[existingIndex].toolId = toolId;
+        } else {
+            currentMappings.splice(existingIndex, 1);
+        }
+    } else if (toolId) {
+        currentMappings.push({
+            lineTypeId: getLineTypeId(lineTypeName),
+            lineTypeName: lineTypeName,
+            toolId: toolId,
+            description: `${lineTypeName} mapped to ${getToolName(toolId)}`
+        });
+    }
+    
+    const toolName = getToolDisplayName(toolId);
+    if (toolId) {
+        showSuccess(`✓ Mapped ${lineTypeName} to ${toolName}`);
+    } else {
+        showInfo(`- Removed tool assignment from ${lineTypeName}`);
+    }
+};
+
+function getLineTypeId(lineTypeName) {
+    // Convert line type name to ID if needed
+    return lineTypeName;
+}
+
+function getToolName(toolId) {
+    if (!toolId) return 'No tool assigned';
+    const tool = currentTools.find(t => t.id === toolId);
+    return tool ? tool.name : 'Unknown tool';
+}
+
+function getToolDisplayName(toolId) {
+    if (!toolId) return 'No tool assigned';
+    const tool = currentTools.find(t => t.id === toolId);
+    return tool ? `${tool.id} (${tool.name || tool.description || 'No description'})` : 'Unknown tool';
+}
+
+function editLineType(lineTypeName) {
+    // TODO: Implement line type editing
+    showInfo(`Edit functionality for ${lineTypeName} - Coming soon`);
+}
+
+function removeMapping(lineTypeName) {
+    if (confirm(`Remove tool mapping for "${lineTypeName}"?`)) {
+        window.updateMapping(lineTypeName, '');
+        showInfo(`Removed mapping for ${lineTypeName}`);
+    }
+}
+
+async function saveLineTypeMappings() {
+    try {
+        showInfo('Saving mappings...');
+        
+        if (!currentProfile) {
+            showError('No active profile selected');
+            return;
+        }
+        
+        const result = await window.electronAPI.saveLineTypeMappings(currentMappings, currentProfile.filename);
+        
+        if (result.success) {
+            showSuccess(`✓ Saved ${currentMappings.length} mappings to ${currentProfile.name}`);
+        } else {
+            showError(`Error saving mappings: ${result.error}`);
+        }
+    } catch (error) {
+        console.error('Error saving mappings:', error);
+        showError('Failed to save mappings');
+    }
 }
 
 async function loadCuttingPriority() {
@@ -1415,17 +1567,16 @@ function setupEventListeners() {
     }
     
     // Line type mapping controls
-    const addLineTypeBtn = document.getElementById('addLineTypeBtn');
-    if (addLineTypeBtn) {
-        addLineTypeBtn.addEventListener('click', () => {
-            showInfo('Add line type functionality coming soon');
-        });
+    const saveMappingsBtn = document.getElementById('saveMappingsBtn');
+    if (saveMappingsBtn) {
+        saveMappingsBtn.addEventListener('click', saveLineTypeMappings);
     }
     
-    const autoMapBtn = document.getElementById('autoMapBtn');
-    if (autoMapBtn) {
-        autoMapBtn.addEventListener('click', () => {
-            showInfo('Auto map functionality coming soon');
+    const reloadMappingsBtn = document.getElementById('reloadMappingsBtn');
+    if (reloadMappingsBtn) {
+        reloadMappingsBtn.addEventListener('click', () => {
+            loadLineTypeMappings();
+            showSuccess('Mappings reloaded');
         });
     }
     
