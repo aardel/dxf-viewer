@@ -385,7 +385,9 @@ function sortTable(column) {
 // Main table operation functions
 function updateMainTool(index, field, value) {
     if (currentTools[index]) {
+        console.log(`Updating tool ${index}, field: ${field}, value: ${value}`);
         currentTools[index][field] = value;
+        console.log(`Tool ${index} after update:`, currentTools[index]);
     }
 }
 
@@ -588,8 +590,12 @@ async function saveMainTools() {
         // Show saving status
         showToolsStatus('Saving tools to profile...', 'info');
         
-                            // Save tools to profile using existing method
-                    const response = await window.electronAPI.saveMachineTools(currentTools, 'replace', currentProfile.filename);
+        // Debug: Log the tools being saved
+        console.log('Saving tools to profile:', currentProfile.filename);
+        console.log('Tools data being saved:', currentTools);
+        
+        // Save tools to profile using existing method
+        const response = await window.electronAPI.saveMachineTools(currentTools, 'replace', currentProfile.filename);
         
         if (response && response.success) {
             showToolsStatus('✅ Tools saved successfully!', 'success');

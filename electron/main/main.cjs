@@ -3832,19 +3832,15 @@ function updateProfileWithTools(profileContent, tools) {
         
         if (existingMatch) {
             // Replace existing Tools section with attribute-based format
-            const newTools = `
-        <Tools>
-            ${tools.map(tool => `
-            <Tool ID="${tool.id}" Name="${tool.name || ''}" Description="${tool.description || ''}" Width="${tool.width || 1}" HCode="${tool.hCode || ''}"/>`).join('\n            ')}
+            const newTools = `<Tools>
+            ${tools.map(tool => `<Tool ID="${tool.id}" Name="${tool.name || ''}" Description="${tool.description || ''}" Width="${tool.width || 1}" HCode="${tool.hCode || ''}"/>`).join('\n            ')}
         </Tools>`;
             
             updatedContent = updatedContent.replace(toolsRegex, newTools);
         } else {
             // Add new Tools section before closing PostprocessorProfile tag
-            const newTools = `
-        <Tools>
-            ${tools.map(tool => `
-            <Tool ID="${tool.id}" Name="${tool.name || ''}" Description="${tool.description || ''}" Width="${tool.width || 1}" HCode="${tool.hCode || ''}"/>`).join('\n            ')}
+            const newTools = `<Tools>
+            ${tools.map(tool => `<Tool ID="${tool.id}" Name="${tool.name || ''}" Description="${tool.description || ''}" Width="${tool.width || 1}" HCode="${tool.hCode || ''}"/>`).join('\n            ')}
         </Tools>`;
             
             updatedContent = updatedContent.replace('</PostprocessorProfile>', `${newTools}\n    </PostprocessorProfile>`);

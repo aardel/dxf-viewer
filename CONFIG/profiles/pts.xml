@@ -33,6 +33,8 @@
             </ScalingHeader>
         </MachineSettings>
         
+        
+        
         <Tools>
             
             <Tool ID="T22" Name="Fine Cut" Description="Cutting" Width="1" HCode="H22"/>
@@ -106,22 +108,22 @@
             </ValidateWidths>
             <RespectManualBreaks>true
             </RespectManualBreaks>
-            <Priority mode="tool">
-                <Mode>tool
+        <Priority mode="tool">
+            <Mode>tool
                 </Mode>
-                <PriorityItem order="1" value="T20"/>
-                <PriorityItem order="2" value="T33"/>
-                <PriorityItem order="3" value="T35"/>
-                <PriorityItem order="4" value="__LINE_BREAK__"/>
-                <PriorityItem order="5" value="T2"/>
-                <PriorityItem order="6" value="T3"/>
-                <PriorityItem order="7" value="T4"/>
-                <PriorityItem order="8" value="T12"/>
-                <PriorityItem order="9" value="T13"/>
-                <PriorityItem order="10" value="T14"/>
-                <PriorityItem order="11" value="__LINE_BREAK__"/>
-                <PriorityItem order="12" value="T22"/>
-            </Priority>
+            <PriorityItem order="1" value="T20"/>
+            <PriorityItem order="2" value="T33"/>
+            <PriorityItem order="3" value="T35"/>
+            <PriorityItem order="4" value="__LINE_BREAK__"/>
+            <PriorityItem order="5" value="T2"/>
+            <PriorityItem order="6" value="T3"/>
+            <PriorityItem order="7" value="T4"/>
+            <PriorityItem order="8" value="T12"/>
+            <PriorityItem order="9" value="T13"/>
+            <PriorityItem order="10" value="T14"/>
+            <PriorityItem order="11" value="__LINE_BREAK__"/>
+            <PriorityItem order="12" value="T22"/>
+        </Priority>
         </Optimization>
         <GCode>
             <RapidMove>G0
