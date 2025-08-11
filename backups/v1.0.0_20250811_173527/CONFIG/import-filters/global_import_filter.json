@@ -1,0 +1,133 @@
+{
+  "id": "global_import_filter",
+  "name": "Global Import Filter",
+  "description": "Single global import filter for all DXF files",
+  "version": "1.0",
+  "created": "2025-08-05T01:48:18.789Z",
+  "modified": "2025-08-05T08:33:53.130Z",
+  "active": true,
+  "rules": [
+    {
+      "id": 1,
+      "layerName": "ACXTEMP",
+      "color": "38912",
+      "colorHex": "#009800",
+      "lineTypeId": "17",
+      "description": "Rule from test_import_filter",
+      "source": "profile_1754358460557"
+    },
+    {
+      "id": 2,
+      "layerName": "GA_DIE",
+      "color": "255",
+      "colorHex": "#0000FF",
+      "lineTypeId": "2",
+      "description": "Rule from test_import_filter",
+      "source": "profile_1754358460557"
+    },
+    {
+      "id": 3,
+      "layerName": "GRIP",
+      "color": "65407",
+      "colorHex": "#00FF7F",
+      "lineTypeId": "13",
+      "description": "Rule from test_import_filter",
+      "source": "profile_1754358460557"
+    },
+    {
+      "id": 4,
+      "layerName": "NAME",
+      "color": "38912",
+      "colorHex": "#009800",
+      "lineTypeId": "17",
+      "description": "Rule from test_import_filter",
+      "source": "profile_1754358460557"
+    },
+    {
+      "id": 5,
+      "layerName": "BLUE",
+      "color": 255,
+      "colorHex": "#0000FF",
+      "lineTypeId": "2",
+      "description": "Rule for BLUE",
+      "source": "manual"
+    },
+    {
+      "id": 6,
+      "layerName": "GRIPLOGO",
+      "color": 38912,
+      "colorHex": "#009800",
+      "lineTypeId": "17",
+      "description": "Rule for GRIPLOGO",
+      "source": "manual"
+    },
+    {
+      "id": 7,
+      "layerName": "PUNCHES",
+      "color": 16776960,
+      "colorHex": "#FFFF00",
+      "lineTypeId": "1",
+      "description": "Rule for PUNCHES",
+      "source": "manual"
+    },
+    {
+      "id": 8,
+      "layerName": "LAYOUT",
+      "color": 255,
+      "colorHex": "#0000FF",
+      "lineTypeId": "2",
+      "description": "Rule for LAYOUT",
+      "source": "manual"
+    },
+    {
+      "id": 9,
+      "layerName": "BRIDGEMARK",
+      "color": 38912,
+      "colorHex": "#009800",
+      "lineTypeId": "11",
+      "description": "Rule for BRIDGEMARK",
+      "source": "manual"
+    },
+    {
+      "id": 10,
+      "layerName": "DEPRESS",
+      "color": 16777215,
+      "colorHex": "#FFFFFF",
+      "lineTypeId": "11",
+      "description": "Rule for DEPRESS",
+      "source": "manual"
+    },
+    {
+      "id": 11,
+      "layerName": "DEPRESS",
+      "color": 16777215,
+      "colorHex": "#FFFFFF",
+      "lineTypeId": "11",
+      "description": "Rule for DEPRESS",
+      "source": "manual"
+    },
+    {
+      "id": 12,
+      "layerName": "OFFLINE",
+      "color": 65407,
+      "colorHex": "#00FF7F",
+      "lineTypeId": "1",
+      "description": "Rule for OFFLINE",
+      "source": "manual"
+    }
+  ],
+  "settings": {
+    "autoCreateRules": true,
+    "mergeDuplicateLayers": true,
+    "caseInsensitive": true,
+    "colorTolerance": 5,
+    "defaultLineTypeId": "1",
+    "conflictResolution": "prompt_user"
+  },
+  "statistics": {
+    "totalRules": 12,
+    "uniqueLayers": 11,
+    "uniqueColors": 8,
+    "lastConsolidated": "2025-08-05T01:48:21.353Z"
+  }
+}

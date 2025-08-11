@@ -1,0 +1,74 @@
+{
+  "version": "1.0",
+  "units": {
+    "system": "metric",
+    "feedInchMachine": false,
+    "scalingHeader": {
+      "enabled": false,
+      "parameter": ":P2027=25.4/P674",
+      "scaleCommand": "G75 X=P2027 Y=P2027",
+      "comment": "{ Bei Bedarf nach inch skalieren"
+    }
+  },
+  "header": {
+    "template": "{filename} / - size: {width} x {height} / {timestamp}",
+    "includeFileInfo": true,
+    "includeBounds": true,
+    "includeSetCount": true,
+    "includeProgramStart": true,
+    "programStart": "%1",
+    "customFields": {
+      "company": "Lasercomb GmbH",
+      "operator": "{user}",
+      "material": "{material}",
+      "thickness": "{thickness}"
+    },
+    "setupCommands": [
+      "G90",
+      "G60 X0",
+      "G0 X0 Y0"
+    ]
+  },
+  "gcode": {
+    "absoluteMode": "G90",
+    "homeCommand": "G60 X0",
+    "rapidMove": "G0",
+    "linearMove": "G1",
+    "cwArc": "G2",
+    "ccwArc": "G3",
+    "programEnd": "G99"
+  },
+  "laser": {
+    "laserOn": "M14",
+    "laserOff": "M15",
+    "toolChange": "M6",
+    "comments": {
+      "enabled": true,
+      "onCommand": "{ON / Down}",
+      "offCommand": "{OFF / Up}",
+      "toolChange": "{tool_name}"
+    }
+  },
+  "bridges": {
+    "enabled": true,
+    "laserOffAcrossGaps": true
+  },
+  "lineNumbers": {
+    "enabled": true,
+    "startNumber": 1,
+    "increment": 1,
+    "format": "N{number}"
+  },
+  "optimization": {
+    "enablePathOptimization": true,
+    "algorithm": "closest_path",
+    "minimizeRapidMoves": true,
+    "groupByTool": true,
+    "zigzagPattern": false
+  },
+  "name": "MTL",
+  "description": "Standard metric DIN output for modern controllers",
+  "created": "2025-01-02",
+  "author": "Lasercomb GmbH",
+  "modified": "2025-08-02"
+}

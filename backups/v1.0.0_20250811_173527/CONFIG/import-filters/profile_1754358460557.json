@@ -1,0 +1,37 @@
+{
+  "id": "profile_1754358460557",
+  "name": "test_import_filter",
+  "description": "Auto-generated import filter for test.dxf",
+  "rules": [
+    {
+      "id": 1,
+      "layerName": "ACXTEMP",
+      "color": "38912",
+      "colorHex": "#009800",
+      "lineTypeId": "17"
+    },
+    {
+      "id": 2,
+      "layerName": "GA_DIE",
+      "color": "255",
+      "colorHex": "#0000ff",
+      "lineTypeId": "2"
+    },
+    {
+      "id": 3,
+      "layerName": "GRIP",
+      "color": "65407",
+      "colorHex": "#00ff7f",
+      "lineTypeId": "13"
+    },
+    {
+      "id": 4,
+      "layerName": "NAME",
+      "color": "38912",
+      "colorHex": "#009800",
+      "lineTypeId": "17"
+    }
+  ],
+  "created": "2025-08-05T01:47:40.557Z",
+  "modified": "2025-08-05T01:48:10.553Z"
+}

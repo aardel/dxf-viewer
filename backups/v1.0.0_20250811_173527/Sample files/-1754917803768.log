@@ -1,0 +1,529 @@
+output-manager.js:49 Output Manager window loaded
+output-manager.js:123 Loaded profiles: Array(3)
+output-manager.js:252 Loaded saved profile data: Object
+output-manager.js:151 Loaded saved active profile: pts.xml
+output-manager.js:201 Successfully loaded current profile: PTS
+output-manager.js:240 Saved active profile: PTS
+output-manager.js:332 Loading tools for profile: pts.xml
+output-manager.js:354 Loaded tools: 20 tools
+output-manager.js:378 Populating main tools table with: Array(20)
+output-manager.js:412 Creating table rows for 20 tools
+output-manager.js:415 Creating table row 1: Object
+output-manager.js:415 Creating table row 2: Object
+output-manager.js:415 Creating table row 3: Object
+output-manager.js:415 Creating table row 4: Object
+output-manager.js:415 Creating table row 5: Object
+output-manager.js:415 Creating table row 6: Object
+output-manager.js:415 Creating table row 7: Object
+output-manager.js:415 Creating table row 8: Object
+output-manager.js:415 Creating table row 9: Object
+output-manager.js:415 Creating table row 10: Object
+output-manager.js:415 Creating table row 11: Object
+output-manager.js:415 Creating table row 12: Object
+output-manager.js:415 Creating table row 13: Object
+output-manager.js:415 Creating table row 14: Object
+output-manager.js:415 Creating table row 15: Object
+output-manager.js:415 Creating table row 16: Object
+output-manager.js:415 Creating table row 17: Object
+output-manager.js:415 Creating table row 18: Object
+output-manager.js:415 Creating table row 19: Object
+output-manager.js:415 Creating table row 20: Object
+output-manager.js:438 Main tools table now contains 20 rows
+output-manager.js:745 Loading line type mappings for profile: pts.xml
+output-manager.js:766 Loaded mappings: 19 mappings
+output-manager.js:778 Displaying line type mappings. currentTools length: 20
+output-manager.js:779 Current mappings: Array(19)
+output-manager.js:851 Creating tool dropdown options. currentTools: Array(20)
+output-manager.js:852 Selected tool ID: T2
+output-manager.js:862 Tool option: T22 - Fine Cut - Cutting - Display: T22 (Fine Cut)
+output-manager.js:862 Tool option: T2 - 2pt CW - Cutting - Display: T2 (2pt CW)
+output-manager.js:862 Tool option: T3 - 3pt CW - Cutting - Display: T3 (3pt CW)
+output-manager.js:862 Tool option: T4 - 4pt CW - Cutting - Display: T4 (4pt CW)
+output-manager.js:862 Tool option: T20 - Fast Engrave - Cutting - Display: T20 (Fast Engrave)
+output-manager.js:862 Tool option: T12 - 2pt Puls - Cutting - Display: T12 (2pt Puls)
+output-manager.js:862 Tool option: T13 - 3pt Puls - Cutting - Display: T13 (3pt Puls)
+output-manager.js:862 Tool option: T14 - 4pt Puls - Cutting - Display: T14 (4pt Puls)
+output-manager.js:862 Tool option: T100 - Milling 1 - Cutting - Display: T100 (Milling 1)
+output-manager.js:862 Tool option: T101 - Milling 2 - Cutting - Display: T101 (Milling 2)
+output-manager.js:862 Tool option: T102 - Milling 3 - Cutting - Display: T102 (Milling 3)
+output-manager.js:862 Tool option: T103 - Milling 4 - Cutting - Display: T103 (Milling 4)
+output-manager.js:862 Tool option: T104 - Milling 5 - Cutting - Display: T104 (Milling 5)
+output-manager.js:862 Tool option: T105 - Milling 6 - Cutting - Display: T105 (Milling 6)
+output-manager.js:862 Tool option: T106 - Milling 7 - Cutting - Display: T106 (Milling 7)
+output-manager.js:862 Tool option: T107 - Milling 8 - Cutting - Display: T107 (Milling 8)
+output-manager.js:862 Tool option: T109 - Milling 8 (Copy) - Cutting - Display: T109 (Milling 8 (Copy))
+output-manager.js:862 Tool option: T108 - Milling 8 (Copy) - Cutting - Display: T108 (Milling 8 (Copy))
+output-manager.js:862 Tool option: T33 - Nozzle Engrave - Cutting - Display: T33 (Nozzle Engrave)
+output-manager.js:862 Tool option: T35 - Piercing - Cutting - Display: T35 (Piercing)
+output-manager.js:851 Creating tool dropdown options. currentTools: Array(20)
+output-manager.js:852 Selected tool ID: T3
+output-manager.js:862 Tool option: T22 - Fine Cut - Cutting - Display: T22 (Fine Cut)
+output-manager.js:862 Tool option: T2 - 2pt CW - Cutting - Display: T2 (2pt CW)
+output-manager.js:862 Tool option: T3 - 3pt CW - Cutting - Display: T3 (3pt CW)
+output-manager.js:862 Tool option: T4 - 4pt CW - Cutting - Display: T4 (4pt CW)
+output-manager.js:862 Tool option: T20 - Fast Engrave - Cutting - Display: T20 (Fast Engrave)
+output-manager.js:862 Tool option: T12 - 2pt Puls - Cutting - Display: T12 (2pt Puls)
+output-manager.js:862 Tool option: T13 - 3pt Puls - Cutting - Display: T13 (3pt Puls)
+output-manager.js:862 Tool option: T14 - 4pt Puls - Cutting - Display: T14 (4pt Puls)
+output-manager.js:862 Tool option: T100 - Milling 1 - Cutting - Display: T100 (Milling 1)
+output-manager.js:862 Tool option: T101 - Milling 2 - Cutting - Display: T101 (Milling 2)
+output-manager.js:862 Tool option: T102 - Milling 3 - Cutting - Display: T102 (Milling 3)
+output-manager.js:862 Tool option: T103 - Milling 4 - Cutting - Display: T103 (Milling 4)
+output-manager.js:862 Tool option: T104 - Milling 5 - Cutting - Display: T104 (Milling 5)
+output-manager.js:862 Tool option: T105 - Milling 6 - Cutting - Display: T105 (Milling 6)
+output-manager.js:862 Tool option: T106 - Milling 7 - Cutting - Display: T106 (Milling 7)
+output-manager.js:862 Tool option: T107 - Milling 8 - Cutting - Display: T107 (Milling 8)
+output-manager.js:862 Tool option: T109 - Milling 8 (Copy) - Cutting - Display: T109 (Milling 8 (Copy))
+output-manager.js:862 Tool option: T108 - Milling 8 (Copy) - Cutting - Display: T108 (Milling 8 (Copy))
+output-manager.js:862 Tool option: T33 - Nozzle Engrave - Cutting - Display: T33 (Nozzle Engrave)
+output-manager.js:862 Tool option: T35 - Piercing - Cutting - Display: T35 (Piercing)
+output-manager.js:851 Creating tool dropdown options. currentTools: Array(20)
+output-manager.js:852 Selected tool ID: T4
+output-manager.js:862 Tool option: T22 - Fine Cut - Cutting - Display: T22 (Fine Cut)
+output-manager.js:862 Tool option: T2 - 2pt CW - Cutting - Display: T2 (2pt CW)
+output-manager.js:862 Tool option: T3 - 3pt CW - Cutting - Display: T3 (3pt CW)
+output-manager.js:862 Tool option: T4 - 4pt CW - Cutting - Display: T4 (4pt CW)
+output-manager.js:862 Tool option: T20 - Fast Engrave - Cutting - Display: T20 (Fast Engrave)
+output-manager.js:862 Tool option: T12 - 2pt Puls - Cutting - Display: T12 (2pt Puls)
+output-manager.js:862 Tool option: T13 - 3pt Puls - Cutting - Display: T13 (3pt Puls)
+output-manager.js:862 Tool option: T14 - 4pt Puls - Cutting - Display: T14 (4pt Puls)
+output-manager.js:862 Tool option: T100 - Milling 1 - Cutting - Display: T100 (Milling 1)
+output-manager.js:862 Tool option: T101 - Milling 2 - Cutting - Display: T101 (Milling 2)
+output-manager.js:862 Tool option: T102 - Milling 3 - Cutting - Display: T102 (Milling 3)
+output-manager.js:862 Tool option: T103 - Milling 4 - Cutting - Display: T103 (Milling 4)
+output-manager.js:862 Tool option: T104 - Milling 5 - Cutting - Display: T104 (Milling 5)
+output-manager.js:862 Tool option: T105 - Milling 6 - Cutting - Display: T105 (Milling 6)
+output-manager.js:862 Tool option: T106 - Milling 7 - Cutting - Display: T106 (Milling 7)
+output-manager.js:862 Tool option: T107 - Milling 8 - Cutting - Display: T107 (Milling 8)
+output-manager.js:862 Tool option: T109 - Milling 8 (Copy) - Cutting - Display: T109 (Milling 8 (Copy))
+output-manager.js:862 Tool option: T108 - Milling 8 (Copy) - Cutting - Display: T108 (Milling 8 (Copy))
+output-manager.js:862 Tool option: T33 - Nozzle Engrave - Cutting - Display: T33 (Nozzle Engrave)
+output-manager.js:862 Tool option: T35 - Piercing - Cutting - Display: T35 (Piercing)
+output-manager.js:851 Creating tool dropdown options. currentTools: Array(20)
+output-manager.js:852 Selected tool ID: T12
+output-manager.js:862 Tool option: T22 - Fine Cut - Cutting - Display: T22 (Fine Cut)
+output-manager.js:862 Tool option: T2 - 2pt CW - Cutting - Display: T2 (2pt CW)
+output-manager.js:862 Tool option: T3 - 3pt CW - Cutting - Display: T3 (3pt CW)
+output-manager.js:862 Tool option: T4 - 4pt CW - Cutting - Display: T4 (4pt CW)
+output-manager.js:862 Tool option: T20 - Fast Engrave - Cutting - Display: T20 (Fast Engrave)
+output-manager.js:862 Tool option: T12 - 2pt Puls - Cutting - Display: T12 (2pt Puls)
+output-manager.js:862 Tool option: T13 - 3pt Puls - Cutting - Display: T13 (3pt Puls)
+output-manager.js:862 Tool option: T14 - 4pt Puls - Cutting - Display: T14 (4pt Puls)
+output-manager.js:862 Tool option: T100 - Milling 1 - Cutting - Display: T100 (Milling 1)
+output-manager.js:862 Tool option: T101 - Milling 2 - Cutting - Display: T101 (Milling 2)
+output-manager.js:862 Tool option: T102 - Milling 3 - Cutting - Display: T102 (Milling 3)
+output-manager.js:862 Tool option: T103 - Milling 4 - Cutting - Display: T103 (Milling 4)
+output-manager.js:862 Tool option: T104 - Milling 5 - Cutting - Display: T104 (Milling 5)
+output-manager.js:862 Tool option: T105 - Milling 6 - Cutting - Display: T105 (Milling 6)
+output-manager.js:862 Tool option: T106 - Milling 7 - Cutting - Display: T106 (Milling 7)
+output-manager.js:862 Tool option: T107 - Milling 8 - Cutting - Display: T107 (Milling 8)
+output-manager.js:862 Tool option: T109 - Milling 8 (Copy) - Cutting - Display: T109 (Milling 8 (Copy))
+output-manager.js:862 Tool option: T108 - Milling 8 (Copy) - Cutting - Display: T108 (Milling 8 (Copy))
+output-manager.js:862 Tool option: T33 - Nozzle Engrave - Cutting - Display: T33 (Nozzle Engrave)
+output-manager.js:862 Tool option: T35 - Piercing - Cutting - Display: T35 (Piercing)
+output-manager.js:851 Creating tool dropdown options. currentTools: Array(20)
+output-manager.js:852 Selected tool ID: T13
+output-manager.js:862 Tool option: T22 - Fine Cut - Cutting - Display: T22 (Fine Cut)
+output-manager.js:862 Tool option: T2 - 2pt CW - Cutting - Display: T2 (2pt CW)
+output-manager.js:862 Tool option: T3 - 3pt CW - Cutting - Display: T3 (3pt CW)
+output-manager.js:862 Tool option: T4 - 4pt CW - Cutting - Display: T4 (4pt CW)
+output-manager.js:862 Tool option: T20 - Fast Engrave - Cutting - Display: T20 (Fast Engrave)
+output-manager.js:862 Tool option: T12 - 2pt Puls - Cutting - Display: T12 (2pt Puls)
+output-manager.js:862 Tool option: T13 - 3pt Puls - Cutting - Display: T13 (3pt Puls)
+output-manager.js:862 Tool option: T14 - 4pt Puls - Cutting - Display: T14 (4pt Puls)
+output-manager.js:862 Tool option: T100 - Milling 1 - Cutting - Display: T100 (Milling 1)
+output-manager.js:862 Tool option: T101 - Milling 2 - Cutting - Display: T101 (Milling 2)
+output-manager.js:862 Tool option: T102 - Milling 3 - Cutting - Display: T102 (Milling 3)
+output-manager.js:862 Tool option: T103 - Milling 4 - Cutting - Display: T103 (Milling 4)
+output-manager.js:862 Tool option: T104 - Milling 5 - Cutting - Display: T104 (Milling 5)
+output-manager.js:862 Tool option: T105 - Milling 6 - Cutting - Display: T105 (Milling 6)
+output-manager.js:862 Tool option: T106 - Milling 7 - Cutting - Display: T106 (Milling 7)
+output-manager.js:862 Tool option: T107 - Milling 8 - Cutting - Display: T107 (Milling 8)
+output-manager.js:862 Tool option: T109 - Milling 8 (Copy) - Cutting - Display: T109 (Milling 8 (Copy))
+output-manager.js:862 Tool option: T108 - Milling 8 (Copy) - Cutting - Display: T108 (Milling 8 (Copy))
+output-manager.js:862 Tool option: T33 - Nozzle Engrave - Cutting - Display: T33 (Nozzle Engrave)
+output-manager.js:862 Tool option: T35 - Piercing - Cutting - Display: T35 (Piercing)
+output-manager.js:851 Creating tool dropdown options. currentTools: Array(20)
+output-manager.js:852 Selected tool ID: T14
+output-manager.js:862 Tool option: T22 - Fine Cut - Cutting - Display: T22 (Fine Cut)
+output-manager.js:862 Tool option: T2 - 2pt CW - Cutting - Display: T2 (2pt CW)
+output-manager.js:862 Tool option: T3 - 3pt CW - Cutting - Display: T3 (3pt CW)
+output-manager.js:862 Tool option: T4 - 4pt CW - Cutting - Display: T4 (4pt CW)
+output-manager.js:862 Tool option: T20 - Fast Engrave - Cutting - Display: T20 (Fast Engrave)
+output-manager.js:862 Tool option: T12 - 2pt Puls - Cutting - Display: T12 (2pt Puls)
+output-manager.js:862 Tool option: T13 - 3pt Puls - Cutting - Display: T13 (3pt Puls)
+output-manager.js:862 Tool option: T14 - 4pt Puls - Cutting - Display: T14 (4pt Puls)
+output-manager.js:862 Tool option: T100 - Milling 1 - Cutting - Display: T100 (Milling 1)
+output-manager.js:862 Tool option: T101 - Milling 2 - Cutting - Display: T101 (Milling 2)
+output-manager.js:862 Tool option: T102 - Milling 3 - Cutting - Display: T102 (Milling 3)
+output-manager.js:862 Tool option: T103 - Milling 4 - Cutting - Display: T103 (Milling 4)
+output-manager.js:862 Tool option: T104 - Milling 5 - Cutting - Display: T104 (Milling 5)
+output-manager.js:862 Tool option: T105 - Milling 6 - Cutting - Display: T105 (Milling 6)
+output-manager.js:862 Tool option: T106 - Milling 7 - Cutting - Display: T106 (Milling 7)
+output-manager.js:862 Tool option: T107 - Milling 8 - Cutting - Display: T107 (Milling 8)
+output-manager.js:862 Tool option: T109 - Milling 8 (Copy) - Cutting - Display: T109 (Milling 8 (Copy))
+output-manager.js:862 Tool option: T108 - Milling 8 (Copy) - Cutting - Display: T108 (Milling 8 (Copy))
+output-manager.js:862 Tool option: T33 - Nozzle Engrave - Cutting - Display: T33 (Nozzle Engrave)
+output-manager.js:862 Tool option: T35 - Piercing - Cutting - Display: T35 (Piercing)
+output-manager.js:851 Creating tool dropdown options. currentTools: Array(20)
+output-manager.js:852 Selected tool ID: T20
+output-manager.js:862 Tool option: T22 - Fine Cut - Cutting - Display: T22 (Fine Cut)
+output-manager.js:862 Tool option: T2 - 2pt CW - Cutting - Display: T2 (2pt CW)
+output-manager.js:862 Tool option: T3 - 3pt CW - Cutting - Display: T3 (3pt CW)
+output-manager.js:862 Tool option: T4 - 4pt CW - Cutting - Display: T4 (4pt CW)
+output-manager.js:862 Tool option: T20 - Fast Engrave - Cutting - Display: T20 (Fast Engrave)
+output-manager.js:862 Tool option: T12 - 2pt Puls - Cutting - Display: T12 (2pt Puls)
+output-manager.js:862 Tool option: T13 - 3pt Puls - Cutting - Display: T13 (3pt Puls)
+output-manager.js:862 Tool option: T14 - 4pt Puls - Cutting - Display: T14 (4pt Puls)
+output-manager.js:862 Tool option: T100 - Milling 1 - Cutting - Display: T100 (Milling 1)
+output-manager.js:862 Tool option: T101 - Milling 2 - Cutting - Display: T101 (Milling 2)
+output-manager.js:862 Tool option: T102 - Milling 3 - Cutting - Display: T102 (Milling 3)
+output-manager.js:862 Tool option: T103 - Milling 4 - Cutting - Display: T103 (Milling 4)
+output-manager.js:862 Tool option: T104 - Milling 5 - Cutting - Display: T104 (Milling 5)
+output-manager.js:862 Tool option: T105 - Milling 6 - Cutting - Display: T105 (Milling 6)
+output-manager.js:862 Tool option: T106 - Milling 7 - Cutting - Display: T106 (Milling 7)
+output-manager.js:862 Tool option: T107 - Milling 8 - Cutting - Display: T107 (Milling 8)
+output-manager.js:862 Tool option: T109 - Milling 8 (Copy) - Cutting - Display: T109 (Milling 8 (Copy))
+output-manager.js:862 Tool option: T108 - Milling 8 (Copy) - Cutting - Display: T108 (Milling 8 (Copy))
+output-manager.js:862 Tool option: T33 - Nozzle Engrave - Cutting - Display: T33 (Nozzle Engrave)
+output-manager.js:862 Tool option: T35 - Piercing - Cutting - Display: T35 (Piercing)
+output-manager.js:851 Creating tool dropdown options. currentTools: Array(20)
+output-manager.js:852 Selected tool ID: T22
+output-manager.js:862 Tool option: T22 - Fine Cut - Cutting - Display: T22 (Fine Cut)
+output-manager.js:862 Tool option: T2 - 2pt CW - Cutting - Display: T2 (2pt CW)
+output-manager.js:862 Tool option: T3 - 3pt CW - Cutting - Display: T3 (3pt CW)
+output-manager.js:862 Tool option: T4 - 4pt CW - Cutting - Display: T4 (4pt CW)
+output-manager.js:862 Tool option: T20 - Fast Engrave - Cutting - Display: T20 (Fast Engrave)
+output-manager.js:862 Tool option: T12 - 2pt Puls - Cutting - Display: T12 (2pt Puls)
+output-manager.js:862 Tool option: T13 - 3pt Puls - Cutting - Display: T13 (3pt Puls)
+output-manager.js:862 Tool option: T14 - 4pt Puls - Cutting - Display: T14 (4pt Puls)
+output-manager.js:862 Tool option: T100 - Milling 1 - Cutting - Display: T100 (Milling 1)
+output-manager.js:862 Tool option: T101 - Milling 2 - Cutting - Display: T101 (Milling 2)
+output-manager.js:862 Tool option: T102 - Milling 3 - Cutting - Display: T102 (Milling 3)
+output-manager.js:862 Tool option: T103 - Milling 4 - Cutting - Display: T103 (Milling 4)
+output-manager.js:862 Tool option: T104 - Milling 5 - Cutting - Display: T104 (Milling 5)
+output-manager.js:862 Tool option: T105 - Milling 6 - Cutting - Display: T105 (Milling 6)
+output-manager.js:862 Tool option: T106 - Milling 7 - Cutting - Display: T106 (Milling 7)
+output-manager.js:862 Tool option: T107 - Milling 8 - Cutting - Display: T107 (Milling 8)
+output-manager.js:862 Tool option: T109 - Milling 8 (Copy) - Cutting - Display: T109 (Milling 8 (Copy))
+output-manager.js:862 Tool option: T108 - Milling 8 (Copy) - Cutting - Display: T108 (Milling 8 (Copy))
+output-manager.js:862 Tool option: T33 - Nozzle Engrave - Cutting - Display: T33 (Nozzle Engrave)
+output-manager.js:862 Tool option: T35 - Piercing - Cutting - Display: T35 (Piercing)
+output-manager.js:851 Creating tool dropdown options. currentTools: Array(20)
+output-manager.js:852 Selected tool ID: T22
+output-manager.js:862 Tool option: T22 - Fine Cut - Cutting - Display: T22 (Fine Cut)
+output-manager.js:862 Tool option: T2 - 2pt CW - Cutting - Display: T2 (2pt CW)
+output-manager.js:862 Tool option: T3 - 3pt CW - Cutting - Display: T3 (3pt CW)
+output-manager.js:862 Tool option: T4 - 4pt CW - Cutting - Display: T4 (4pt CW)
+output-manager.js:862 Tool option: T20 - Fast Engrave - Cutting - Display: T20 (Fast Engrave)
+output-manager.js:862 Tool option: T12 - 2pt Puls - Cutting - Display: T12 (2pt Puls)
+output-manager.js:862 Tool option: T13 - 3pt Puls - Cutting - Display: T13 (3pt Puls)
+output-manager.js:862 Tool option: T14 - 4pt Puls - Cutting - Display: T14 (4pt Puls)
+output-manager.js:862 Tool option: T100 - Milling 1 - Cutting - Display: T100 (Milling 1)
+output-manager.js:862 Tool option: T101 - Milling 2 - Cutting - Display: T101 (Milling 2)
+output-manager.js:862 Tool option: T102 - Milling 3 - Cutting - Display: T102 (Milling 3)
+output-manager.js:862 Tool option: T103 - Milling 4 - Cutting - Display: T103 (Milling 4)
+output-manager.js:862 Tool option: T104 - Milling 5 - Cutting - Display: T104 (Milling 5)
+output-manager.js:862 Tool option: T105 - Milling 6 - Cutting - Display: T105 (Milling 6)
+output-manager.js:862 Tool option: T106 - Milling 7 - Cutting - Display: T106 (Milling 7)
+output-manager.js:862 Tool option: T107 - Milling 8 - Cutting - Display: T107 (Milling 8)
+output-manager.js:862 Tool option: T109 - Milling 8 (Copy) - Cutting - Display: T109 (Milling 8 (Copy))
+output-manager.js:862 Tool option: T108 - Milling 8 (Copy) - Cutting - Display: T108 (Milling 8 (Copy))
+output-manager.js:862 Tool option: T33 - Nozzle Engrave - Cutting - Display: T33 (Nozzle Engrave)
+output-manager.js:862 Tool option: T35 - Piercing - Cutting - Display: T35 (Piercing)
+output-manager.js:851 Creating tool dropdown options. currentTools: Array(20)
+output-manager.js:852 Selected tool ID: T33
+output-manager.js:862 Tool option: T22 - Fine Cut - Cutting - Display: T22 (Fine Cut)
+output-manager.js:862 Tool option: T2 - 2pt CW - Cutting - Display: T2 (2pt CW)
+output-manager.js:862 Tool option: T3 - 3pt CW - Cutting - Display: T3 (3pt CW)
+output-manager.js:862 Tool option: T4 - 4pt CW - Cutting - Display: T4 (4pt CW)
+output-manager.js:862 Tool option: T20 - Fast Engrave - Cutting - Display: T20 (Fast Engrave)
+output-manager.js:862 Tool option: T12 - 2pt Puls - Cutting - Display: T12 (2pt Puls)
+output-manager.js:862 Tool option: T13 - 3pt Puls - Cutting - Display: T13 (3pt Puls)
+output-manager.js:862 Tool option: T14 - 4pt Puls - Cutting - Display: T14 (4pt Puls)
+output-manager.js:862 Tool option: T100 - Milling 1 - Cutting - Display: T100 (Milling 1)
+output-manager.js:862 Tool option: T101 - Milling 2 - Cutting - Display: T101 (Milling 2)
+output-manager.js:862 Tool option: T102 - Milling 3 - Cutting - Display: T102 (Milling 3)
+output-manager.js:862 Tool option: T103 - Milling 4 - Cutting - Display: T103 (Milling 4)
+output-manager.js:862 Tool option: T104 - Milling 5 - Cutting - Display: T104 (Milling 5)
+output-manager.js:862 Tool option: T105 - Milling 6 - Cutting - Display: T105 (Milling 6)
+output-manager.js:862 Tool option: T106 - Milling 7 - Cutting - Display: T106 (Milling 7)
+output-manager.js:862 Tool option: T107 - Milling 8 - Cutting - Display: T107 (Milling 8)
+output-manager.js:862 Tool option: T109 - Milling 8 (Copy) - Cutting - Display: T109 (Milling 8 (Copy))
+output-manager.js:862 Tool option: T108 - Milling 8 (Copy) - Cutting - Display: T108 (Milling 8 (Copy))
+output-manager.js:862 Tool option: T33 - Nozzle Engrave - Cutting - Display: T33 (Nozzle Engrave)
+output-manager.js:862 Tool option: T35 - Piercing - Cutting - Display: T35 (Piercing)
+output-manager.js:851 Creating tool dropdown options. currentTools: Array(20)
+output-manager.js:852 Selected tool ID: T22
+output-manager.js:862 Tool option: T22 - Fine Cut - Cutting - Display: T22 (Fine Cut)
+output-manager.js:862 Tool option: T2 - 2pt CW - Cutting - Display: T2 (2pt CW)
+output-manager.js:862 Tool option: T3 - 3pt CW - Cutting - Display: T3 (3pt CW)
+output-manager.js:862 Tool option: T4 - 4pt CW - Cutting - Display: T4 (4pt CW)
+output-manager.js:862 Tool option: T20 - Fast Engrave - Cutting - Display: T20 (Fast Engrave)
+output-manager.js:862 Tool option: T12 - 2pt Puls - Cutting - Display: T12 (2pt Puls)
+output-manager.js:862 Tool option: T13 - 3pt Puls - Cutting - Display: T13 (3pt Puls)
+output-manager.js:862 Tool option: T14 - 4pt Puls - Cutting - Display: T14 (4pt Puls)
+output-manager.js:862 Tool option: T100 - Milling 1 - Cutting - Display: T100 (Milling 1)
+output-manager.js:862 Tool option: T101 - Milling 2 - Cutting - Display: T101 (Milling 2)
+output-manager.js:862 Tool option: T102 - Milling 3 - Cutting - Display: T102 (Milling 3)
+output-manager.js:862 Tool option: T103 - Milling 4 - Cutting - Display: T103 (Milling 4)
+output-manager.js:862 Tool option: T104 - Milling 5 - Cutting - Display: T104 (Milling 5)
+output-manager.js:862 Tool option: T105 - Milling 6 - Cutting - Display: T105 (Milling 6)
+output-manager.js:862 Tool option: T106 - Milling 7 - Cutting - Display: T106 (Milling 7)
+output-manager.js:862 Tool option: T107 - Milling 8 - Cutting - Display: T107 (Milling 8)
+output-manager.js:862 Tool option: T109 - Milling 8 (Copy) - Cutting - Display: T109 (Milling 8 (Copy))
+output-manager.js:862 Tool option: T108 - Milling 8 (Copy) - Cutting - Display: T108 (Milling 8 (Copy))
+output-manager.js:862 Tool option: T33 - Nozzle Engrave - Cutting - Display: T33 (Nozzle Engrave)
+output-manager.js:862 Tool option: T35 - Piercing - Cutting - Display: T35 (Piercing)
+output-manager.js:851 Creating tool dropdown options. currentTools: Array(20)
+output-manager.js:852 Selected tool ID: T100
+output-manager.js:862 Tool option: T22 - Fine Cut - Cutting - Display: T22 (Fine Cut)
+output-manager.js:862 Tool option: T2 - 2pt CW - Cutting - Display: T2 (2pt CW)
+output-manager.js:862 Tool option: T3 - 3pt CW - Cutting - Display: T3 (3pt CW)
+output-manager.js:862 Tool option: T4 - 4pt CW - Cutting - Display: T4 (4pt CW)
+output-manager.js:862 Tool option: T20 - Fast Engrave - Cutting - Display: T20 (Fast Engrave)
+output-manager.js:862 Tool option: T12 - 2pt Puls - Cutting - Display: T12 (2pt Puls)
+output-manager.js:862 Tool option: T13 - 3pt Puls - Cutting - Display: T13 (3pt Puls)
+output-manager.js:862 Tool option: T14 - 4pt Puls - Cutting - Display: T14 (4pt Puls)
+output-manager.js:862 Tool option: T100 - Milling 1 - Cutting - Display: T100 (Milling 1)
+output-manager.js:862 Tool option: T101 - Milling 2 - Cutting - Display: T101 (Milling 2)
+output-manager.js:862 Tool option: T102 - Milling 3 - Cutting - Display: T102 (Milling 3)
+output-manager.js:862 Tool option: T103 - Milling 4 - Cutting - Display: T103 (Milling 4)
+output-manager.js:862 Tool option: T104 - Milling 5 - Cutting - Display: T104 (Milling 5)
+output-manager.js:862 Tool option: T105 - Milling 6 - Cutting - Display: T105 (Milling 6)
+output-manager.js:862 Tool option: T106 - Milling 7 - Cutting - Display: T106 (Milling 7)
+output-manager.js:862 Tool option: T107 - Milling 8 - Cutting - Display: T107 (Milling 8)
+output-manager.js:862 Tool option: T109 - Milling 8 (Copy) - Cutting - Display: T109 (Milling 8 (Copy))
+output-manager.js:862 Tool option: T108 - Milling 8 (Copy) - Cutting - Display: T108 (Milling 8 (Copy))
+output-manager.js:862 Tool option: T33 - Nozzle Engrave - Cutting - Display: T33 (Nozzle Engrave)
+output-manager.js:862 Tool option: T35 - Piercing - Cutting - Display: T35 (Piercing)
+output-manager.js:851 Creating tool dropdown options. currentTools: Array(20)
+output-manager.js:852 Selected tool ID: T101
+output-manager.js:862 Tool option: T22 - Fine Cut - Cutting - Display: T22 (Fine Cut)
+output-manager.js:862 Tool option: T2 - 2pt CW - Cutting - Display: T2 (2pt CW)
+output-manager.js:862 Tool option: T3 - 3pt CW - Cutting - Display: T3 (3pt CW)
+output-manager.js:862 Tool option: T4 - 4pt CW - Cutting - Display: T4 (4pt CW)
+output-manager.js:862 Tool option: T20 - Fast Engrave - Cutting - Display: T20 (Fast Engrave)
+output-manager.js:862 Tool option: T12 - 2pt Puls - Cutting - Display: T12 (2pt Puls)
+output-manager.js:862 Tool option: T13 - 3pt Puls - Cutting - Display: T13 (3pt Puls)
+output-manager.js:862 Tool option: T14 - 4pt Puls - Cutting - Display: T14 (4pt Puls)
+output-manager.js:862 Tool option: T100 - Milling 1 - Cutting - Display: T100 (Milling 1)
+output-manager.js:862 Tool option: T101 - Milling 2 - Cutting - Display: T101 (Milling 2)
+output-manager.js:862 Tool option: T102 - Milling 3 - Cutting - Display: T102 (Milling 3)
+output-manager.js:862 Tool option: T103 - Milling 4 - Cutting - Display: T103 (Milling 4)
+output-manager.js:862 Tool option: T104 - Milling 5 - Cutting - Display: T104 (Milling 5)
+output-manager.js:862 Tool option: T105 - Milling 6 - Cutting - Display: T105 (Milling 6)
+output-manager.js:862 Tool option: T106 - Milling 7 - Cutting - Display: T106 (Milling 7)
+output-manager.js:862 Tool option: T107 - Milling 8 - Cutting - Display: T107 (Milling 8)
+output-manager.js:862 Tool option: T109 - Milling 8 (Copy) - Cutting - Display: T109 (Milling 8 (Copy))
+output-manager.js:862 Tool option: T108 - Milling 8 (Copy) - Cutting - Display: T108 (Milling 8 (Copy))
+output-manager.js:862 Tool option: T33 - Nozzle Engrave - Cutting - Display: T33 (Nozzle Engrave)
+output-manager.js:862 Tool option: T35 - Piercing - Cutting - Display: T35 (Piercing)
+output-manager.js:851 Creating tool dropdown options. currentTools: Array(20)
+output-manager.js:852 Selected tool ID: T102
+output-manager.js:862 Tool option: T22 - Fine Cut - Cutting - Display: T22 (Fine Cut)
+output-manager.js:862 Tool option: T2 - 2pt CW - Cutting - Display: T2 (2pt CW)
+output-manager.js:862 Tool option: T3 - 3pt CW - Cutting - Display: T3 (3pt CW)
+output-manager.js:862 Tool option: T4 - 4pt CW - Cutting - Display: T4 (4pt CW)
+output-manager.js:862 Tool option: T20 - Fast Engrave - Cutting - Display: T20 (Fast Engrave)
+output-manager.js:862 Tool option: T12 - 2pt Puls - Cutting - Display: T12 (2pt Puls)
+output-manager.js:862 Tool option: T13 - 3pt Puls - Cutting - Display: T13 (3pt Puls)
+output-manager.js:862 Tool option: T14 - 4pt Puls - Cutting - Display: T14 (4pt Puls)
+output-manager.js:862 Tool option: T100 - Milling 1 - Cutting - Display: T100 (Milling 1)
+output-manager.js:862 Tool option: T101 - Milling 2 - Cutting - Display: T101 (Milling 2)
+output-manager.js:862 Tool option: T102 - Milling 3 - Cutting - Display: T102 (Milling 3)
+output-manager.js:862 Tool option: T103 - Milling 4 - Cutting - Display: T103 (Milling 4)
+output-manager.js:862 Tool option: T104 - Milling 5 - Cutting - Display: T104 (Milling 5)
+output-manager.js:862 Tool option: T105 - Milling 6 - Cutting - Display: T105 (Milling 6)
+output-manager.js:862 Tool option: T106 - Milling 7 - Cutting - Display: T106 (Milling 7)
+output-manager.js:862 Tool option: T107 - Milling 8 - Cutting - Display: T107 (Milling 8)
+output-manager.js:862 Tool option: T109 - Milling 8 (Copy) - Cutting - Display: T109 (Milling 8 (Copy))
+output-manager.js:862 Tool option: T108 - Milling 8 (Copy) - Cutting - Display: T108 (Milling 8 (Copy))
+output-manager.js:862 Tool option: T33 - Nozzle Engrave - Cutting - Display: T33 (Nozzle Engrave)
+output-manager.js:862 Tool option: T35 - Piercing - Cutting - Display: T35 (Piercing)
+output-manager.js:851 Creating tool dropdown options. currentTools: Array(20)
+output-manager.js:852 Selected tool ID: T103
+output-manager.js:862 Tool option: T22 - Fine Cut - Cutting - Display: T22 (Fine Cut)
+output-manager.js:862 Tool option: T2 - 2pt CW - Cutting - Display: T2 (2pt CW)
+output-manager.js:862 Tool option: T3 - 3pt CW - Cutting - Display: T3 (3pt CW)
+output-manager.js:862 Tool option: T4 - 4pt CW - Cutting - Display: T4 (4pt CW)
+output-manager.js:862 Tool option: T20 - Fast Engrave - Cutting - Display: T20 (Fast Engrave)
+output-manager.js:862 Tool option: T12 - 2pt Puls - Cutting - Display: T12 (2pt Puls)
+output-manager.js:862 Tool option: T13 - 3pt Puls - Cutting - Display: T13 (3pt Puls)
+output-manager.js:862 Tool option: T14 - 4pt Puls - Cutting - Display: T14 (4pt Puls)
+output-manager.js:862 Tool option: T100 - Milling 1 - Cutting - Display: T100 (Milling 1)
+output-manager.js:862 Tool option: T101 - Milling 2 - Cutting - Display: T101 (Milling 2)
+output-manager.js:862 Tool option: T102 - Milling 3 - Cutting - Display: T102 (Milling 3)
+output-manager.js:862 Tool option: T103 - Milling 4 - Cutting - Display: T103 (Milling 4)
+output-manager.js:862 Tool option: T104 - Milling 5 - Cutting - Display: T104 (Milling 5)
+output-manager.js:862 Tool option: T105 - Milling 6 - Cutting - Display: T105 (Milling 6)
+output-manager.js:862 Tool option: T106 - Milling 7 - Cutting - Display: T106 (Milling 7)
+output-manager.js:862 Tool option: T107 - Milling 8 - Cutting - Display: T107 (Milling 8)
+output-manager.js:862 Tool option: T109 - Milling 8 (Copy) - Cutting - Display: T109 (Milling 8 (Copy))
+output-manager.js:862 Tool option: T108 - Milling 8 (Copy) - Cutting - Display: T108 (Milling 8 (Copy))
+output-manager.js:862 Tool option: T33 - Nozzle Engrave - Cutting - Display: T33 (Nozzle Engrave)
+output-manager.js:862 Tool option: T35 - Piercing - Cutting - Display: T35 (Piercing)
+output-manager.js:851 Creating tool dropdown options. currentTools: Array(20)
+output-manager.js:852 Selected tool ID: T104
+output-manager.js:862 Tool option: T22 - Fine Cut - Cutting - Display: T22 (Fine Cut)
+output-manager.js:862 Tool option: T2 - 2pt CW - Cutting - Display: T2 (2pt CW)
+output-manager.js:862 Tool option: T3 - 3pt CW - Cutting - Display: T3 (3pt CW)
+output-manager.js:862 Tool option: T4 - 4pt CW - Cutting - Display: T4 (4pt CW)
+output-manager.js:862 Tool option: T20 - Fast Engrave - Cutting - Display: T20 (Fast Engrave)
+output-manager.js:862 Tool option: T12 - 2pt Puls - Cutting - Display: T12 (2pt Puls)
+output-manager.js:862 Tool option: T13 - 3pt Puls - Cutting - Display: T13 (3pt Puls)
+output-manager.js:862 Tool option: T14 - 4pt Puls - Cutting - Display: T14 (4pt Puls)
+output-manager.js:862 Tool option: T100 - Milling 1 - Cutting - Display: T100 (Milling 1)
+output-manager.js:862 Tool option: T101 - Milling 2 - Cutting - Display: T101 (Milling 2)
+output-manager.js:862 Tool option: T102 - Milling 3 - Cutting - Display: T102 (Milling 3)
+output-manager.js:862 Tool option: T103 - Milling 4 - Cutting - Display: T103 (Milling 4)
+output-manager.js:862 Tool option: T104 - Milling 5 - Cutting - Display: T104 (Milling 5)
+output-manager.js:862 Tool option: T105 - Milling 6 - Cutting - Display: T105 (Milling 6)
+output-manager.js:862 Tool option: T106 - Milling 7 - Cutting - Display: T106 (Milling 7)
+output-manager.js:862 Tool option: T107 - Milling 8 - Cutting - Display: T107 (Milling 8)
+output-manager.js:862 Tool option: T109 - Milling 8 (Copy) - Cutting - Display: T109 (Milling 8 (Copy))
+output-manager.js:862 Tool option: T108 - Milling 8 (Copy) - Cutting - Display: T108 (Milling 8 (Copy))
+output-manager.js:862 Tool option: T33 - Nozzle Engrave - Cutting - Display: T33 (Nozzle Engrave)
+output-manager.js:862 Tool option: T35 - Piercing - Cutting - Display: T35 (Piercing)
+output-manager.js:851 Creating tool dropdown options. currentTools: Array(20)
+output-manager.js:852 Selected tool ID: T105
+output-manager.js:862 Tool option: T22 - Fine Cut - Cutting - Display: T22 (Fine Cut)
+output-manager.js:862 Tool option: T2 - 2pt CW - Cutting - Display: T2 (2pt CW)
+output-manager.js:862 Tool option: T3 - 3pt CW - Cutting - Display: T3 (3pt CW)
+output-manager.js:862 Tool option: T4 - 4pt CW - Cutting - Display: T4 (4pt CW)
+output-manager.js:862 Tool option: T20 - Fast Engrave - Cutting - Display: T20 (Fast Engrave)
+output-manager.js:862 Tool option: T12 - 2pt Puls - Cutting - Display: T12 (2pt Puls)
+output-manager.js:862 Tool option: T13 - 3pt Puls - Cutting - Display: T13 (3pt Puls)
+output-manager.js:862 Tool option: T14 - 4pt Puls - Cutting - Display: T14 (4pt Puls)
+output-manager.js:862 Tool option: T100 - Milling 1 - Cutting - Display: T100 (Milling 1)
+output-manager.js:862 Tool option: T101 - Milling 2 - Cutting - Display: T101 (Milling 2)
+output-manager.js:862 Tool option: T102 - Milling 3 - Cutting - Display: T102 (Milling 3)
+output-manager.js:862 Tool option: T103 - Milling 4 - Cutting - Display: T103 (Milling 4)
+output-manager.js:862 Tool option: T104 - Milling 5 - Cutting - Display: T104 (Milling 5)
+output-manager.js:862 Tool option: T105 - Milling 6 - Cutting - Display: T105 (Milling 6)
+output-manager.js:862 Tool option: T106 - Milling 7 - Cutting - Display: T106 (Milling 7)
+output-manager.js:862 Tool option: T107 - Milling 8 - Cutting - Display: T107 (Milling 8)
+output-manager.js:862 Tool option: T109 - Milling 8 (Copy) - Cutting - Display: T109 (Milling 8 (Copy))
+output-manager.js:862 Tool option: T108 - Milling 8 (Copy) - Cutting - Display: T108 (Milling 8 (Copy))
+output-manager.js:862 Tool option: T33 - Nozzle Engrave - Cutting - Display: T33 (Nozzle Engrave)
+output-manager.js:862 Tool option: T35 - Piercing - Cutting - Display: T35 (Piercing)
+output-manager.js:851 Creating tool dropdown options. currentTools: Array(20)
+output-manager.js:852 Selected tool ID: T106
+output-manager.js:862 Tool option: T22 - Fine Cut - Cutting - Display: T22 (Fine Cut)
+output-manager.js:862 Tool option: T2 - 2pt CW - Cutting - Display: T2 (2pt CW)
+output-manager.js:862 Tool option: T3 - 3pt CW - Cutting - Display: T3 (3pt CW)
+output-manager.js:862 Tool option: T4 - 4pt CW - Cutting - Display: T4 (4pt CW)
+output-manager.js:862 Tool option: T20 - Fast Engrave - Cutting - Display: T20 (Fast Engrave)
+output-manager.js:862 Tool option: T12 - 2pt Puls - Cutting - Display: T12 (2pt Puls)
+output-manager.js:862 Tool option: T13 - 3pt Puls - Cutting - Display: T13 (3pt Puls)
+output-manager.js:862 Tool option: T14 - 4pt Puls - Cutting - Display: T14 (4pt Puls)
+output-manager.js:862 Tool option: T100 - Milling 1 - Cutting - Display: T100 (Milling 1)
+output-manager.js:862 Tool option: T101 - Milling 2 - Cutting - Display: T101 (Milling 2)
+output-manager.js:862 Tool option: T102 - Milling 3 - Cutting - Display: T102 (Milling 3)
+output-manager.js:862 Tool option: T103 - Milling 4 - Cutting - Display: T103 (Milling 4)
+output-manager.js:862 Tool option: T104 - Milling 5 - Cutting - Display: T104 (Milling 5)
+output-manager.js:862 Tool option: T105 - Milling 6 - Cutting - Display: T105 (Milling 6)
+output-manager.js:862 Tool option: T106 - Milling 7 - Cutting - Display: T106 (Milling 7)
+output-manager.js:862 Tool option: T107 - Milling 8 - Cutting - Display: T107 (Milling 8)
+output-manager.js:862 Tool option: T109 - Milling 8 (Copy) - Cutting - Display: T109 (Milling 8 (Copy))
+output-manager.js:862 Tool option: T108 - Milling 8 (Copy) - Cutting - Display: T108 (Milling 8 (Copy))
+output-manager.js:862 Tool option: T33 - Nozzle Engrave - Cutting - Display: T33 (Nozzle Engrave)
+output-manager.js:862 Tool option: T35 - Piercing - Cutting - Display: T35 (Piercing)
+output-manager.js:851 Creating tool dropdown options. currentTools: Array(20)
+output-manager.js:852 Selected tool ID: T107
+output-manager.js:862 Tool option: T22 - Fine Cut - Cutting - Display: T22 (Fine Cut)
+output-manager.js:862 Tool option: T2 - 2pt CW - Cutting - Display: T2 (2pt CW)
+output-manager.js:862 Tool option: T3 - 3pt CW - Cutting - Display: T3 (3pt CW)
+output-manager.js:862 Tool option: T4 - 4pt CW - Cutting - Display: T4 (4pt CW)
+output-manager.js:862 Tool option: T20 - Fast Engrave - Cutting - Display: T20 (Fast Engrave)
+output-manager.js:862 Tool option: T12 - 2pt Puls - Cutting - Display: T12 (2pt Puls)
+output-manager.js:862 Tool option: T13 - 3pt Puls - Cutting - Display: T13 (3pt Puls)
+output-manager.js:862 Tool option: T14 - 4pt Puls - Cutting - Display: T14 (4pt Puls)
+output-manager.js:862 Tool option: T100 - Milling 1 - Cutting - Display: T100 (Milling 1)
+output-manager.js:862 Tool option: T101 - Milling 2 - Cutting - Display: T101 (Milling 2)
+output-manager.js:862 Tool option: T102 - Milling 3 - Cutting - Display: T102 (Milling 3)
+output-manager.js:862 Tool option: T103 - Milling 4 - Cutting - Display: T103 (Milling 4)
+output-manager.js:862 Tool option: T104 - Milling 5 - Cutting - Display: T104 (Milling 5)
+output-manager.js:862 Tool option: T105 - Milling 6 - Cutting - Display: T105 (Milling 6)
+output-manager.js:862 Tool option: T106 - Milling 7 - Cutting - Display: T106 (Milling 7)
+output-manager.js:862 Tool option: T107 - Milling 8 - Cutting - Display: T107 (Milling 8)
+output-manager.js:862 Tool option: T109 - Milling 8 (Copy) - Cutting - Display: T109 (Milling 8 (Copy))
+output-manager.js:862 Tool option: T108 - Milling 8 (Copy) - Cutting - Display: T108 (Milling 8 (Copy))
+output-manager.js:862 Tool option: T33 - Nozzle Engrave - Cutting - Display: T33 (Nozzle Engrave)
+output-manager.js:862 Tool option: T35 - Piercing - Cutting - Display: T35 (Piercing)
+output-manager.js:989 Loading cutting priority for profile: pts.xml
+output-manager.js:1010 Loaded priority order: 12 items
+output-manager.js:1011 Priority order details: Array(12)
+output-manager.js:1046 Available tools for display: Array(20)
+output-manager.js:1085 Looking for tool: T20 Found: Object
+output-manager.js:1085 Looking for tool: T33 Found: Object
+output-manager.js:1085 Looking for tool: T35 Found: Object
+output-manager.js:1085 Looking for tool: T2 Found: Object
+output-manager.js:1085 Looking for tool: T3 Found: Object
+output-manager.js:1085 Looking for tool: T4 Found: Object
+output-manager.js:1085 Looking for tool: T12 Found: Object
+output-manager.js:1085 Looking for tool: T13 Found: Object
+output-manager.js:1085 Looking for tool: T14 Found: Object
+output-manager.js:1085 Looking for tool: T22 Found: Object
+output-manager.js:1859 Updating DIN File Structure preview...
+output-manager.js:2047 DIN File Structure preview updated successfully
+output-manager.js:2218 Initializing structure interface...
+output-manager.js:2253 Loaded saved structure configuration: Object
+output-manager.js:2315 Populating elements containers...
+output-manager.js:2340 Added 6 header elements and 1 footer elements
+output-manager.js:2623 Setting up drag and drop...
+output-manager.js:2645 Drag and drop setup for headerElementsContainer
+output-manager.js:2645 Drag and drop setup for footerElementsContainer
+output-manager.js:1859 Updating DIN File Structure preview...
+output-manager.js:2047 DIN File Structure preview updated successfully
+output-manager.js:2235 Structure interface initialized successfully
+output-manager.js:1767 Switching to DIN File Structure tab - initializing structure interface...
+output-manager.js:1859 Updating DIN File Structure preview...
+output-manager.js:2047 DIN File Structure preview updated successfully
+output-manager.js:1774 Structure already initialized, updating preview...
+output-manager.js:1859 Updating DIN File Structure preview...
+output-manager.js:2047 DIN File Structure preview updated successfully
+output-manager.js:1859 Updating DIN File Structure preview...
+output-manager.js:2047 DIN File Structure preview updated successfully
+output-manager.js:1859 Updating DIN File Structure preview...
+output-manager.js:2047 DIN File Structure preview updated successfully
+output-manager.js:1859 Updating DIN File Structure preview...
+output-manager.js:2047 DIN File Structure preview updated successfully
+output-manager.js:1859 Updating DIN File Structure preview...
+output-manager.js:2047 DIN File Structure preview updated successfully
+output-manager.js:1859 Updating DIN File Structure preview...
+output-manager.js:2047 DIN File Structure preview updated successfully
+output-manager.js:2970 Selecting template: basic-header with elements: (4) ['Program Start Marker', 'File Information', 'Setup Commands', 'Home Command']
+output-manager.js:2998 Showing preview for template: Basic Header with elements: (4) ['Program Start Marker', 'File Information', 'Setup Commands', 'Home Command']
+output-manager.js:3009 Enabled elements for preview: (4) ['Program Start Marker', 'File Information', 'Setup Commands', 'Home Command']
+output-manager.js:2989 Selected template: Basic Header
+output-manager.js:1859 Updating DIN File Structure preview...
+output-manager.js:2047 DIN File Structure preview updated successfully
+output-manager.js:1859 Updating DIN File Structure preview...
+output-manager.js:2047 DIN File Structure preview updated successfully
+output-manager.js:1859 Updating DIN File Structure preview...
+output-manager.js:2047 DIN File Structure preview updated successfully
+output-manager.js:2970 Selecting template: imperial-header with elements: (7) ['Program Start Marker', 'File Information', 'Drawing Bounds', 'Operation Count', 'Scaling Commands', 'Setup Commands', 'Home Command']
+output-manager.js:2998 Showing preview for template: Imperial Header with elements: (7) ['Program Start Marker', 'File Information', 'Drawing Bounds', 'Operation Count', 'Scaling Commands', 'Setup Commands', 'Home Command']
+output-manager.js:3009 Enabled elements for preview: (6) ['Program Start Marker', 'File Information', 'Drawing Bounds', 'Operation Count', 'Setup Commands', 'Home Command']
+output-manager.js:2989 Selected template: Imperial Header
+output-manager.js:1859 Updating DIN File Structure preview...
+output-manager.js:2047 DIN File Structure preview updated successfully
+output-manager.js:1859 Updating DIN File Structure preview...
+output-manager.js:2047 DIN File Structure preview updated successfully
+output-manager.js:1859 Updating DIN File Structure preview...
+output-manager.js:2047 DIN File Structure preview updated successfully
+output-manager.js:1859 Updating DIN File Structure preview...
+output-manager.js:2047 DIN File Structure preview updated successfully
+output-manager.js:1859 Updating DIN File Structure preview...
+output-manager.js:2047 DIN File Structure preview updated successfully
+output-manager.js:1859 Updating DIN File Structure preview...
+output-manager.js:2047 DIN File Structure preview updated successfully
+output-manager.js:1859 Updating DIN File Structure preview...
+output-manager.js:2047 DIN File Structure preview updated successfully
+output-manager.js:1859 Updating DIN File Structure preview...
+output-manager.js:2047 DIN File Structure preview updated successfully
+output-manager.js:1859 Updating DIN File Structure preview...
+output-manager.js:2047 DIN File Structure preview updated successfully
+ Updating DIN File Structure preview...
+ DIN File Structure preview updated successfully

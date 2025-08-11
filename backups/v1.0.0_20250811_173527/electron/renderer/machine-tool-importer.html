@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Machine Tool Importer</title>
+    <link rel="stylesheet" href="machine-tool-importer.css">
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🛠️ Machine Tool Importer</h1>
+            <p>Import machine tool configurations from XML files</p>
+        </div>
+
+        <div class="import-section">
+            <div class="file-input-group">
+                <label for="xmlFile">Select Machine Tool XML File:</label>
+                <input type="file" id="xmlFile" accept=".xml" />
+                <button id="loadXmlBtn" class="btn btn-primary">Load XML</button>
+            </div>
+        </div>
+
+        <div class="preview-section" id="previewSection" style="display: none;">
+            <h2>📋 Tool Preview</h2>
+            <div class="stats-bar">
+                <span id="toolCount">0 tools found</span>
+                <span id="cuttingTools">0 cutting tools</span>
+                <span id="millingTools">0 milling tools</span>
+            </div>
+            
+            <div class="tools-grid" id="toolsGrid">
+                <!-- Tools will be populated here -->
+            </div>
+        </div>
+
+        <div class="import-options" id="importOptions" style="display: none;">
+            <h2>⚙️ Import Options</h2>
+            <div class="options-grid">
+                <div class="option-group">
+                    <label>
+                        <input type="checkbox" id="importCuttingTools" checked>
+                        Import Cutting Tools (Class 1)
+                    </label>
+                </div>
+                <div class="option-group">
+                    <label>
+                        <input type="checkbox" id="importMillingTools" checked>
+                        Import Milling Tools (Class 2)
+                    </label>
+                </div>
+            </div>
+            
+            <div class="import-mode-section">
+                <h3>Import Mode</h3>
+                <div class="import-mode-options">
+                    <div class="mode-option">
+                        <input type="radio" id="modeAddMissing" name="importMode" value="add_missing" checked>
+                        <label for="modeAddMissing">
+                            <div class="mode-title">Add Missing Only</div>
+                            <div class="mode-description">Only import tools that don't exist in the library</div>
+                        </label>
+                    </div>
+                    <div class="mode-option">
+                        <input type="radio" id="modeOverrideExisting" name="importMode" value="override_existing">
+                        <label for="modeOverrideExisting">
+                            <div class="mode-title">Override Existing</div>
+                            <div class="mode-description">Replace existing tools with same T number</div>
+                        </label>
+                    </div>
+                    <div class="mode-option">
+                        <input type="radio" id="modeReplaceAll" name="importMode" value="replace_all">
+                        <label for="modeReplaceAll">
+                            <div class="mode-title">Replace Entire Library</div>
+                            <div class="mode-description">Replace all tools in the library (⚠️ Destructive)</div>
+                        </label>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="import-actions">
+                <button id="importToolsBtn" class="btn btn-success">Import Selected Tools</button>
+                <button id="cancelImportBtn" class="btn btn-secondary">Cancel</button>
+            </div>
+        </div>
+
+        <div class="console-section">
+            <div class="console-header">
+                <h3>📝 Import Log</h3>
+                <button id="clearConsoleBtn" class="btn btn-small">Clear</button>
+            </div>
+            <div class="console-content" id="consoleContent">
+                <div class="console-message info">Ready to import machine tools...</div>
+            </div>
+        </div>
+    </div>
+
+    <script src="machine-tool-importer.js"></script>
+    <script>
+        console.log('Machine Tool Importer HTML loaded with cache-bust:', new URLSearchParams(window.location.search).get('cache'));
+    </script>
+</body>
+</html> 

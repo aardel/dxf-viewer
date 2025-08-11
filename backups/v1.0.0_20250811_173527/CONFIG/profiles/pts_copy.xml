@@ -1,0 +1,179 @@
+<?xml version="1.0" encoding="UTF-8"?>
+    <PostprocessorProfile>
+        <ProfileInfo>
+            <Name>PTS Copy
+            </Name>
+            <Description>Copy of PTS
+            </Description>
+            <Version>1.0
+            </Version>
+            <Created>2025-08-11
+            </Created>
+            <LastModified>2025-08-11
+            </LastModified>
+            <Author>Aaron Delia
+            </Author>
+        </ProfileInfo>
+        <MachineSettings>
+            <Type>metric
+            </Type>
+            <Units>mm
+            </Units>
+            <FeedInchMachine>false
+            </FeedInchMachine>
+            <ScalingHeader>
+                <Enabled>true
+                </Enabled>
+                <Parameter>:P2027=25.4/P674
+                </Parameter>
+                <ScaleCommand>G75 X=P2027 Y=P2027
+                </ScaleCommand>
+                <Comment>Metric scaling for inch machine
+                </Comment>
+            </ScalingHeader>
+        </MachineSettings>
+        <Tools>
+            <Tool ID="T22" Name="Fine Cut" Description="Cutting" Width="1" HCode="H22"/>
+            <Tool ID="T2" Name="2pt CW" Description="Cutting" Width="1" HCode="H2"/>
+            <Tool ID="T3" Name="3pt CW" Description="Cutting" Width="1" HCode="H3"/>
+            <Tool ID="T4" Name="4pt CW" Description="Cutting" Width="1" HCode="H4"/>
+            <Tool ID="T20" Name="Fast Engrave" Description="Cutting" Width="1" HCode="H20"/>
+            <Tool ID="T12" Name="2pt Puls" Description="Cutting" Width="1" HCode="H12"/>
+            <Tool ID="T13" Name="3pt Puls" Description="Cutting" Width="1" HCode="H13"/>
+            <Tool ID="T14" Name="4pt Puls" Description="Cutting" Width="1" HCode="H14"/>
+            <Tool ID="T100" Name="Milling 1" Description="Cutting" Width="1" HCode="H100"/>
+            <Tool ID="T101" Name="Milling 2" Description="Cutting" Width="1" HCode="H101"/>
+            <Tool ID="T102" Name="Milling 3" Description="Cutting" Width="1" HCode="H102"/>
+            <Tool ID="T103" Name="Milling 4" Description="Cutting" Width="1" HCode="H103"/>
+            <Tool ID="T104" Name="Milling 5" Description="Cutting" Width="1" HCode="H104"/>
+            <Tool ID="T105" Name="Milling 6" Description="Cutting" Width="1" HCode="H105"/>
+            <Tool ID="T106" Name="Milling 7" Description="Cutting" Width="1" HCode="H106"/>
+            <Tool ID="T107" Name="Milling 8" Description="Cutting" Width="1" HCode="H107"/>
+            <Tool ID="T33" Name="Nozzle Engrave" Description="Cutting" Width="1" HCode="H33"/>
+            <Tool ID="T35" Name="Piercing" Description="Cutting" Width="1" HCode="H40"/>
+            <Tool ID="T108" Name="dfsd" Description="sdfsd" Width="1" HCode="H108"/>
+        </Tools>
+        <Header>
+            <Template>{filename} / - size: {width} x {height} / {timestamp}
+            </Template>
+            <IncludeFileInfo>true
+            </IncludeFileInfo>
+            <IncludeBounds>true
+            </IncludeBounds>
+            <IncludeSetCount>true
+            </IncludeSetCount>
+            <IncludeProgramStart>true
+            </IncludeProgramStart>
+            <ProgramStart>%1
+            </ProgramStart>
+            <SetupCommands>
+                <Command>G90
+                </Command>
+                <Command>G60 X0
+                </Command>
+                <Command>G0 X0 Y0
+                </Command>
+            </SetupCommands>
+        </Header>
+        <Optimization>
+            <PrimaryStrategy>tool_grouped
+            </PrimaryStrategy>
+            <WithinGroupOptimization>closest_path
+            </WithinGroupOptimization>
+            <IncludeComments>true
+            </IncludeComments>
+            <ValidateWidths>true
+            </ValidateWidths>
+            <RespectManualBreaks>true
+            </RespectManualBreaks>
+            <Priority mode="tool">
+                <Mode>tool
+                </Mode>
+                <PriorityItem order="1" value="T20"/>
+                <PriorityItem order="2" value="T33"/>
+                <PriorityItem order="3" value="T35"/>
+                <PriorityItem order="4" value="__LINE_BREAK__"/>
+                <PriorityItem order="5" value="T2"/>
+                <PriorityItem order="6" value="T3"/>
+                <PriorityItem order="7" value="T4"/>
+                <PriorityItem order="8" value="T12"/>
+                <PriorityItem order="9" value="T13"/>
+                <PriorityItem order="10" value="T14"/>
+                <PriorityItem order="11" value="__LINE_BREAK__"/>
+                <PriorityItem order="12" value="T22"/>
+            </Priority>
+        </Optimization>
+        <GCode>
+            <RapidMove>G0
+            </RapidMove>
+            <LinearMove>G1
+            </LinearMove>
+            <CwArc>G2
+            </CwArc>
+            <CcwArc>G3
+            </CcwArc>
+            <HomeCommand>G0 X0 Y0
+            </HomeCommand>
+            <ProgramEnd>G99
+            </ProgramEnd>
+        </GCode>
+        <Laser>
+            <LaserOn>M14
+            </LaserOn>
+            <LaserOff>M15
+            </LaserOff>
+            <ToolChange>M6
+            </ToolChange>
+            <Comments>
+                <Enabled>true
+                </Enabled>
+                <OnCommand>LASER ON
+                </OnCommand>
+                <OffCommand>LASER OFF
+                </OffCommand>
+                <ToolChange>Tool change: {tool_name} ({tool_id})
+                </ToolChange>
+            </Comments>
+        </Laser>
+        <LineNumbers>
+            <Enabled>true
+            </Enabled>
+            <StartNumber>10
+            </StartNumber>
+            <Increment>1
+            </Increment>
+            <Format>N{number}
+            </Format>
+        </LineNumbers>
+        <OutputSettings>
+            <DefaultSavePath>/Users/aarondelia/Downloads
+            </DefaultSavePath>
+            <FilenameFormat>{original_name}.din
+            </FilenameFormat>
+            <AutoSaveEnabled>true
+            </AutoSaveEnabled>
+        </OutputSettings>
+        <MappingWorkflow>
+            <LineTypeToTool>
+                <LineTypeMapping LineType="2pt CW" Tool="T2"/>
+                <LineTypeMapping LineType="3pt CW" Tool="T3"/>
+                <LineTypeMapping LineType="4pt CW" Tool="T4"/>
+                <LineTypeMapping LineType="2pt Puls" Tool="T12"/>
+                <LineTypeMapping LineType="3pt Puls" Tool="T13"/>
+                <LineTypeMapping LineType="4pt Puls" Tool="T14"/>
+                <LineTypeMapping LineType="Fast Engrave" Tool="T20"/>
+                <LineTypeMapping LineType="Fine Cut Pulse" Tool="T22"/>
+                <LineTypeMapping LineType="Fine Cut CW" Tool="T22"/>
+                <LineTypeMapping LineType="Nozzle Engrave" Tool="T33"/>
+                <LineTypeMapping LineType="Engrave" Tool="T22"/>
+                <LineTypeMapping LineType="Milling 1" Tool="T100"/>
+                <LineTypeMapping LineType="Milling 2" Tool="T101"/>
+                <LineTypeMapping LineType="Milling 3" Tool="T102"/>
+                <LineTypeMapping LineType="Milling 4" Tool="T103"/>
+                <LineTypeMapping LineType="Milling 5" Tool="T104"/>
+                <LineTypeMapping LineType="Milling 6" Tool="T105"/>
+                <LineTypeMapping LineType="Milling 7" Tool="T106"/>
+                <LineTypeMapping LineType="Milling 8" Tool="T107"/>
+            </LineTypeToTool>
+        </MappingWorkflow>
+    </PostprocessorProfile>

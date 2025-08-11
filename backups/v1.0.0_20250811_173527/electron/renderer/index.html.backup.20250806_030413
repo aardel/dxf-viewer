@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Lasercomb DXF Studio</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="header">
+        <div class="header-left">
+            <button class="btn btn-primary" id="openBtn">Open DXF File</button>
+            <div id="fileInfo" class="file-info hidden">
+                <div class="file-name" id="fileName">147926.dxf</div>
+                <div class="file-size" id="fileSize">81.12 kB</div>
+            </div>
+        </div>
+        <div class="header-right">
+            <div class="app-title">Lasercomb DXF Studio</div>
+            <div class="app-version">V1.0.0</div>
+        </div>
+        <div class="controls">
+            <button class="btn btn-secondary" id="clearBtn">Clear</button>
+            <button class="btn btn-secondary" id="fitBtn">Fit to View</button>
+            <button class="btn btn-secondary" id="togglePanelBtn">
+                <span id="panelToggleIcon">◀</span>
+            </button>
+        </div>
+    </div>
+    
+    <div class="main-content">
+        <div class="viewer-container">
+            <div id="viewer"></div>
+            <div class="background-color-slider">
+                <label for="bgColorSlider" class="slider-label">Background</label>
+                <input type="range" id="bgColorSlider" class="bg-slider" min="0" max="100" value="95">
+                <div class="slider-colors">
+                    <span class="color-indicator black">⚫</span>
+                    <span class="color-indicator white">⚪</span>
+                </div>
+            </div>
+            <div class="canvas-controls">
+                <div class="control-grid">
+                    <!-- First row: +, up, - -->
+                    <button id="zoomInBtn" class="control-btn zoom-btn" title="Zoom In">
+                        <span>+</span>
+                    </button>
+                    <button id="panUpBtn" class="control-btn pan-btn" title="Pan Up">
+                        <span>↑</span>
+                    </button>
+                    <button id="zoomOutBtn" class="control-btn zoom-btn" title="Zoom Out">
+                        <span>−</span>
+                    </button>
+                    
+                    <!-- Second row: left, fit, right -->
+                    <button id="panLeftBtn" class="control-btn pan-btn" title="Pan Left">
+                        <span>←</span>
+                    </button>
+                    <button id="fitToViewBtn" class="control-btn fit-btn" title="Fit to View">
+                        <span>⌂</span>
+                    </button>
+                    <button id="panRightBtn" class="control-btn pan-btn" title="Pan Right">
+                        <span>→</span>
+                    </button>
+                    
+                    <!-- Third row: empty, down, empty -->
+                    <div class="empty-slot"></div>
+                    <button id="panDownBtn" class="control-btn pan-btn" title="Pan Down">
+                        <span>↓</span>
+                    </button>
+                    <div class="empty-slot"></div>
+                </div>
+            </div>
+            <div id="dropZone" class="drop-zone">
+                <div class="drop-content">
+                    <div class="drop-icon">📁</div>
+                    <div class="drop-text">Drop DXF file here</div>
+                    <div class="drop-subtext">or use File → Open DXF File</div>
+                </div>
+            </div>
+            <div id="loading" class="loading">
+                <div class="spinner"></div>
+                <div>Loading DXF file...</div>
+            </div>
+            <div id="status" class="status">Ready - Open a DXF file to begin</div>
+        </div>
+        
+        <div id="sidePanel" class="side-panel">
+            <div class="resize-handle" id="resizeHandle"></div>
+            <div class="panel-header">
+                <h3>Import</h3>
+            </div>
+            <div class="panel-content">
+                <div id="importTab" class="tab-content active">
+                    <div id="layerTable" class="layer-table">
+                        <div class="no-file">
+                            Load a DXF file to view layers
+                        </div>
+                    </div>
+                    <div id="drawingInfo" class="drawing-info" style="display: none;">
+                        <div class="info-item">
+                            <span class="info-label">Drawing Size:</span>
+                            <span id="drawingDimensions" class="info-value">N/A</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">Units:</span>
+                            <span id="drawingUnits" class="info-value">N/A</span>
+                        </div>
+                    </div>
+
+                </div>
+                <div id="outputTab" class="tab-content">
+                    <div class="output-content">
+                        <h4>DIN Postprocessor</h4>
+                        
+                        <!-- Postprocessor Profile Selection -->
+                        <div class="settings-section">
+                            <h5>Active Profile</h5>
+                            <div class="profile-selection">
+                                <select id="postprocessorProfile" class="form-select">
+                                    <option value="default_metric">Default Metric</option>
+                                    <option value="default_inch">Default Inch (with scaling)</option>
+                                    <option value="custom">Custom Profile...</option>
+                                </select>
+                                <div class="profile-actions">
+                                    <button class="btn btn-primary btn-small" id="createProfileBtn">+ New</button>
+                                    <button class="btn btn-secondary btn-small" id="copyProfileBtn">Copy</button>
+                                    <button class="btn btn-secondary btn-small" id="editProfileBtn">Edit</button>
+                                    <button class="btn btn-secondary btn-small" id="refreshProfileBtn">🔄 Refresh</button>
+                                    <button class="btn btn-danger btn-small" id="deleteProfileBtn">Delete</button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Quick Configuration -->
+                        <div class="settings-section">
+                            <h5>Quick Configuration</h5>
+                            <div class="config-shortcuts">
+                                <button class="btn btn-primary config-btn" id="openToolConfigBtn">
+                                    <span class="config-icon">🔧</span>
+                                    <div class="config-text">
+                                        <div class="config-title">Tool Configuration</div>
+                                        <div class="config-desc">Manage tools (T1, T2, T3) and cutting parameters</div>
+                                    </div>
+                                </button>
+                                
+                                <button class="btn btn-primary config-btn" id="openMappingConfigBtn">
+                                    <span class="config-icon">🎯</span>
+                                    <div class="config-text">
+                                        <div class="config-title">Line Type Mapping</div>
+                                        <div class="config-desc">Map DXF layers/colors to machine tools</div>
+                                    </div>
+                                </button>
+                                
+                                <button class="btn btn-primary config-btn" id="openHeaderConfigBtn">
+                                    <span class="config-icon">📋</span>
+                                    <div class="config-text">
+                                        <div class="config-title">Header & Footer Config</div>
+                                        <div class="config-desc">Configure DIN file headers, line numbers, and program end</div>
+                                    </div>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Optimization Strategy -->
+                        <div class="settings-section">
+                            <h5>Cutting Optimization</h5>
+                            <div class="optimization-settings">
+                                <div class="setting-row">
+                                    <label for="primaryStrategy">Primary Strategy:</label>
+                                    <select id="primaryStrategy" class="form-select">
+                                        <option value="tool_grouped">Group by Tool (Minimize tool changes)</option>
+                                        <option value="priority_order">Priority Order (Follow cutting sequence)</option>
+                                    </select>
+                                </div>
+                                
+                                <div class="setting-row">
+                                    <label for="withinGroupOptimization">Path Optimization:</label>
+                                    <select id="withinGroupOptimization" class="form-select">
+                                        <option value="closest_path">Closest Path First</option>
+                                        <option value="zigzag_horizontal">Zig-Zag Horizontal</option>
+                                        <option value="zigzag_vertical">Zig-Zag Vertical</option>
+                                        <option value="spiral_out">Spiral Outward</option>
+                                        <option value="spiral_in">Spiral Inward</option>
+                                        <option value="left_to_right">Left to Right</option>
+                                        <option value="bottom_to_top">Bottom to Top</option>
+                                        <option value="no_optimization">No Optimization</option>
+                                    </select>
+                                </div>
+                                
+                                <div class="optimization-options">
+                                    <label>
+                                        <input type="checkbox" id="includeComments" checked>
+                                        Include operation comments in DIN file
+                                    </label>
+                                    <label>
+                                        <input type="checkbox" id="validateWidths" checked>
+                                        Validate cutting widths vs tool capabilities
+                                    </label>
+                                    <label>
+                                        <input type="checkbox" id="respectManualBreaks" checked>
+                                        Respect manual priority breaks
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- File Output Settings -->
+                        <div class="settings-section">
+                            <h5>File Output Settings</h5>
+                            <p>Configure default save location and filename formatting for generated DIN files.</p>
+                            
+                            <div class="output-settings">
+                                <div class="output-setting-group">
+                                    <label for="defaultSavePath">Default Save Location:</label>
+                                    <div class="path-input-group">
+                                        <textarea id="defaultSavePath" class="form-textarea path-textarea" placeholder="No default path set" readonly rows="2"></textarea>
+                                        <div class="path-buttons">
+                                            <button id="browseSavePathBtn" class="btn btn-secondary">Browse</button>
+                                            <button id="clearSavePathBtn" class="btn btn-tertiary">Clear</button>
+                                        </div>
+                                    </div>
+                                    <div class="setting-help">When no path is set, a save dialog will open for each file.</div>
+                                </div>
+                                
+                                <div class="output-setting-group">
+                                    <label for="filenameFormat">Filename Format:</label>
+                                    <input type="text" id="filenameFormat" class="form-input" value="{original_name}.din" placeholder="e.g., {original_name}.din">
+                                    <div class="setting-help">
+                                        Available variables: {original_name}, {date}, {time}, {timestamp}, {width}, {height}
+                                    </div>
+                                </div>
+                                
+                                <div class="output-setting-group">
+                                    <label>
+                                        <input type="checkbox" id="autoSaveEnabled" checked>
+                                        Auto-save to default location (skip dialog)
+                                    </label>
+                                    <div class="setting-help">When enabled, files will be saved directly to the default location without showing a dialog.</div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Generation Actions -->
+                        <div class="generation-section">
+                            <div class="generation-status" id="generationStatus">
+                                <div class="status-text">Ready to generate DIN file</div>
+                                <div class="status-details" id="statusDetails">Load a DXF file and configure settings above</div>
+                            </div>
+                            <div class="generation-actions">
+                                <button id="previewDinBtn" class="btn btn-secondary btn-large">
+                                    <span>👁️</span> Preview DIN
+                                </button>
+                                <button id="generateDinBtn" class="btn btn-primary btn-large">
+                                    <span>💾</span> Generate DIN File
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div id="settingsTab" class="tab-content">
+                    <div class="settings-content">
+                        <h4>Application Settings</h4>
+                        <div class="settings-section">
+                            <h5>Startup Options</h5>
+                            <label>
+                                <input type="checkbox" id="showConfigIssuesOnStartup" checked>
+                                Show configuration issues window at startup
+                            </label>
+                        </div>
+                        
+                        <div class="settings-section">
+                            <h5>Display Units</h5>
+                            <p>Override DXF units and display dimensions in your preferred units.</p>
+                            <div class="unit-selector">
+                                <label for="unitOverride">Display units:</label>
+                                <select id="unitOverride" class="form-select">
+                                    <option value="auto">Auto (Use DXF units)</option>
+                                    <option value="mm">Millimeters (mm)</option>
+                                    <option value="cm">Centimeters (cm)</option>
+                                    <option value="m">Meters (m)</option>
+                                    <option value="in">Inches (in)</option>
+                                    <option value="ft">Feet (ft)</option>
+                                </select>
+                            </div>
+                            
+                            <div class="scaling-selector">
+                                <label class="scaling-label">Scaling factor:</label>
+                                <p class="scaling-description">Apply scaling when DXF was exported with incorrect scale.</p>
+                                <select id="scalingDropdown" class="form-select">
+                                    <option value="1">1:1 (No scaling)</option>
+                                    <option value="2">2:1 (×2)</option>
+                                    <option value="5">5:1 (×5)</option>
+                                    <option value="10">10:1 (×10)</option>
+                                    <option value="20">20:1 (×20)</option>
+                                    <option value="50">50:1 (×50)</option>
+                                    <option value="100">100:1 (×100)</option>
+                                    <option value="0.5">1:2 (÷2)</option>
+                                    <option value="0.2">1:5 (÷5)</option>
+                                    <option value="0.1">1:10 (÷10)</option>
+                                    <option value="0.05">1:20 (÷20)</option>
+                                    <option value="0.02">1:50 (÷50)</option>
+                                    <option value="0.01">1:100 (÷100)</option>
+                                    <option value="custom">Custom...</option>
+                                </select>
+                                
+                                <!-- Custom scaling input container -->
+                                <div id="customScalingContainer" class="custom-scaling-container" style="display: none;">
+                                    <div class="custom-scaling-input-group">
+                                        <label for="customScalingInput">Enter custom scaling factor:</label>
+                                        <input type="number" id="customScalingInput" class="form-input" step="0.001" min="0.001" max="1000" placeholder="e.g., 1.5, 25, 0.75">
+                                        <div class="custom-scaling-help">
+                                            Examples: 1.5 (×1.5), 25 (×25), 0.75 (÷1.33)
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="custom-scaling-buttons">
+                                        <button id="applyCustomScaling" class="btn btn-small btn-primary">Apply</button>
+                                        <button id="saveCustomScaling" class="btn btn-small btn-secondary">Save to List</button>
+                                        <button id="cancelCustomScaling" class="btn btn-small btn-tertiary">Cancel</button>
+                                    </div>
+                                    
+                                    <div id="customScalingError" class="custom-scaling-error" style="display: none;">
+                                        Please enter a valid number between 0.001 and 1000
+                                    </div>
+                                </div>
+                                
+                                <!-- Overall Size Display -->
+                                <div id="overallSizeInfo" class="overall-size-info" style="display: none;">
+                                    <label class="size-label">Overall Size:</label>
+                                    <div id="overallDimensions" class="size-value">N/A</div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="settings-section">
+                            <h5>Line Types Management</h5>
+                            <p>Configure and manage internal line types for processing.</p>
+                            <div class="button-group">
+                                <button class="btn btn-primary" id="lineTypesBtn">Manage Line Types</button>
+                            </div>
+                        </div>
+                        
+                        <div class="settings-section">
+                            <h5>Import Filters</h5>
+                            <p>Manage the global import filter for all DXF files.</p>
+                            <div class="button-group">
+                                <button class="btn btn-primary" id="globalFilterManagerBtn">Global Filter Manager</button>
+                            </div>
+                        </div>
+                        
+                        <div class="settings-section">
+                            <h5>Configuration Validation</h5>
+                            <p>Check for configuration inconsistencies and fix them automatically.</p>
+                            <div class="button-group">
+                                <button class="btn btn-warning" id="validateConfigBtn">🔍 Validate Configuration</button>
+                            </div>
+                        </div>
+                        
+                        <div class="settings-section">
+                            <h5>Machine Tools</h5>
+                            <p>Import machine tool configurations from XML files to expand your tool library.</p>
+                            <div class="button-group">
+                                <button class="btn btn-primary" id="machineToolImporterBtn">Import Machine Tools</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="panel-tabs">
+                <button class="tab-button active" data-tab="import">Import</button>
+                <button class="tab-button" data-tab="output">Output</button>
+                <button class="tab-button" data-tab="settings">Settings</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Profile Name Modal -->
+    <div id="profileModal" class="modal hidden">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Save Layer Mapping Profile</h3>
+                <button class="modal-close" id="modalClose">&times;</button>
+            </div>
+            <div class="modal-body">
+                <label for="profileNameInput">Profile Name:</label>
+                <input type="text" id="profileNameInput" placeholder="Enter profile name..." />
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" id="modalCancel">Cancel</button>
+                <button class="btn btn-primary" id="modalSave">Save</button>
+            </div>
+        </div>
+    </div>
+
+    <script type="importmap">
+    {
+        "imports": {
+            "three": "../../node_modules/three/build/three.module.js",
+            "three/": "../../node_modules/three/",
+            "loglevel": "../../loglevel-wrapper.js",
+            "opentype.js": "../../node_modules/opentype.js/dist/opentype.module.js",
+            "earcut": "../../node_modules/earcut/src/earcut.js"
+        }
+    }
+    </script>
+    <script type="module" src="renderer.js"></script>
+</body>
+</html>

@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Layer Mapping Wizard</title>
+    <link rel="stylesheet" href="mapping-wizard.css">
+</head>
+<body>
+    <div class="wizard-container">
+        <div class="wizard-header">
+            <h1>Layer Mapping Wizard</h1>
+            <p class="wizard-subtitle">Map new layers to line types and tools</p>
+        </div>
+
+        <div class="wizard-progress">
+            <div class="progress-step active" data-step="1">
+                <span class="step-number">1</span>
+                <span class="step-label">Select Layers</span>
+            </div>
+            <div class="progress-step" data-step="2">
+                <span class="step-number">2</span>
+                <span class="step-label">Choose Line Types</span>
+            </div>
+            <div class="progress-step" data-step="3">
+                <span class="step-number">3</span>
+                <span class="step-label">Assign Tools</span>
+            </div>
+            <div class="progress-step" data-step="4">
+                <span class="step-number">4</span>
+                <span class="step-label">Review & Save</span>
+            </div>
+        </div>
+
+        <div class="wizard-content">
+            <!-- Step 1: Select Layers -->
+            <div class="wizard-step active" id="step-1">
+                <h2>Step 1: Select Layers to Map</h2>
+                <p>Choose which layers need mapping rules. These layers were not found in the global import filter.</p>
+                
+                <div class="layers-selection">
+                    <div class="selection-controls">
+                        <button class="btn btn-secondary" id="selectAllBtn">Select All</button>
+                        <button class="btn btn-secondary" id="deselectAllBtn">Deselect All</button>
+                        <button class="btn btn-secondary" id="selectByColorBtn">Select by Color</button>
+                    </div>
+                    
+                    <div class="layers-list" id="layersList">
+                        <!-- Layers will be populated here -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Step 2: Choose Line Types -->
+            <div class="wizard-step" id="step-2">
+                <h2>Step 2: Choose Line Types</h2>
+                <p>Select the appropriate line type for each layer. Line types define how the geometry will be processed.</p>
+                
+                <div class="line-types-selection">
+                    <div class="line-types-grid" id="lineTypesGrid">
+                        <!-- Line types will be populated here -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Step 3: Assign Tools -->
+            <div class="wizard-step" id="step-3">
+                <h2>Step 3: Assign Tools</h2>
+                <p>Choose the appropriate tool for each line type. Tools define the cutting/engraving parameters.</p>
+                
+                <div class="tools-selection">
+                    <div class="tools-grid" id="toolsGrid">
+                        <!-- Tools will be populated here -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Step 4: Review & Save -->
+            <div class="wizard-step" id="step-4">
+                <h2>Step 4: Review & Save</h2>
+                <p>Review your mapping choices and save them to the global import filter.</p>
+                
+                <div class="mapping-summary">
+                    <div class="summary-table" id="mappingSummary">
+                        <!-- Mapping summary will be populated here -->
+                    </div>
+                </div>
+                
+                <div class="save-options">
+                    <label class="checkbox-container">
+                        <input type="checkbox" id="saveToGlobalFilter" checked>
+                        <span class="checkmark"></span>
+                        Save to Global Import Filter
+                    </label>
+                    <label class="checkbox-container">
+                        <input type="checkbox" id="createFileSpecificMappings">
+                        <span class="checkmark"></span>
+                        Create File-Specific Mappings
+                    </label>
+                </div>
+            </div>
+        </div>
+
+        <div class="wizard-footer">
+            <button class="btn btn-secondary" id="backBtn" disabled>Back</button>
+            <button class="btn btn-primary" id="nextBtn">Next</button>
+            <button class="btn btn-success" id="finishBtn" style="display: none;">Finish</button>
+            <button class="btn btn-tertiary" id="cancelBtn">Cancel</button>
+        </div>
+    </div>
+
+    <!-- Color Selection Modal -->
+    <div id="colorSelectionModal" class="modal hidden">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Select by Color</h3>
+                <button class="modal-close" id="colorModalClose">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p>Select layers by their color:</p>
+                <div class="color-options" id="colorOptions">
+                    <!-- Color options will be populated here -->
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" id="colorModalCancel">Cancel</button>
+                <button class="btn btn-primary" id="colorModalApply">Apply</button>
+            </div>
+        </div>
+    </div>
+
+    <script type="module" src="mapping-wizard.js"></script>
+</body>
+</html> 
