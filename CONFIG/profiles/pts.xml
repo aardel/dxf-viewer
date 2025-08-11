@@ -54,9 +54,6 @@
             <Tool ID="T107" Name="Milling 8" Description="Cutting" Width="1" HCode="H107"/>
             <Tool ID="T33" Name="Nozzle Engrave" Description="Cutting" Width="1" HCode="H33"/>
             <Tool ID="T35" Name="Piercing" Description="Cutting" Width="1" HCode="H40"/>
-            <Tool ID="T108" Name="dfsd" Description="sdfsd" Width="1" HCode="H108"/>
-            <Tool ID="T109" Name="hgdhgd" Description="ghdfgh" Width="1" HCode="H109"/>
-            <Tool ID="T43" Name="Fine Cutdfd" Description="Cutting" Width="1" HCode="H25"/>
         </Tools>
         <Header>
             <Template>{filename} / - size: {width} x {height} / {timestamp}

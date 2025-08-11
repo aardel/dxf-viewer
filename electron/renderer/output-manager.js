@@ -438,7 +438,7 @@ function sortTable(column) {
 //     // This function is no longer used since we validate on save
 // }
 
-function deleteMainTool(index) {
+async function deleteMainTool(index) {
     try {
         if (index >= 0 && index < currentTools.length) {
             const toolToDelete = currentTools[index];
@@ -447,7 +447,10 @@ function deleteMainTool(index) {
             if (confirmDelete) {
                 currentTools.splice(index, 1);
                 populateMainToolsTable();
-                showToolsStatus(`✅ Tool "${toolToDelete.name}" deleted successfully!`, 'success');
+                showToolsStatus(`✅ Tool "${toolToDelete.name}" deleted successfully! Saving changes...`, 'success');
+                
+                // Automatically save the changes after deletion
+                await saveMainTools();
             }
         } else {
             showToolsStatus('❌ Invalid tool index for deletion', 'error');
@@ -458,7 +461,7 @@ function deleteMainTool(index) {
     }
 }
 
-function addNewMainTool() {
+async function addNewMainTool() {
     try {
         // Find the highest existing ID to generate a new unique ID
         const existingIds = currentTools.map(tool => {
