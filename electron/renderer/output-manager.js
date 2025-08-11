@@ -732,7 +732,7 @@ function createMappingTableRow(mapping, index) {
                 <div>
                     <div>${mapping.lineTypeName || 'Unknown'}</div>
                     <div class="line-type-details">
-                        ${operationType} • ${lineWidth}mm width
+                        ${operationType}
                     </div>
                 </div>
             </div>
@@ -768,7 +768,7 @@ function createToolDropdownOptions(selectedToolId) {
     
     return currentTools.map(tool => {
         const selected = tool.id === selectedToolId ? 'selected' : '';
-        const displayName = `${tool.id} (${tool.width || 0}mm - ${tool.name || tool.description || 'No description'})`;
+        const displayName = `${tool.id} (${tool.name || tool.description || 'No description'})`;
         console.log(`Tool option: ${tool.id} - ${tool.name} - ${tool.description} - Display: ${displayName}`);
         return `<option value="${tool.id}" ${selected}>${displayName}</option>`;
     }).join('');
