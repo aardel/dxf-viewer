@@ -3429,7 +3429,7 @@ function getDefaultLineTypeMappings() {
 
 function parseToolsFromProfile(profileContent) {
     try {
-        // Parse tools from the new attribute-based XML structure
+        // Parse tools from XML structure - support both attribute-based and child element formats
         const parser = new DOMParser();
         const xmlDoc = parser.parseFromString(profileContent, 'text/xml');
         
@@ -3449,12 +3449,39 @@ function parseToolsFromProfile(profileContent) {
             const toolId = tool.getAttribute('ID');
             
             if (toolId) {
+                // Try to get values from attributes first (new format)
+                let name = tool.getAttribute('Name');
+                let description = tool.getAttribute('Description');
+                let width = parseFloat(tool.getAttribute('Width')) || 0;
+                let hCode = tool.getAttribute('HCode');
+                
+                // If attributes are null/empty, try child elements (old format)
+                if (!name || name === 'null') {
+                    const nameElement = tool.getElementsByTagName('Name')[0];
+                    name = nameElement ? nameElement.textContent.trim() : '';
+                }
+                
+                if (!description || description === 'null') {
+                    const descElement = tool.getElementsByTagName('Description')[0];
+                    description = descElement ? descElement.textContent.trim() : '';
+                }
+                
+                if (!width || width === 0) {
+                    const widthElement = tool.getElementsByTagName('Width')[0];
+                    width = widthElement ? parseFloat(widthElement.textContent.trim()) || 0 : 0;
+                }
+                
+                if (!hCode || hCode === 'null') {
+                    const hCodeElement = tool.getElementsByTagName('HCode')[0];
+                    hCode = hCodeElement ? hCodeElement.textContent.trim() : '';
+                }
+                
                 tools[toolId] = {
                     id: toolId,
-                    name: tool.getAttribute('Name'),
-                    description: tool.getAttribute('Description'),
-                    width: parseFloat(tool.getAttribute('Width')) || 0,
-                    hCode: tool.getAttribute('HCode'),
+                    name: name,
+                    description: description,
+                    width: width,
+                    hCode: hCode,
                     type: 'cut' // Default type
                 };
                 console.log(`Parsed tool ${toolId}:`, tools[toolId]);
