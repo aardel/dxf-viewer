@@ -3699,6 +3699,16 @@ document.querySelectorAll('.tab-button').forEach(button => {
                     panelHeader.textContent = 'Import';
             }
         }
+        
+        // Show/hide import controls based on active tab
+        const importControls = document.querySelector('.import-controls');
+        if (importControls) {
+            if (targetTab === 'import') {
+                importControls.style.display = 'flex';
+            } else {
+                importControls.style.display = 'none';
+            }
+        }
     });
 });
 
@@ -3843,6 +3853,12 @@ window.addEventListener('load', async () => {
         setTimeout(() => {
             initDragAndDrop();
         }, 200);
+        
+        // Initialize import controls visibility (show by default since import tab is active)
+        const importControls = document.querySelector('.import-controls');
+        if (importControls) {
+            importControls.style.display = 'flex';
+        }
 
         // --- Startup Config Issues Checkbox Logic ---
         const configCheckbox = document.getElementById('showConfigIssuesOnStartup');

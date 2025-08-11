@@ -295,6 +295,13 @@ body {
     box-shadow: 0 2px 4px rgba(0,0,0,0.2);
 }
 
+/* Import controls styling */
+.import-controls {
+    background: linear-gradient(135deg, #3a3a3a 0%, #333 100%);
+    border-bottom: 1px solid #444;
+    box-shadow: inset 0 1px 3px rgba(0,0,0,0.2);
+}
+
 /* Ensure Group by Pt label and checkbox are inline and not stacked */
 label.group-by-pt {
     display: inline-flex;
@@ -302,6 +309,9 @@ label.group-by-pt {
     gap: 6px;
     margin: 0;
     white-space: nowrap;
+    color: #ffffff;
+    font-size: 0.9rem;
+    font-weight: 500;
 }
 label.group-by-pt input[type="checkbox"] {
     margin: 0;

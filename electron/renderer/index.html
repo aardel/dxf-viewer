@@ -106,15 +106,15 @@
             <div class="resize-handle" id="resizeHandle"></div>
             <div class="panel-header" style="display:flex; align-items:center; justify-content:space-between; gap:8px;">
                 <h3 style="margin:0;">Import</h3>
-                <div class="panel-actions" style="display:flex; align-items:center; gap:10px;">
-                    <label class="group-by-pt" title="Collapse rows by pointage (DDS/CFF2)">
-                        <input type="checkbox" id="groupByPtToggle"><span>Group by Pt</span>
-                    </label>
-                    <button class="btn btn-secondary btn-small" id="openGlobalFilterShortcut" title="Open Global Mapping Manager">↗</button>
-                </div>
             </div>
             <div class="panel-content" style="display:flex; flex-direction:column; height:100%; flex:1 1 auto;">
                 <div id="importTab" class="tab-content active" style="flex:1 1 auto;">
+                    <div class="import-controls" style="display:flex; align-items:center; justify-content:space-between; gap:10px; padding:8px; border-bottom:1px solid #444;">
+                        <label class="group-by-pt" title="Collapse rows by pointage (DDS/CFF2)">
+                            <input type="checkbox" id="groupByPtToggle"><span>Group by Pt</span>
+                        </label>
+                        <button class="btn btn-secondary btn-small" id="openGlobalFilterShortcut" title="Open Global Mapping Manager">↗</button>
+                    </div>
                     <div id="layerTable" class="layer-table">
                         <div class="no-file">
                             Load a file to view layers
