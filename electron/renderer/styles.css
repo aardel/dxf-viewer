@@ -3549,3 +3549,182 @@ input.output-toggle.disabled { outline: 2px solid rgba(70, 140, 255, 0.6); box-s
         justify-content: space-between;
     }
 }
+
+/* Placeholder Reference Styles */
+.placeholder-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 1rem;
+    margin-top: 1rem;
+}
+
+.placeholder-category {
+    background: linear-gradient(135deg, #2a2a2a 0%, #333 100%);
+    border: 1px solid #444;
+    border-radius: 6px;
+    padding: 0.75rem;
+    transition: all 0.3s ease;
+}
+
+.placeholder-category:hover {
+    border-color: #4a90e2;
+    box-shadow: 0 2px 8px rgba(74, 144, 226, 0.2);
+}
+
+.placeholder-category h7 {
+    display: block;
+    color: #4a90e2;
+    font-weight: bold;
+    font-size: 0.9rem;
+    margin-bottom: 0.75rem;
+    text-align: center;
+    border-bottom: 1px solid #444;
+    padding-bottom: 0.5rem;
+}
+
+.placeholder-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.5rem 0;
+    border-bottom: 1px dashed #555;
+    transition: all 0.2s ease;
+}
+
+.placeholder-item:hover {
+    background: rgba(74, 144, 226, 0.1);
+    border-radius: 4px;
+    padding-left: 0.5rem;
+    padding-right: 0.5rem;
+}
+
+.placeholder-item:last-child {
+    border-bottom: none;
+}
+
+.placeholder-item code {
+    background: #1a1a1a;
+    color: #00BFFF;
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.85rem;
+    font-family: 'Courier New', monospace;
+    border: 1px solid #444;
+    transition: all 0.2s ease;
+}
+
+.placeholder-item:hover code {
+    background: #2a2a2a;
+    border-color: #4a90e2;
+    color: #4a90e2;
+}
+
+.placeholder-item span {
+    color: #ccc;
+    font-size: 0.8rem;
+    text-align: right;
+    max-width: 60%;
+}
+
+/* Button styling improvements */
+.btn-outline-secondary {
+    background: transparent;
+    border: 1px solid #6c757d;
+    color: #6c757d;
+    transition: all 0.3s ease;
+}
+
+.btn-outline-secondary:hover {
+    background: #6c757d;
+    color: white;
+    border-color: #6c757d;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+}
+
+/* Element template selection styles */
+.template-selector {
+    background: #2a2a2a;
+    border: 1px solid #444;
+    border-radius: 6px;
+    padding: 1rem;
+    margin-bottom: 1rem;
+}
+
+.template-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 0.75rem;
+    margin-top: 0.75rem;
+}
+
+.template-option {
+    background: linear-gradient(135deg, #333 0%, #3a3a3a 100%);
+    border: 1px solid #555;
+    border-radius: 6px;
+    padding: 0.75rem;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    text-align: center;
+}
+
+.template-option:hover {
+    border-color: #4a90e2;
+    background: linear-gradient(135deg, #3a3a3a 0%, #444 100%);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.template-option.selected {
+    border-color: #4a90e2;
+    background: linear-gradient(135deg, #4a90e2 0%, #357abd 100%);
+    color: white;
+}
+
+.template-icon {
+    font-size: 1.5rem;
+    margin-bottom: 0.5rem;
+    display: block;
+}
+
+.template-title {
+    font-weight: bold;
+    font-size: 0.9rem;
+    margin-bottom: 0.25rem;
+}
+
+.template-description {
+    font-size: 0.8rem;
+    color: #ccc;
+    opacity: 0.8;
+}
+
+/* Copy placeholder functionality */
+.placeholder-item {
+    position: relative;
+}
+
+.copy-placeholder {
+    position: absolute;
+    right: 0.5rem;
+    top: 50%;
+    transform: translateY(-50%);
+    background: #4a90e2;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    padding: 0.25rem 0.5rem;
+    font-size: 0.7rem;
+    cursor: pointer;
+    opacity: 0;
+    transition: all 0.2s ease;
+}
+
+.placeholder-item:hover .copy-placeholder {
+    opacity: 1;
+}
+
+.copy-placeholder:hover {
+    background: #357abd;
+    transform: translateY(-50%) scale(1.05);
+}

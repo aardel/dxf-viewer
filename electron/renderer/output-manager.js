@@ -2124,6 +2124,76 @@ const defaultElements = {
     }
 };
 
+// Predefined element templates for quick selection
+const predefinedTemplates = {
+    'basic-header': {
+        name: 'Basic Header',
+        description: 'Simple header with file info and setup',
+        elements: [
+            { ...defaultElements['program-start'] },
+            { ...defaultElements['file-info'] },
+            { ...defaultElements['setup-commands'] },
+            { ...defaultElements['home-command'] }
+        ]
+    },
+    'detailed-header': {
+        name: 'Detailed Header',
+        description: 'Complete header with all information',
+        elements: [
+            { ...defaultElements['program-start'] },
+            { ...defaultElements['file-info'] },
+            { ...defaultElements['bounds'] },
+            { ...defaultElements['operations'] },
+            { ...defaultElements['setup-commands'] },
+            { ...defaultElements['home-command'] }
+        ]
+    },
+    'imperial-header': {
+        name: 'Imperial Header',
+        description: 'Header with scaling for imperial machines',
+        elements: [
+            { ...defaultElements['program-start'] },
+            { ...defaultElements['file-info'] },
+            { ...defaultElements['bounds'] },
+            { ...defaultElements['operations'] },
+            { ...defaultElements['scaling'] },
+            { ...defaultElements['setup-commands'] },
+            { ...defaultElements['home-command'] }
+        ]
+    },
+    'minimal-header': {
+        name: 'Minimal Header',
+        description: 'Minimal header with just essentials',
+        elements: [
+            { ...defaultElements['program-start'] },
+            { ...defaultElements['setup-commands'] }
+        ]
+    },
+    'basic-footer': {
+        name: 'Basic Footer',
+        description: 'Simple footer with end command',
+        elements: [
+            { ...defaultElements['end-commands'] }
+        ]
+    },
+    'detailed-footer': {
+        name: 'Detailed Footer',
+        description: 'Footer with additional information',
+        elements: [
+            {
+                type: 'custom',
+                title: 'End Comment',
+                icon: '💬',
+                enabled: true,
+                config: {
+                    content: '{ End of program - {filename}'
+                }
+            },
+            { ...defaultElements['end-commands'] }
+        ]
+    }
+};
+
 // Initialize the drag-and-drop structure interface
 function initializeStructureInterface() {
     console.log('Initializing structure interface...');
@@ -2611,32 +2681,83 @@ function setupAddElementButton() {
     if (addBtn) {
         addBtn.addEventListener('click', showAddElementDialog);
     }
+    
+    // Setup reset to default button
+    const resetBtn = document.getElementById('resetToDefaultBtn');
+    if (resetBtn) {
+        resetBtn.addEventListener('click', resetToDefaultStructure);
+    }
+    
+    // Setup placeholder copy functionality
+    setupPlaceholderCopy();
 }
 
 function showAddElementDialog() {
     const dialog = document.createElement('div');
     dialog.className = 'modal';
     dialog.innerHTML = `
-        <div class="modal-content" style="width: 400px;">
+        <div class="modal-content" style="width: 600px; max-height: 80vh;">
             <div class="modal-header">
-                <h3>Add Custom Element</h3>
+                <h3>Add Element</h3>
                 <button class="modal-close" onclick="this.closest('.modal').remove()">&times;</button>
             </div>
-            <div class="modal-body">
-                <div class="form-group">
-                    <label>Element Title:</label>
-                    <input type="text" id="customElementTitle" class="form-input" placeholder="My Custom Element">
+            <div class="modal-body" style="overflow-y: auto;">
+                <div class="template-selector">
+                    <h4 style="color: #4a90e2; margin-bottom: 0.5rem;">📋 Predefined Templates</h4>
+                    <p style="color: #ccc; font-size: 0.9rem; margin-bottom: 1rem;">Select a predefined template or create a custom element:</p>
+                    
+                    <div class="template-grid">
+                        <div class="template-option" onclick="selectTemplate('basic-header')">
+                            <span class="template-icon">📄</span>
+                            <div class="template-title">Basic Header</div>
+                            <div class="template-description">Simple header with file info and setup</div>
+                        </div>
+                        <div class="template-option" onclick="selectTemplate('detailed-header')">
+                            <span class="template-icon">📋</span>
+                            <div class="template-title">Detailed Header</div>
+                            <div class="template-description">Complete header with all information</div>
+                        </div>
+                        <div class="template-option" onclick="selectTemplate('imperial-header')">
+                            <span class="template-icon">⚖️</span>
+                            <div class="template-title">Imperial Header</div>
+                            <div class="template-description">Header with scaling for imperial machines</div>
+                        </div>
+                        <div class="template-option" onclick="selectTemplate('minimal-header')">
+                            <span class="template-icon">⚡</span>
+                            <div class="template-title">Minimal Header</div>
+                            <div class="template-description">Minimal header with just essentials</div>
+                        </div>
+                        <div class="template-option" onclick="selectTemplate('basic-footer')">
+                            <span class="template-icon">🏁</span>
+                            <div class="template-title">Basic Footer</div>
+                            <div class="template-description">Simple footer with end command</div>
+                        </div>
+                        <div class="template-option" onclick="selectTemplate('detailed-footer')">
+                            <span class="template-icon">💬</span>
+                            <div class="template-title">Detailed Footer</div>
+                            <div class="template-description">Footer with additional information</div>
+                        </div>
+                    </div>
                 </div>
-                <div class="form-group">
-                    <label>Custom Content:</label>
-                    <textarea id="customElementContent" class="form-input" rows="4" placeholder="Enter your custom text or commands..."></textarea>
-                </div>
-                <div class="form-group">
-                    <label>Add to:</label>
-                    <select id="customElementContainer" class="form-select">
-                        <option value="header">Header</option>
-                        <option value="footer">Footer</option>
-                    </select>
+                
+                <div style="border-top: 1px solid #444; padding-top: 1rem; margin-top: 1rem;">
+                    <h4 style="color: #4a90e2; margin-bottom: 0.5rem;">✏️ Custom Element</h4>
+                    <div class="form-group">
+                        <label>Element Title:</label>
+                        <input type="text" id="customElementTitle" class="form-input" placeholder="My Custom Element">
+                    </div>
+                    <div class="form-group">
+                        <label>Custom Content:</label>
+                        <textarea id="customElementContent" class="form-input" rows="4" placeholder="Enter your custom text or commands..."></textarea>
+                        <small style="color: #888;">Use placeholders like {filename}, {timestamp}, etc. See the reference below.</small>
+                    </div>
+                    <div class="form-group">
+                        <label>Add to:</label>
+                        <select id="customElementContainer" class="form-select">
+                            <option value="header">Header</option>
+                            <option value="footer">Footer</option>
+                        </select>
+                    </div>
                 </div>
             </div>
             <div class="modal-footer">
@@ -2650,6 +2771,34 @@ function showAddElementDialog() {
 }
 
 function addCustomElement() {
+    // Check if a template is selected
+    if (window.selectedTemplate) {
+        // Add template elements
+        const template = window.selectedTemplate;
+        
+        // Determine if it's a header or footer template
+        const isHeaderTemplate = template.name.toLowerCase().includes('header');
+        const targetElements = isHeaderTemplate ? headerElements : footerElements;
+        
+        // Add all template elements
+        template.elements.forEach(element => {
+            targetElements.push({ ...element });
+        });
+        
+        populateElementsContainers();
+        updateDinFileStructurePreview();
+        saveStructureConfiguration();
+        
+        // Close dialog
+        document.querySelector('.modal').remove();
+        showSuccess(`${template.name} template added successfully`);
+        
+        // Clear selected template
+        window.selectedTemplate = null;
+        return;
+    }
+    
+    // Handle custom element
     const title = document.getElementById('customElementTitle').value.trim();
     const content = document.getElementById('customElementContent').value.trim();
     const container = document.getElementById('customElementContainer').value;
@@ -2679,4 +2828,75 @@ function addCustomElement() {
     // Close dialog
     document.querySelector('.modal').remove();
     showSuccess('Custom element added successfully');
+}
+
+// Template selection functionality
+function selectTemplate(templateKey) {
+    const template = predefinedTemplates[templateKey];
+    if (!template) return;
+    
+    // Clear previous selections
+    document.querySelectorAll('.template-option').forEach(option => {
+        option.classList.remove('selected');
+    });
+    
+    // Select the clicked template
+    const selectedOption = event.target.closest('.template-option');
+    if (selectedOption) {
+        selectedOption.classList.add('selected');
+    }
+    
+    // Store selected template for use when adding
+    window.selectedTemplate = template;
+    
+    console.log('Selected template:', template.name);
+}
+
+// Reset to default structure
+function resetToDefaultStructure() {
+    if (confirm('Are you sure you want to reset to the default structure? This will replace your current header and footer elements.')) {
+        // Reset to default structure
+        headerElements = [
+            { ...defaultElements['program-start'] },
+            { ...defaultElements['file-info'] },
+            { ...defaultElements['bounds'] },
+            { ...defaultElements['operations'] },
+            { ...defaultElements['setup-commands'] },
+            { ...defaultElements['home-command'] }
+        ];
+        footerElements = [
+            { ...defaultElements['end-commands'] }
+        ];
+        
+        populateElementsContainers();
+        updateDinFileStructurePreview();
+        saveStructureConfiguration();
+        
+        showSuccess('Structure reset to default successfully');
+    }
+}
+
+// Setup placeholder copy functionality
+function setupPlaceholderCopy() {
+    // Add copy buttons to placeholder items
+    document.querySelectorAll('.placeholder-item').forEach(item => {
+        const codeElement = item.querySelector('code');
+        if (codeElement) {
+            const copyBtn = document.createElement('button');
+            copyBtn.className = 'copy-placeholder';
+            copyBtn.textContent = 'Copy';
+            copyBtn.onclick = () => copyPlaceholder(codeElement.textContent);
+            item.appendChild(copyBtn);
+        }
+    });
+}
+
+// Copy placeholder to clipboard
+function copyPlaceholder(placeholder) {
+    navigator.clipboard.writeText(placeholder).then(() => {
+        showSuccess(`Copied ${placeholder} to clipboard`);
+    }).catch(err => {
+        console.error('Failed to copy placeholder:', err);
+        showError('Failed to copy placeholder');
+    });
 }
