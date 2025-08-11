@@ -833,6 +833,9 @@ function addSelectedItemsToPriority() {
     // Clear selection and refresh display
     selectedAvailableItems.clear();
     displayCuttingPriority();
+    
+    // Auto-save the changes
+    autoSavePriorityConfiguration();
 }
 
 function removeSelectedItemsFromPriority() {
@@ -855,6 +858,9 @@ function removeSelectedItemsFromPriority() {
     // Clear selection and refresh display
     selectedPriorityItems.clear();
     displayCuttingPriority();
+    
+    // Auto-save the changes
+    autoSavePriorityConfiguration();
 }
 
 function addBreakToPriority() {
@@ -868,6 +874,9 @@ function addBreakToPriority() {
     });
     
     displayCuttingPriority();
+    
+    // Auto-save the changes
+    autoSavePriorityConfiguration();
 }
 
 function moveSelectedItemsUp() {
@@ -894,6 +903,9 @@ function moveSelectedItemsUp() {
     });
     
     displayCuttingPriority();
+    
+    // Auto-save the changes
+    autoSavePriorityConfiguration();
 }
 
 function moveSelectedItemsDown() {
@@ -920,6 +932,9 @@ function moveSelectedItemsDown() {
     });
     
     displayCuttingPriority();
+    
+    // Auto-save the changes
+    autoSavePriorityConfiguration();
 }
 
 async function savePriorityConfiguration() {
@@ -939,6 +954,59 @@ async function savePriorityConfiguration() {
     } catch (error) {
         console.error('Error saving priority configuration:', error);
         showError('Failed to save priority configuration');
+    }
+}
+
+async function autoSavePriorityConfiguration() {
+    try {
+        if (!currentProfile) return;
+        
+        // Show auto-save indicator
+        const statusElement = document.getElementById('priorityStatus');
+        if (statusElement) {
+            statusElement.style.display = 'block';
+        }
+        
+        // Use the correct profile filename
+        const profileName = currentProfile.filename || currentProfile.id || currentProfile.name;
+        
+        // Save priority configuration to profile silently
+        await window.electronAPI.savePriorityConfiguration(profileName, {
+            items: currentPriorityOrder
+        });
+        
+        console.log('Priority configuration auto-saved');
+        
+        // Hide auto-save indicator after a short delay
+        setTimeout(() => {
+            if (statusElement) {
+                statusElement.style.display = 'none';
+            }
+        }, 1000);
+        
+    } catch (error) {
+        console.error('Error auto-saving priority configuration:', error);
+        // Don't show error to user for auto-save
+        
+        // Hide auto-save indicator on error
+        const statusElement = document.getElementById('priorityStatus');
+        if (statusElement) {
+            statusElement.style.display = 'none';
+        }
+    }
+}
+
+function resetPriorityOrder() {
+    if (confirm('Are you sure you want to reset the priority order? This will remove all items from the priority list.')) {
+        currentPriorityOrder = [];
+        selectedAvailableItems.clear();
+        selectedPriorityItems.clear();
+        displayCuttingPriority();
+        
+        // Auto-save the empty priority order
+        autoSavePriorityConfiguration();
+        
+        showSuccess('Priority order reset successfully');
     }
 }
 
@@ -1291,6 +1359,11 @@ function setupEventListeners() {
     const savePriorityBtn = document.getElementById('savePriorityBtn');
     if (savePriorityBtn) {
         savePriorityBtn.addEventListener('click', savePriorityConfiguration);
+    }
+    
+    const resetOrderBtn = document.getElementById('resetOrderBtn');
+    if (resetOrderBtn) {
+        resetOrderBtn.addEventListener('click', resetPriorityOrder);
     }
     
     // Line type mapping controls

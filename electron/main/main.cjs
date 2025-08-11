@@ -857,7 +857,8 @@ ipcMain.handle('open-output-manager', async () => {
         }
         outputManagerWindow = new BrowserWindow({
             width: 1200,
-            height: 850,
+            height: 950,
+            minHeight: 800,
             webPreferences: {
                 nodeIntegration: false,
                 contextIsolation: true,
