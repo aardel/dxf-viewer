@@ -476,15 +476,16 @@ async function saveMainTools() {
         console.log('Reading', tableRows.length, 'table rows');
         
         tableRows.forEach((row, index) => {
+            console.log(`Processing row ${index}: cells=${row.cells.length}, inputs=${row.querySelectorAll('input').length}`);
             // Skip empty rows or "No tools found" message
-            if (row.cells.length < 6) {
-                console.log('Skipping row', index, '- not a tool row');
+            if (row.cells.length < 7) { // 7 columns: ID, Name, Description, Width, H-Code, Type, Action
+                console.log('Skipping row', index, '- not a tool row (cells:', row.cells.length, ')');
                 return;
             }
             
             const inputs = row.querySelectorAll('input');
-            if (inputs.length < 6) {
-                console.log('Skipping row', index, '- insufficient inputs');
+            if (inputs.length < 6) { // 6 input fields: ID, Name, Description, Width, H-Code, Type
+                console.log('Skipping row', index, '- insufficient inputs (inputs:', inputs.length, ')');
                 return;
             }
             
@@ -569,6 +570,7 @@ async function saveMainTools() {
         // Debug: Log the tools being saved
         console.log('Saving tools to profile:', currentProfile.filename);
         console.log('Tools data being saved:', newTools);
+        console.log('Total tools to save:', newTools.length);
         
         // Update currentTools with the new data
         currentTools = newTools;
