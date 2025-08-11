@@ -70,9 +70,17 @@ async function initializeOutputManager() {
         }
         
         // Initialize DIN File Structure preview after a short delay to ensure DOM is ready
-        setTimeout(() => {
-            initializeStructureInterface();
+        setTimeout(async () => {
+            await initializeStructureInterface();
         }, 500);
+        
+        // Also ensure structure is loaded when page becomes visible (for better reliability)
+        document.addEventListener('visibilitychange', async () => {
+            if (!document.hidden && (headerElements.length === 0 || footerElements.length === 0)) {
+                console.log('Page became visible, ensuring structure is initialized...');
+                await initializeStructureInterface();
+            }
+        });
         
     } catch (error) {
         console.error('Error initializing Output Manager:', error);
@@ -1760,9 +1768,16 @@ function setupEventListeners() {
             
             // Update preview when switching to DIN File Structure tab
             if (targetTab === 'header') {
-                console.log('Switching to DIN File Structure tab - updating preview...');
-                setTimeout(() => {
-                    updateDinFileStructurePreview();
+                console.log('Switching to DIN File Structure tab - initializing structure interface...');
+                setTimeout(async () => {
+                    // Check if structure is initialized
+                    if (headerElements.length === 0 && footerElements.length === 0) {
+                        console.log('Structure not initialized, initializing now...');
+                        await initializeStructureInterface();
+                    } else {
+                        console.log('Structure already initialized, updating preview...');
+                        updateDinFileStructurePreview();
+                    }
                 }, 100);
             }
         });
@@ -1785,6 +1800,13 @@ function setupEventListeners() {
             }
         }
     });
+    
+    // Ensure preview is always active by setting up periodic updates
+    setInterval(() => {
+        if (document.getElementById('headerPreview') && document.getElementById('footerPreview')) {
+            updateDinFileStructurePreview();
+        }
+    }, 2000); // Update every 2 seconds to ensure consistency
     
     // Legacy header preview updates (for backward compatibility)
     const headerTemplate = document.getElementById('headerTemplate');
@@ -2195,11 +2217,11 @@ const predefinedTemplates = {
 };
 
 // Initialize the drag-and-drop structure interface
-function initializeStructureInterface() {
+async function initializeStructureInterface() {
     console.log('Initializing structure interface...');
     
     // Load saved structure or use defaults
-    loadStructureConfiguration();
+    await loadStructureConfiguration();
     
     // Populate containers
     populateElementsContainers();
@@ -2212,51 +2234,64 @@ function initializeStructureInterface() {
     
     // Initial preview update
     updateDinFileStructurePreview();
+    
+    // Set up placeholder copy functionality
+    setupPlaceholderCopy();
+    
+    console.log('Structure interface initialized successfully');
 }
 
 // Load structure configuration from profile
 async function loadStructureConfiguration() {
     try {
-        if (!currentProfile) return;
+        if (!currentProfile) {
+            console.log('No current profile, using default structure');
+            initializeDefaultStructure();
+            return;
+        }
         
         const profileName = currentProfile.filename || currentProfile.id || currentProfile.name;
         const config = await window.electronAPI.loadPostprocessorConfig(profileName);
         
-        if (config && config.structure) {
-            headerElements = config.structure.header || [];
-            footerElements = config.structure.footer || [];
+        if (config && config.structure && config.structure.header && config.structure.footer) {
+            headerElements = config.structure.header;
+            footerElements = config.structure.footer;
+            console.log('Loaded saved structure configuration:', { 
+                headerElements: headerElements.length, 
+                footerElements: footerElements.length 
+            });
         } else {
-            // Use default structure
-            headerElements = [
-                { ...defaultElements['program-start'] },
-                { ...defaultElements['file-info'] },
-                { ...defaultElements['bounds'] },
-                { ...defaultElements['operations'] },
-                { ...defaultElements['setup-commands'] },
-                { ...defaultElements['home-command'] }
-            ];
-            footerElements = [
-                { ...defaultElements['end-commands'] }
-            ];
+            console.log('No saved structure found, initializing default structure');
+            initializeDefaultStructure();
+            // Save the default structure for future use
+            await saveStructureConfiguration();
         }
-        
-        console.log('Structure configuration loaded:', { headerElements, footerElements });
         
     } catch (error) {
         console.error('Error loading structure configuration:', error);
-        // Use default structure on error
-        headerElements = [
-            { ...defaultElements['program-start'] },
-            { ...defaultElements['file-info'] },
-            { ...defaultElements['bounds'] },
-            { ...defaultElements['operations'] },
-            { ...defaultElements['setup-commands'] },
-            { ...defaultElements['home-command'] }
-        ];
-        footerElements = [
-            { ...defaultElements['end-commands'] }
-        ];
+        console.log('Using default structure due to error');
+        initializeDefaultStructure();
     }
+}
+
+// Initialize default structure
+function initializeDefaultStructure() {
+    headerElements = [
+        { ...defaultElements['program-start'] },
+        { ...defaultElements['file-info'] },
+        { ...defaultElements['bounds'] },
+        { ...defaultElements['operations'] },
+        { ...defaultElements['setup-commands'] },
+        { ...defaultElements['home-command'] }
+    ];
+    footerElements = [
+        { ...defaultElements['end-commands'] }
+    ];
+    
+    console.log('Default structure initialized:', { 
+        headerElements: headerElements.length, 
+        footerElements: footerElements.length 
+    });
 }
 
 // Save structure configuration to profile
