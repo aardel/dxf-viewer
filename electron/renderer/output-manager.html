@@ -654,7 +654,7 @@
             <button class="tab-button" data-tab="tools">🔧 Tools & Parameters</button>
             <button class="tab-button" data-tab="priority">🎯 Cutting Priority</button>
             <button class="tab-button" data-tab="mapping">🔗 Line Type Mapping</button>
-            <button class="tab-button" data-tab="header">📄 Header & Footer</button>
+            <button class="tab-button" data-tab="header">📄 DIN File Structure</button>
             <button class="tab-button" data-tab="output">💾 Output Settings</button>
         </div>
 
@@ -795,12 +795,17 @@
             </div>
         </div>
 
-        <!-- Header & Footer Tab -->
+        <!-- DIN File Structure Tab -->
         <div id="headerTab" class="tab-content">
+            <div class="settings-section">
+                <h5>📄 DIN File Structure Configuration</h5>
+                <p>Configure the structure and formatting of generated DIN files, including headers, footers, line numbers, and G-code commands.</p>
+            </div>
+            
             <div class="two-column">
                 <div>
                     <div class="settings-section">
-                        <h5>📄 Header Settings</h5>
+                        <h6>📋 Header Settings</h6>
                         <div class="form-group">
                             <label for="machineType">Machine Type:</label>
                             <select id="machineType" class="form-select">
@@ -846,11 +851,47 @@
 G60 X0</textarea>
                         </div>
                     </div>
+                    
+                    <div class="settings-section">
+                        <h6>🔢 Line Numbers Settings</h6>
+                        <div class="form-group">
+                            <label>
+                                <input type="checkbox" id="enableLineNumbers" checked>
+                                Enable line numbers
+                            </label>
+                        </div>
+                        <div class="form-group">
+                            <label for="startNumber">Start Number:</label>
+                            <input type="number" id="startNumber" class="form-input" value="10">
+                        </div>
+                        <div class="form-group">
+                            <label for="increment">Increment:</label>
+                            <input type="number" id="increment" class="form-input" value="1">
+                        </div>
+                        <div class="form-group">
+                            <label for="formatTemplate">Format Template:</label>
+                            <input type="text" id="formatTemplate" class="form-input" value="N{number}">
+                            <small>Variables: {number} - will be replaced with actual line number</small>
+                        </div>
+                    </div>
                 </div>
                 
                 <div>
                     <div class="settings-section">
-                        <h5>👁️ Live Preview</h5>
+                        <h6>⚙️ G-Code Commands</h6>
+                        <div class="form-group">
+                            <label for="homeCommand">Home Command:</label>
+                            <input type="text" id="homeCommand" class="form-input" value="G0 X0 Y0">
+                        </div>
+                        <div class="form-group">
+                            <label for="programEndCommand">Program End Command:</label>
+                            <textarea id="programEndCommand" class="form-input" rows="3" placeholder="M30">M30</textarea>
+                            <small>Common end commands: M30 (End of Program), M02 (End of Program), M99 (End of Subprogram)</small>
+                        </div>
+                    </div>
+                    
+                    <div class="settings-section">
+                        <h6>👁️ Live Preview</h6>
                         <div class="form-group">
                             <label>Header Preview:</label>
                             <div class="preview-area" id="headerPreview">
@@ -866,7 +907,7 @@ G60 X0</textarea>
                         </div>
                         
                         <div class="form-group">
-                            <label>Header Statistics:</label>
+                            <label>File Structure Statistics:</label>
                             <div id="headerStats">
                                 <div>Total Lines: -</div>
                                 <div>Comment Lines: -</div>
@@ -909,45 +950,7 @@ G60 X0</textarea>
                 </div>
             </div>
             
-            <div class="settings-section">
-                <h5>⚙️ Line Numbers & G-Code</h5>
-                <div class="two-column">
-                    <div>
-                        <h6>Line Numbers Settings</h6>
-                        <div class="form-group">
-                            <label>
-                                <input type="checkbox" id="enableLineNumbers" checked>
-                                Enable line numbers
-                            </label>
-                        </div>
-                        <div class="form-group">
-                            <label for="startNumber">Start Number:</label>
-                            <input type="number" id="startNumber" class="form-input" value="10">
-                        </div>
-                        <div class="form-group">
-                            <label for="increment">Increment:</label>
-                            <input type="number" id="increment" class="form-input" value="1">
-                        </div>
-                        <div class="form-group">
-                            <label for="formatTemplate">Format Template:</label>
-                            <input type="text" id="formatTemplate" class="form-input" value="N{number}">
-                            <small>Variables: {number} - will be replaced with actual line number</small>
-                        </div>
-                    </div>
-                    <div>
-                        <h6>G-Code Commands</h6>
-                        <div class="form-group">
-                            <label for="homeCommand">Home Command:</label>
-                            <input type="text" id="homeCommand" class="form-input" value="G0 X0 Y0">
-                        </div>
-                        <div class="form-group">
-                            <label for="programEndCommand">Program End Command:</label>
-                            <textarea id="programEndCommand" class="form-input" rows="3" placeholder="M30">M30</textarea>
-                            <small>Common end commands: M30 (End of Program), M02 (End of Program), M99 (End of Subprogram)</small>
-                        </div>
-                    </div>
-                </div>
-            </div>
+
             
             <div class="settings-section">
                 <h5>🎯 Cutting Optimization</h5>

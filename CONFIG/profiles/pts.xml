@@ -52,6 +52,7 @@
             <Tool ID="T105" Name="Milling 6" Description="Cutting" Width="1" HCode="H105"/>
             <Tool ID="T106" Name="Milling 7" Description="Cutting" Width="1" HCode="H106"/>
             <Tool ID="T107" Name="Milling 8" Description="Cutting" Width="1" HCode="H107"/>
+            <Tool ID="T109" Name="Milling 8 (Copy)" Description="Cutting" Width="1" HCode="H109"/>
             <Tool ID="T108" Name="Milling 8 (Copy)" Description="Cutting" Width="1" HCode="H108"/>
             <Tool ID="T33" Name="Nozzle Engrave" Description="Cutting" Width="1" HCode="H33"/>
             <Tool ID="T35" Name="Piercing" Description="Cutting" Width="1" HCode="H40"/>
