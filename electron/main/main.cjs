@@ -3301,7 +3301,10 @@ ipcMain.handle('update-output-settings-only', async (event, outputSettings, prof
             
             // Update profile with new tools
             const updatedContent = updateProfileWithTools(profileContent, finalTools);
+            console.log('Writing updated content to file:', profilePath);
+            console.log('Content length:', updatedContent.length);
             fs.writeFileSync(profilePath, updatedContent, 'utf8');
+            console.log('File written successfully');
             
             console.log(`Successfully processed tools: ${importedCount} imported, ${replacedCount} replaced`);
             return { 
@@ -3823,6 +3826,9 @@ ipcMain.handle('load-priority-configuration', async (event, profileName) => {
 
 function updateProfileWithTools(profileContent, tools) {
     try {
+        console.log('updateProfileWithTools: Starting with', tools.length, 'tools');
+        console.log('Tools to write:', tools.map(t => `${t.id}: ${t.name}`));
+        
         // Update the existing Tools section
         let updatedContent = profileContent;
         
@@ -3830,12 +3836,15 @@ function updateProfileWithTools(profileContent, tools) {
         const toolsRegex = /<Tools>[\s\S]*?<\/Tools>/g;
         const existingMatch = updatedContent.match(toolsRegex);
         
+        console.log('Found existing Tools section:', !!existingMatch);
+        
         if (existingMatch) {
             // Replace existing Tools section with attribute-based format
             const newTools = `<Tools>
             ${tools.map(tool => `<Tool ID="${tool.id}" Name="${tool.name || ''}" Description="${tool.description || ''}" Width="${tool.width || 1}" HCode="${tool.hCode || ''}"/>`).join('\n            ')}
         </Tools>`;
             
+            console.log('Replacing existing Tools section with:', newTools);
             updatedContent = updatedContent.replace(toolsRegex, newTools);
         } else {
             // Add new Tools section before closing PostprocessorProfile tag
@@ -3843,9 +3852,11 @@ function updateProfileWithTools(profileContent, tools) {
             ${tools.map(tool => `<Tool ID="${tool.id}" Name="${tool.name || ''}" Description="${tool.description || ''}" Width="${tool.width || 1}" HCode="${tool.hCode || ''}"/>`).join('\n            ')}
         </Tools>`;
             
+            console.log('Adding new Tools section:', newTools);
             updatedContent = updatedContent.replace('</PostprocessorProfile>', `${newTools}\n    </PostprocessorProfile>`);
         }
         
+        console.log('updateProfileWithTools: Completed successfully');
         return updatedContent;
     } catch (error) {
         console.error('Error updating profile with tools:', error);
