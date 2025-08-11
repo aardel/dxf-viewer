@@ -1,433 +1,349 @@
-// Line Types Manager JavaScript
+// Line Type Mapping - Minimalist Table Design
 
 let lineTypes = [];
-let currentEditingId = null;
-let isAddMode = false;
+let machineTools = [];
+let lineTypeMappings = [];
+let currentProfile = null;
 
 // DOM Elements
-const cardsView = document.getElementById('cardsView');
-const listView = document.getElementById('listView');
-const cardsViewBtn = document.getElementById('cardsViewBtn');
-const listViewBtn = document.getElementById('listViewBtn');
-const cardsGrid = document.getElementById('cardsGrid');
-const tableBody = document.getElementById('lineTypesTableBody');
-const statusEl = document.getElementById('status');
-
-// Button elements
-const addLineTypeBtn = document.getElementById('addLineTypeBtn');
+const tableBody = document.getElementById('lineTypeMappingTableBody');
+const saveMappingsBtn = document.getElementById('saveMappingsBtn');
 const reloadBtn = document.getElementById('reloadBtn');
-const saveAllBtn = document.getElementById('saveAllBtn');
-
-// Modal elements
-const editModal = document.getElementById('editModal');
-const modalTitle = document.getElementById('modalTitle');
-const modalClose = document.getElementById('modalClose');
-const modalCancel = document.getElementById('modalCancel');
-const modalDelete = document.getElementById('modalDelete');
-const modalSave = document.getElementById('modalSave');
-
-// Form elements
-const editName = document.getElementById('editName');
-const editDescription = document.getElementById('editDescription');
-const editLineTypeSelect = document.getElementById('editLineType');
-const editWidth = document.getElementById('editWidth');
-const editColor = document.getElementById('editColor');
+const statusText = document.getElementById('statusText');
 
 // Initialize
 document.addEventListener('DOMContentLoaded', async () => {
-    console.log('🔄 Line Types Manager v2.0 - Auto-Save Edition Loading...');
+    console.log('🔄 Line Type Mapping v3.0 - Loading...');
     setupEventListeners();
-    await loadLineTypes();
-    showStatus('Ready - Auto-Save Edition v2.0 🚀');
+    await loadData();
+    showStatus('Ready - Line Type Mapping v3.0 🚀');
 });
 
 function setupEventListeners() {
-    // View toggle
-    cardsViewBtn.addEventListener('click', () => switchView('cards'));
-    listViewBtn.addEventListener('click', () => switchView('list'));
-    
-    // Buttons
-    addLineTypeBtn.addEventListener('click', addLineType);
-    reloadBtn.addEventListener('click', reloadLineTypes);
-    saveAllBtn.addEventListener('click', saveAllLineTypes);
-    
-    // Modal
-    modalClose.addEventListener('click', closeModal);
-    modalCancel.addEventListener('click', closeModal);
-    modalDelete.addEventListener('click', deleteLineType);
-    modalSave.addEventListener('click', saveLineType);
-    
-    // Modal keyboard events
-    editModal.addEventListener('keydown', (e) => {
-        if (e.key === 'Escape') closeModal();
-        if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) saveLineType();
-    });
+    saveMappingsBtn.addEventListener('click', saveMappings);
+    reloadBtn.addEventListener('click', reloadData);
 }
 
-function switchView(view) {
-    if (view === 'cards') {
-        cardsView.classList.remove('hidden');
-        listView.classList.add('hidden');
-        cardsViewBtn.classList.add('active');
-        listViewBtn.classList.remove('active');
-    } else {
-        cardsView.classList.add('hidden');
-        listView.classList.remove('hidden');
-        cardsViewBtn.classList.remove('active');
-        listViewBtn.classList.add('active');
+async function loadData() {
+    try {
+        showStatus('Loading data...');
+        
+        // Load current profile
+        await loadCurrentProfile();
+        
+        // Load line types
+        await loadLineTypes();
+        
+        // Load machine tools
+        await loadMachineTools();
+        
+        // Load existing mappings
+        await loadLineTypeMappings();
+        
+        // Render the table
+        renderMappingTable();
+        
+        showStatus(`Loaded ${lineTypes.length} line types and ${machineTools.length} machine tools`);
+    } catch (error) {
+        console.error('Error loading data:', error);
+        showStatus('Failed to load data', 'error');
+    }
+}
+
+async function loadCurrentProfile() {
+    try {
+        const profileResponse = await window.electronAPI.getCurrentProfile();
+        if (profileResponse.success) {
+            currentProfile = profileResponse.data;
+            console.log('Current profile:', currentProfile);
+        } else {
+            console.error('Failed to load current profile:', profileResponse.error);
+            // Use default profile
+            currentProfile = { filename: 'mtl.xml', name: 'Default Profile' };
+        }
+    } catch (error) {
+        console.error('Error loading current profile:', error);
+        currentProfile = { filename: 'mtl.xml', name: 'Default Profile' };
     }
 }
 
 async function loadLineTypes() {
     try {
-        showStatus('Loading line types...');
         const result = await window.electronAPI.loadLineTypes();
-        
         if (result.success) {
             lineTypes = result.data;
-            renderViews();
-            showStatus(`Loaded ${lineTypes.length} line types`);
+            console.log('Loaded line types:', lineTypes.length);
         } else {
-            showStatus('Error loading line types: ' + result.error, 'error');
+            console.error('Failed to load line types:', result.error);
+            lineTypes = getDefaultLineTypes();
         }
     } catch (error) {
         console.error('Error loading line types:', error);
-        showStatus('Failed to load line types', 'error');
+        lineTypes = getDefaultLineTypes();
     }
 }
 
-async function reloadLineTypes() {
-    await loadLineTypes();
-}
-
-async function saveAllLineTypes() {
+async function loadMachineTools() {
     try {
-        console.log('💾 AUTO-SAVE: Saving', lineTypes.length, 'line types...');
-        showStatus('Saving line types...');
-        const result = await window.electronAPI.saveLineTypes(lineTypes);
-        
+        const result = await window.electronAPI.getToolsFromProfile();
         if (result.success) {
-            console.log('✅ AUTO-SAVE: Save successful -', result.message || 'Saved successfully');
-            showStatus(result.message || 'Line types saved successfully');
-            return true;
+            machineTools = result.data;
+            console.log('Loaded machine tools:', machineTools.length);
         } else {
-            console.error('❌ AUTO-SAVE: Save failed -', result.error);
-            showStatus('Error saving line types: ' + result.error, 'error');
-            return false;
+            console.error('Failed to load machine tools:', result.error);
+            machineTools = [];
         }
     } catch (error) {
-        console.error('❌ AUTO-SAVE: Exception during save:', error);
-        showStatus('Failed to save line types', 'error');
-        return false;
+        console.error('Error loading machine tools:', error);
+        machineTools = [];
     }
 }
 
-function renderViews() {
-    renderCardsView();
-    renderListView();
+async function loadLineTypeMappings() {
+    try {
+        const result = await window.electronAPI.getLineTypeMappingsFromProfile();
+        if (result.success) {
+            lineTypeMappings = result.data;
+            console.log('Loaded line type mappings:', lineTypeMappings.length);
+        } else {
+            console.error('Failed to load line type mappings:', result.error);
+            lineTypeMappings = [];
+        }
+    } catch (error) {
+        console.error('Error loading line type mappings:', error);
+        lineTypeMappings = [];
+    }
 }
 
-function renderCardsView() {
-    cardsGrid.innerHTML = '';
+function renderMappingTable() {
+    if (!tableBody) return;
     
-    lineTypes.forEach(lineType => {
-        const card = createLineTypeCard(lineType);
-        cardsGrid.appendChild(card);
-    });
-}
-
-function createLineTypeCard(lineType) {
-    const card = document.createElement('div');
-    card.className = 'line-type-card';
-    
-    const lineTypeClass = `linetype-${lineType.lineType}`;
-    const icon = getLineTypeIcon(lineType.lineType);
-    
-    card.innerHTML = `
-        <div class="card-header">
-            <div class="card-icon" style="background-color: ${lineType.color}">
-                ${icon}
-            </div>
-            <div class="card-title">
-                <h3>${lineType.name}</h3>
-                <p>${lineType.description}</p>
-            </div>
-        </div>
-        <div class="card-body">
-            <div class="card-details">
-                <div class="detail-item">
-                    <div class="detail-label">Line Type</div>
-                    <div class="detail-value">
-                        <span class="linetype-badge ${lineTypeClass}">
-                            ${lineType.lineType.charAt(0).toUpperCase() + lineType.lineType.slice(1)}
-                        </span>
-                    </div>
-                </div>
-                <div class="detail-item">
-                    <div class="detail-label">Width</div>
-                    <div class="detail-value width-value">${lineType.width}</div>
-                </div>
-                <div class="detail-item">
-                    <div class="detail-label">Color</div>
-                    <div class="detail-value">
-                        <div class="color-indicator" style="background-color: ${lineType.color}"></div>
-                        ${lineType.color}
-                    </div>
-                </div>
-            </div>
-            <div class="card-actions">
-                <button class="btn btn-primary btn-small" onclick="editLineType(${lineType.id})">
-                    ✏️ Edit
-                </button>
-                <button class="btn btn-danger btn-small" onclick="confirmDeleteLineType(${lineType.id})">
-                    🗑️
-                </button>
-            </div>
-        </div>
-    `;
-    
-    return card;
-}
-
-function renderListView() {
     tableBody.innerHTML = '';
     
-    lineTypes.forEach(lineType => {
-        const row = createLineTypeRow(lineType);
+    if (!lineTypes || lineTypes.length === 0) {
+        tableBody.innerHTML = `
+            <tr>
+                <td colspan="4" style="text-align: center; color: #888; padding: 2rem;">
+                    No line types available<br>
+                    <small>Add line types to begin mapping</small>
+                </td>
+            </tr>
+        `;
+        return;
+    }
+    
+    lineTypes.forEach((lineType, index) => {
+        const row = createMappingRow(lineType, index);
         tableBody.appendChild(row);
     });
 }
 
-function createLineTypeRow(lineType) {
+function createMappingRow(lineType, index) {
     const row = document.createElement('tr');
+    row.dataset.lineType = lineType.name;
+    
+    // Find current mapping for this line type
+    const currentMapping = lineTypeMappings.find(m => m.lineTypeName === lineType.name);
+    const currentToolId = currentMapping ? currentMapping.toolId : '';
+    
+    // Create tool dropdown options
+    const toolOptions = createToolDropdownOptions(currentToolId);
     
     row.innerHTML = `
         <td>
-            <input type="text" value="${lineType.name}" 
-                   onchange="updateLineType(${lineType.id}, 'name', this.value)"
-                   class="table-input name-input">
+            <div class="line-type-name">
+                <div class="line-type-icon"></div>
+                <div>
+                    <div>${lineType.name}</div>
+                    <div class="line-type-details">
+                        ${getOperationType(lineType.name)} • ${lineType.width || 1}mm width
+                    </div>
+                </div>
+            </div>
         </td>
+        <td class="arrow-column">→</td>
         <td>
-            <input type="text" value="${lineType.description}" 
-                   onchange="updateLineType(${lineType.id}, 'description', this.value)"
-                   class="table-input description-input">
-        </td>
-        <td>
-            <select onchange="updateLineType(${lineType.id}, 'lineType', this.value)"
-                    class="table-select linetype-select">
-                <option value="laser" ${lineType.lineType === 'laser' ? 'selected' : ''}>Laser</option>
-                <option value="milling" ${lineType.lineType === 'milling' ? 'selected' : ''}>Milling</option>
-                <option value="plasma" ${lineType.lineType === 'plasma' ? 'selected' : ''}>Plasma</option>
-                <option value="waterjet" ${lineType.lineType === 'waterjet' ? 'selected' : ''}>Water Jet</option>
-                <option value="engraving" ${lineType.lineType === 'engraving' ? 'selected' : ''}>Engraving</option>
+            <select class="tool-selector" data-line-type="${lineType.name}" onchange="updateMapping('${lineType.name}', this.value)">
+                <option value="">-- Select Tool --</option>
+                ${toolOptions}
             </select>
         </td>
-        <td>
-            <input type="number" value="${lineType.width}" step="0.1" min="0"
-                   onchange="updateLineType(${lineType.id}, 'width', parseFloat(this.value))"
-                   class="table-input width-input">
-        </td>
-        <td>
-            <div class="color-cell">
-                <input type="color" value="${lineType.color}" 
-                       onchange="updateLineType(${lineType.id}, 'color', this.value)"
-                       class="color-picker">
-                <span class="color-value">${lineType.color}</span>
-            </div>
-        </td>
-        <td>
-            <div class="action-buttons">
-                <button class="btn btn-danger btn-small" onclick="confirmDeleteLineType(${lineType.id})">
-                    Delete
-                </button>
-            </div>
+        <td class="actions-column">
+            <button class="action-btn edit" onclick="editLineType('${lineType.name}')" title="Edit Line Type">
+                ✏️
+            </button>
+            <button class="action-btn delete" onclick="removeMapping('${lineType.name}')" title="Remove Mapping">
+                🗑️
+            </button>
         </td>
     `;
     
     return row;
 }
 
-function getLineTypeIcon(lineType) {
-    const icons = {
-        'laser': '🔴',
-        'milling': '⚙️', 
-        'plasma': '⚡',
-        'waterjet': '💧',
-        'engraving': '✏️'
-    };
-    return icons[lineType] || '🔧';
-}
-
-async function updateLineType(id, field, value) {
-    const lineType = lineTypes.find(lt => lt.id === id);
-    if (lineType) {
-        lineType[field] = value;
-        renderViews(); // Re-render to show changes
-        showStatus(`Updated ${lineType.name}`);
-        
-        // Auto-save after inline edit
-        await saveAllLineTypes();
-    }
-}
-
-function addLineType() {
-    isAddMode = true;
-    currentEditingId = null;
-    
-    // Generate new ID
-    const maxId = Math.max(...lineTypes.map(lt => lt.id), 0);
-    const newId = maxId + 1;
-    
-    // Set modal for add mode
-    modalTitle.textContent = 'Add New Line Type';
-    modalDelete.style.display = 'none';
-    
-    // Clear form
-    editName.value = '';
-    editDescription.value = '';
-    editLineTypeSelect.value = 'laser';
-    editWidth.value = '1';
-    editColor.value = '#FF0000';
-    
-    currentEditingId = newId;
-    editModal.classList.remove('hidden');
-    editName.focus();
-}
-
-function editLineType(id) {
-    const lineType = lineTypes.find(lt => lt.id === id);
-    if (!lineType) return;
-    
-    isAddMode = false;
-    currentEditingId = id;
-    
-    // Set modal for edit mode
-    modalTitle.textContent = 'Edit Line Type';
-    modalDelete.style.display = 'block';
-    
-    // Fill form
-    editName.value = lineType.name;
-    editDescription.value = lineType.description;
-    editLineTypeSelect.value = lineType.lineType;
-    editWidth.value = lineType.width;
-    editColor.value = lineType.color;
-    
-    editModal.classList.remove('hidden');
-    editName.focus();
-    editName.select();
-}
-
-async function saveLineType() {
-    const name = editName.value.trim();
-    const description = editDescription.value.trim();
-    const lineType = editLineTypeSelect.value;
-    const width = parseFloat(editWidth.value);
-    const color = editColor.value;
-    
-    if (!name) {
-        editName.focus();
-        return;
+function createToolDropdownOptions(selectedToolId) {
+    if (!machineTools || machineTools.length === 0) {
+        return '<option value="">No tools available</option>';
     }
     
-    if (isNaN(width) || width < 0) {
-        editWidth.focus();
-        return;
-    }
-    
-    const lineTypeData = {
-        id: currentEditingId,
-        name,
-        description,
-        lineType,
-        width,
-        color: color.toUpperCase()
+    return machineTools.map(tool => {
+        const selected = tool.id === selectedToolId ? 'selected' : '';
+        const displayName = `${tool.id} (${tool.width || 0}mm - ${tool.name || tool.description || 'No description'})`;
+        return `<option value="${tool.id}" ${selected}>${displayName}</option>`;
+    }).join('');
+}
+
+function getOperationType(lineTypeName) {
+    // Map line type names to operation types
+    const operationMap = {
+        'Fast Engrave': 'Engraving',
+        'Nozzle Engrave': 'Engraving',
+        'Engrave': 'Engraving',
+        'Fine Cut CW': 'Cutting',
+        'Fine Cut Pulse': 'Cutting',
+        '2pt CW': 'Cutting',
+        '3pt CW': 'Cutting',
+        '4pt CW': 'Cutting',
+        '2pt Puls': 'Pulsing',
+        '3pt Puls': 'Pulsing',
+        '4pt Puls': 'Pulsing',
+        'Milling 1': 'Milling',
+        'Milling 2': 'Milling',
+        'Milling 3': 'Milling',
+        'Milling 4': 'Milling',
+        'Milling 5': 'Milling',
+        'Milling 6': 'Milling',
+        'Milling 7': 'Milling',
+        'Milling 8': 'Milling'
     };
     
-    if (isAddMode) {
-        lineTypes.push(lineTypeData);
-        showStatus(`Added new line type: ${name}`);
+    return operationMap[lineTypeName] || 'Operation';
+}
+
+// Global function for dropdown changes
+window.updateMapping = function(lineTypeName, toolId) {
+    console.log(`Updating mapping: ${lineTypeName} → ${toolId}`);
+    
+    // Update mappings array
+    const existingIndex = lineTypeMappings.findIndex(m => m.lineTypeName === lineTypeName);
+    
+    if (existingIndex !== -1) {
+        if (toolId) {
+            lineTypeMappings[existingIndex].toolId = toolId;
+        } else {
+            lineTypeMappings.splice(existingIndex, 1);
+        }
+    } else if (toolId) {
+        lineTypeMappings.push({
+            lineTypeId: getLineTypeId(lineTypeName),
+            lineTypeName: lineTypeName,
+            toolId: toolId,
+            description: `${lineTypeName} mapped to ${getToolName(toolId)}`
+        });
+    }
+    
+    const toolName = getToolDisplayName(toolId);
+    if (toolId) {
+        showStatus(`✓ Mapped ${lineTypeName} to ${toolName}`, 'success');
     } else {
-        const index = lineTypes.findIndex(lt => lt.id === currentEditingId);
-        if (index !== -1) {
-            lineTypes[index] = lineTypeData;
-            showStatus(`Updated line type: ${name}`);
-        }
+        showStatus(`- Removed tool assignment from ${lineTypeName}`, 'info');
     }
-    
-    renderViews();
-    closeModal();
-    
-    // Auto-save after modification
-    await saveAllLineTypes();
+};
+
+function getLineTypeId(lineTypeName) {
+    // Convert line type name to ID if needed
+    const lineType = lineTypes.find(lt => lt.name === lineTypeName);
+    return lineType ? (lineType.id || lineTypeName) : lineTypeName;
 }
 
-function confirmDeleteLineType(id) {
-    const lineType = lineTypes.find(lt => lt.id === id);
-    if (!lineType) return;
-    
-    if (confirm(`Are you sure you want to delete "${lineType.name}"?`)) {
-        deleteLineTypeById(id);
+function getToolName(toolId) {
+    if (!toolId) return 'No tool assigned';
+    const tool = machineTools.find(t => t.id === toolId);
+    return tool ? tool.name : 'Unknown tool';
+}
+
+function getToolDisplayName(toolId) {
+    if (!toolId) return 'No tool assigned';
+    const tool = machineTools.find(t => t.id === toolId);
+    return tool ? `${tool.id} (${tool.name || tool.description || 'No description'})` : 'Unknown tool';
+}
+
+function editLineType(lineTypeName) {
+    // TODO: Implement line type editing
+    showStatus(`Edit functionality for ${lineTypeName} - Coming soon`, 'warning');
+}
+
+function removeMapping(lineTypeName) {
+    if (confirm(`Remove tool mapping for "${lineTypeName}"?`)) {
+        window.updateMapping(lineTypeName, '');
+        showStatus(`Removed mapping for ${lineTypeName}`, 'info');
     }
 }
 
-function deleteLineType() {
-    if (currentEditingId && !isAddMode) {
-        const lineType = lineTypes.find(lt => lt.id === currentEditingId);
-        if (lineType && confirm(`Are you sure you want to delete "${lineType.name}"?`)) {
-            deleteLineTypeById(currentEditingId);
-            closeModal();
-        }
-    }
-}
-
-async function deleteLineTypeById(id) {
-    const index = lineTypes.findIndex(lt => lt.id === id);
-    if (index !== -1) {
-        const deleted = lineTypes.splice(index, 1)[0];
-        renderViews();
-        console.log('🗑️ AUTO-SAVE: Deleting line type:', deleted.name);
-        showStatus(`Deleted line type: ${deleted.name} - Auto-saving...`);
+async function saveMappings() {
+    try {
+        showStatus('Saving mappings...');
         
-        // Auto-save after deletion
-        const result = await saveAllLineTypes();
-        if (result) {
-            console.log('✅ AUTO-SAVE: Successfully saved after deletion');
-            showStatus(`Deleted "${deleted.name}" and auto-saved ✅`);
+        if (!currentProfile) {
+            showStatus('No active profile selected', 'error');
+            return;
         }
+        
+        const result = await window.electronAPI.saveLineTypeMappings(lineTypeMappings, currentProfile.filename);
+        
+        if (result.success) {
+            showStatus(`✓ Saved ${lineTypeMappings.length} mappings to ${currentProfile.name}`, 'success');
+        } else {
+            showStatus(`Error saving mappings: ${result.error}`, 'error');
+        }
+    } catch (error) {
+        console.error('Error saving mappings:', error);
+        showStatus('Failed to save mappings', 'error');
     }
 }
 
-function closeModal() {
-    editModal.classList.add('hidden');
-    currentEditingId = null;
-    isAddMode = false;
+async function reloadData() {
+    await loadData();
+}
+
+function getDefaultLineTypes() {
+    return [
+        { name: '2pt CW', description: '2pt Continuous Wave', width: 2, type: 'cutting' },
+        { name: '3pt CW', description: '3pt Continuous Wave', width: 3, type: 'cutting' },
+        { name: '4pt CW', description: '4pt Continuous Wave', width: 4, type: 'cutting' },
+        { name: '2pt Puls', description: '2pt Pulsing', width: 2, type: 'pulsing' },
+        { name: '3pt Puls', description: '3pt Pulsing', width: 3, type: 'pulsing' },
+        { name: '4pt Puls', description: '4pt Pulsing', width: 4, type: 'pulsing' },
+        { name: 'Fast Engrave', description: 'Fast Engraving', width: 1, type: 'engraving' },
+        { name: 'Fine Cut Pulse', description: 'Fine Cut Pulsing', width: 1, type: 'cutting' },
+        { name: 'Fine Cut CW', description: 'Fine Cut Continuous Wave', width: 1, type: 'cutting' },
+        { name: 'Nozzle Engrave', description: 'Nozzle Engraving', width: 1, type: 'engraving' },
+        { name: 'Engrave', description: 'Standard Engraving', width: 1, type: 'engraving' },
+        { name: 'Milling 1', description: 'Milling Tool 1', width: 1, type: 'milling' },
+        { name: 'Milling 2', description: 'Milling Tool 2', width: 1, type: 'milling' },
+        { name: 'Milling 3', description: 'Milling Tool 3', width: 1, type: 'milling' },
+        { name: 'Milling 4', description: 'Milling Tool 4', width: 1, type: 'milling' },
+        { name: 'Milling 5', description: 'Milling Tool 5', width: 1, type: 'milling' },
+        { name: 'Milling 6', description: 'Milling Tool 6', width: 1, type: 'milling' },
+        { name: 'Milling 7', description: 'Milling Tool 7', width: 1, type: 'milling' },
+        { name: 'Milling 8', description: 'Milling Tool 8', width: 1, type: 'milling' }
+    ];
 }
 
 function showStatus(message, type = 'info') {
-    statusEl.textContent = message;
-    statusEl.className = 'status';
-    if (type === 'error') {
-        statusEl.style.color = '#dc3545';
-        statusEl.style.background = '#f8d7da';
-    } else if (type === 'success') {
-        statusEl.style.color = '#155724';
-        statusEl.style.background = '#d4edda';
-    } else {
-        statusEl.style.color = '#666';
-        statusEl.style.background = '#f8f9fa';
-    }
-    
-    // Clear status after 3 seconds
-    setTimeout(() => {
-        if (statusEl.textContent === message) {
-            statusEl.textContent = 'Ready';
-            statusEl.style.color = '#666';
-            statusEl.style.background = '#f8f9fa';
+    if (statusText) {
+        statusText.textContent = message;
+        statusText.className = type;
+        
+        // Auto-clear success messages after 3 seconds
+        if (type === 'success') {
+            setTimeout(() => {
+                if (statusText.textContent === message) {
+                    statusText.textContent = 'Ready';
+                    statusText.className = 'info';
+                }
+            }, 3000);
         }
-    }, 3000);
+    }
+    console.log(`[${type.toUpperCase()}] ${message}`);
 }
-
-// Make functions globally available
-window.editLineType = editLineType;
-window.updateLineType = updateLineType;
-window.confirmDeleteLineType = confirmDeleteLineType;

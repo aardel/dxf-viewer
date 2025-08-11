@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Line Types Manager</title>
+    <title>Line Type Mapping</title>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" href="line-types.css">
@@ -9,109 +9,42 @@
 <body>
     <div class="header">
         <div class="header-left">
-            <h2>Line Types Manager <span style="color: #4a90e2; font-size: 0.8em;">v2.0 Auto-Save</span></h2>
+            <h2>Line Type Mapping <span style="color: #4a90e2; font-size: 0.8em;">v3.0</span></h2>
+            <p class="subtitle">Map internal line types to machine tools for cutting operations</p>
         </div>
         <div class="header-right">
-            <button class="btn btn-success" id="addLineTypeBtn">
-                <span>+</span> Add Line Type
+            <button class="btn btn-primary" id="saveMappingsBtn">
+                <span>💾</span> Save Mappings
             </button>
-            <button class="btn btn-warning" id="reloadBtn">
-                <span>🔄</span> Reload CSV
+            <button class="btn btn-secondary" id="reloadBtn">
+                <span>🔄</span> Reload
             </button>
-            <button class="btn btn-primary" id="saveAllBtn">
-                <span>💾</span> Save All
-            </button>
-            <div class="view-toggle">
-                <button class="btn btn-secondary" id="cardsViewBtn">
-                    <span>🔲</span> Cards
-                </button>
-                <button class="btn btn-secondary active" id="listViewBtn">
-                    <span>📋</span> List
-                </button>
-            </div>
         </div>
     </div>
 
     <div class="main-content">
-        <!-- Cards View -->
-        <div id="cardsView" class="cards-container hidden">
-            <div id="cardsGrid" class="cards-grid">
-                <!-- Cards will be dynamically generated here -->
-            </div>
-        </div>
-
-        <!-- List View -->
-        <div id="listView" class="list-container">
-            <div class="table-container">
-                <table class="line-types-table">
-                    <thead>
-                        <tr>
-                            <th>Name</th>
-                            <th>Description</th>
-                            <th>Line Type</th>
-                            <th>Width</th>
-                            <th>Color</th>
-                            <th>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody id="lineTypesTableBody">
-                        <!-- Table rows will be dynamically generated here -->
-                    </tbody>
-                </table>
-            </div>
+        <div class="table-container">
+            <table class="line-type-mapping-table">
+                <thead>
+                    <tr>
+                        <th>Line Type</th>
+                        <th style="width: 60px; text-align: center;">→</th>
+                        <th>Machine Tool</th>
+                        <th style="width: 100px;">Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="lineTypeMappingTableBody">
+                    <!-- Table rows will be dynamically generated here -->
+                </tbody>
+            </table>
         </div>
     </div>
 
-    <!-- Edit Modal -->
-    <div id="editModal" class="modal hidden">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h3 id="modalTitle">Edit Line Type</h3>
-                <button class="modal-close" id="modalClose">&times;</button>
-            </div>
-            <div class="modal-body">
-                <div class="form-grid">
-                    <div class="form-group">
-                        <label for="editName">Name:</label>
-                        <input type="text" id="editName" placeholder="Enter name..." />
-                    </div>
-                    <div class="form-group">
-                        <label for="editDescription">Description:</label>
-                        <input type="text" id="editDescription" placeholder="Enter description..." />
-                    </div>
-                    <div class="form-group">
-                        <label for="editLineType">Line Type:</label>
-                        <select id="editLineType">
-                            <option value="laser">Laser</option>
-                            <option value="milling">Milling</option>
-                            <option value="plasma">Plasma</option>
-                            <option value="waterjet">Water Jet</option>
-                            <option value="engraving">Engraving</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label for="editWidth">Width (pt):</label>
-                        <input type="number" id="editWidth" step="0.1" min="0" placeholder="0.5" />
-                    </div>
-                    <div class="form-group">
-                        <label for="editColor">Color:</label>
-                        <div class="color-input-group">
-                            <input type="color" id="editColor" />
-                            <input type="text" id="editColorHex" placeholder="#FF0000" />
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button class="btn btn-secondary" id="modalCancel">Cancel</button>
-                <button class="btn btn-danger" id="modalDelete">Delete</button>
-                <button class="btn btn-primary" id="modalSave">Save</button>
-            </div>
-        </div>
+    <!-- Status Bar -->
+    <div id="statusBar" class="status-bar">
+        <span id="statusText">Ready</span>
     </div>
 
-    <div id="status" class="status">Ready</div>
-
-    <script type="module" src="line-types.js?v=2.0"></script>
+    <script src="line-types.js"></script>
 </body>
 </html>
