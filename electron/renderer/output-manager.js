@@ -129,29 +129,37 @@ async function loadAvailableProfiles() {
 
 async function loadCurrentProfile() {
     try {
-        // Try to get the current profile from the main application's dropdown first
-        const mainProfileSelect = document.querySelector('#postprocessorProfile');
+        // First try to load the saved active profile
+        const savedProfile = await loadActiveProfile();
         let currentProfileName = null;
         
-        if (mainProfileSelect && mainProfileSelect.value && mainProfileSelect.value !== 'custom') {
-            currentProfileName = mainProfileSelect.value.trim();
+        if (savedProfile) {
+            currentProfileName = savedProfile.filename || savedProfile.name;
+            console.log('Loaded saved active profile:', currentProfileName);
         } else {
-            // Fallback: try to get from main window via IPC
-            try {
-                currentProfileName = await window.electronAPI.getMainWindowCurrentProfile();
-                if (currentProfileName) {
-                    currentProfileName = currentProfileName.trim();
-                }
-            } catch (ipcError) {
-                console.log('IPC getMainWindowCurrentProfile failed, trying alternative method');
-                // Try the old method as last resort
+            // Try to get the current profile from the main application's dropdown
+            const mainProfileSelect = document.querySelector('#postprocessorProfile');
+            
+            if (mainProfileSelect && mainProfileSelect.value && mainProfileSelect.value !== 'custom') {
+                currentProfileName = mainProfileSelect.value.trim();
+            } else {
+                // Fallback: try to get from main window via IPC
                 try {
-                    const profile = await window.electronAPI.getCurrentProfile();
-                    if (profile) {
-                        currentProfileName = (profile.id || profile.name).trim();
+                    currentProfileName = await window.electronAPI.getMainWindowCurrentProfile();
+                    if (currentProfileName) {
+                        currentProfileName = currentProfileName.trim();
                     }
-                } catch (oldIpcError) {
-                    console.log('All IPC methods failed');
+                } catch (ipcError) {
+                    console.log('IPC getMainWindowCurrentProfile failed, trying alternative method');
+                    // Try the old method as last resort
+                    try {
+                        const profile = await window.electronAPI.getCurrentProfile();
+                        if (profile) {
+                            currentProfileName = (profile.id || profile.name).trim();
+                        }
+                    } catch (oldIpcError) {
+                        console.log('All IPC methods failed');
+                    }
                 }
             }
         }
@@ -178,6 +186,9 @@ async function loadCurrentProfile() {
                 }
                 await loadProfileConfiguration(profile);
                 console.log('Successfully loaded current profile:', profile.name);
+                
+                // Save the active profile for persistence
+                await saveActiveProfile(profile);
             } else {
                 console.warn('Current profile not found in available profiles:', currentProfileName);
                 console.log('Available profiles:', availableProfiles.map(p => ({ name: p.name, filename: p.filename })));
@@ -191,12 +202,47 @@ async function loadCurrentProfile() {
                     }
                     await loadProfileConfiguration(currentProfile);
                     console.log('Using first available profile as fallback:', currentProfile.name);
+                    
+                    // Save the active profile for persistence
+                    await saveActiveProfile(currentProfile);
                 }
             }
         }
     } catch (error) {
         console.error('Error loading current profile:', error);
         showError('Failed to load current profile');
+    }
+}
+
+// Save active profile to localStorage for persistence
+async function saveActiveProfile(profile) {
+    try {
+        const profileData = {
+            filename: profile.filename,
+            name: profile.name,
+            id: profile.id,
+            timestamp: Date.now()
+        };
+        localStorage.setItem('outputManager_activeProfile', JSON.stringify(profileData));
+        console.log('Saved active profile:', profile.name);
+    } catch (error) {
+        console.error('Error saving active profile:', error);
+    }
+}
+
+// Load active profile from localStorage
+async function loadActiveProfile() {
+    try {
+        const savedData = localStorage.getItem('outputManager_activeProfile');
+        if (savedData) {
+            const profileData = JSON.parse(savedData);
+            console.log('Loaded saved profile data:', profileData);
+            return profileData;
+        }
+        return null;
+    } catch (error) {
+        console.error('Error loading active profile:', error);
+        return null;
     }
 }
 
@@ -575,8 +621,8 @@ async function saveMainTools() {
         // Update currentTools with the new data
         currentTools = newTools;
         
-        // Save tools to profile using existing method
-        const response = await window.electronAPI.saveMachineTools(currentTools, 'replace', currentProfile.filename);
+        // Save tools to profile using existing method - use 'replace_all' to completely replace the tools
+        const response = await window.electronAPI.saveMachineTools(currentTools, 'replace_all', currentProfile.filename);
         
         if (response && response.success) {
             showToolsStatus('✅ Tools saved successfully!', 'success');
@@ -1125,6 +1171,9 @@ function setupEventListeners() {
                     
                     // Update window title with profile name
                     await window.electronAPI.updateOutputManagerTitle(profile.name);
+                    
+                    // Save the active profile for persistence
+                    await saveActiveProfile(profile);
                 } else {
                     console.warn('Selected profile not found:', selectedProfileId);
                     // Update window title to show no profile
