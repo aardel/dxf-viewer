@@ -581,8 +581,8 @@ async function saveMainTools() {
         // Show saving status
         showToolsStatus('Saving tools to profile...', 'info');
         
-        // Save tools to profile using existing method
-        const response = await window.electronAPI.saveMachineTools(currentTools, 'replace');
+                            // Save tools to profile using existing method
+                    const response = await window.electronAPI.saveMachineTools(currentTools, 'replace', currentProfile.filename);
         
         if (response && response.success) {
             showToolsStatus('✅ Tools saved successfully!', 'success');

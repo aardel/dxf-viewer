@@ -69,7 +69,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     updateOutputSettingsOnly: (outputSettings, profileName) => ipcRenderer.invoke('update-output-settings-only', outputSettings, profileName),
     
     // Machine Tool Import API
-    saveMachineTools: (tools, importMode) => ipcRenderer.invoke('save-machine-tools', tools, importMode),
+    saveMachineTools: (tools, importMode, profileName) => ipcRenderer.invoke('save-machine-tools', tools, importMode, profileName),
     openMachineToolImporter: () => ipcRenderer.invoke('open-machine-tool-importer'),
     refreshToolConfiguration: () => ipcRenderer.invoke('refresh-tool-configuration'),
     // Output Manager

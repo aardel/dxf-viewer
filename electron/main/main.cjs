@@ -3229,12 +3229,12 @@ ipcMain.handle('update-output-settings-only', async (event, outputSettings, prof
 });
 
     // Machine Tool Import API
-    ipcMain.handle('save-machine-tools', async (event, tools, importMode = 'add_missing') => {
+    ipcMain.handle('save-machine-tools', async (event, tools, importMode = 'add_missing', profileName = 'mtl.xml') => {
         try {
-            console.log('Saving machine tools to profile:', tools.length, 'tools, mode:', importMode);
+            console.log('Saving machine tools to profile:', tools.length, 'tools, mode:', importMode, 'profile:', profileName);
             
-            // Save to mtl.xml profile instead of JSON file
-            const profilePath = path.join(__dirname, '..', '..', 'CONFIG', 'profiles', 'mtl.xml');
+            // Save to the specified profile
+            const profilePath = path.join(__dirname, '..', '..', 'CONFIG', 'profiles', profileName);
             
             // Load existing profile or create new one
             let profileContent = '';
@@ -3243,7 +3243,8 @@ ipcMain.handle('update-output-settings-only', async (event, outputSettings, prof
             }
             
             // Parse existing tools from profile
-            const existingTools = parseToolsFromProfile(profileContent);
+            const existingToolsObj = parseToolsFromProfile(profileContent);
+            const existingTools = Object.values(existingToolsObj || {});
             
             let finalTools = [];
             let importedCount = 0;

@@ -34,25 +34,142 @@
                 </Comment>
             </ScalingHeader>
         </MachineSettings>
+        
+        
         <Tools>
-            <Tool ID="T22" Name="Fine Cut" Description="Cutting" Width="1" HCode="H22"/>
-            <Tool ID="T2" Name="2pt CW" Description="Cutting" Width="1" HCode="H2"/>
-            <Tool ID="T3" Name="3pt CW" Description="Cutting" Width="1" HCode="H3"/>
-            <Tool ID="T4" Name="4pt CW" Description="Cutting" Width="1" HCode="H4"/>
-            <Tool ID="T20" Name="Fast Engrave" Description="Cutting" Width="1" HCode="H20"/>
-            <Tool ID="T12" Name="2pt Puls" Description="Cutting" Width="1" HCode="H12"/>
-            <Tool ID="T13" Name="3pt Puls" Description="Cutting" Width="1" HCode="H13"/>
-            <Tool ID="T14" Name="4pt Puls" Description="Cutting" Width="1" HCode="H14"/>
-            <Tool ID="T100" Name="Milling 1" Description="Cutting" Width="1" HCode="H100"/>
-            <Tool ID="T101" Name="Milling 2" Description="Cutting" Width="1" HCode="H101"/>
-            <Tool ID="T102" Name="Milling 3" Description="Cutting" Width="1" HCode="H102"/>
-            <Tool ID="T103" Name="Milling 4" Description="Cutting" Width="1" HCode="H103"/>
-            <Tool ID="T104" Name="Milling 5" Description="Cutting" Width="1" HCode="H104"/>
-            <Tool ID="T105" Name="Milling 6" Description="Cutting" Width="1" HCode="H105"/>
-            <Tool ID="T106" Name="Milling 7" Description="Cutting" Width="1" HCode="H106"/>
-            <Tool ID="T107" Name="Milling 8" Description="Cutting" Width="1" HCode="H107"/>
-            <Tool ID="T33" Name="Nozzle Engrave" Description="Cutting" Width="1" HCode="H33"/>
-            <Tool ID="T35" Name="Piercing" Description="Cutting" Width="1" HCode="H40"/>
+            
+            <Tool ID="T22">
+                <Name>null</Name>
+                <Description>null</Description>
+                <Width>0</Width>
+                <HCode>null</HCode>
+            </Tool>
+            
+            <Tool ID="T2">
+                <Name>null</Name>
+                <Description>null</Description>
+                <Width>0</Width>
+                <HCode>null</HCode>
+            </Tool>
+            
+            <Tool ID="T3">
+                <Name>null</Name>
+                <Description>null</Description>
+                <Width>0</Width>
+                <HCode>null</HCode>
+            </Tool>
+            
+            <Tool ID="T4">
+                <Name>null</Name>
+                <Description>null</Description>
+                <Width>0</Width>
+                <HCode>null</HCode>
+            </Tool>
+            
+            <Tool ID="T20">
+                <Name>null</Name>
+                <Description>null</Description>
+                <Width>0</Width>
+                <HCode>null</HCode>
+            </Tool>
+            
+            <Tool ID="T12">
+                <Name>null</Name>
+                <Description>null</Description>
+                <Width>0</Width>
+                <HCode>null</HCode>
+            </Tool>
+            
+            <Tool ID="T13">
+                <Name>null</Name>
+                <Description>null</Description>
+                <Width>0</Width>
+                <HCode>null</HCode>
+            </Tool>
+            
+            <Tool ID="T14">
+                <Name>null</Name>
+                <Description>null</Description>
+                <Width>0</Width>
+                <HCode>null</HCode>
+            </Tool>
+            
+            <Tool ID="T100">
+                <Name>null</Name>
+                <Description>null</Description>
+                <Width>0</Width>
+                <HCode>null</HCode>
+            </Tool>
+            
+            <Tool ID="T101">
+                <Name>null</Name>
+                <Description>null</Description>
+                <Width>0</Width>
+                <HCode>null</HCode>
+            </Tool>
+            
+            <Tool ID="T102">
+                <Name>null</Name>
+                <Description>null</Description>
+                <Width>0</Width>
+                <HCode>null</HCode>
+            </Tool>
+            
+            <Tool ID="T103">
+                <Name>null</Name>
+                <Description>null</Description>
+                <Width>0</Width>
+                <HCode>null</HCode>
+            </Tool>
+            
+            <Tool ID="T104">
+                <Name>null</Name>
+                <Description>null</Description>
+                <Width>0</Width>
+                <HCode>null</HCode>
+            </Tool>
+            
+            <Tool ID="T105">
+                <Name>null</Name>
+                <Description>null</Description>
+                <Width>0</Width>
+                <HCode>null</HCode>
+            </Tool>
+            
+            <Tool ID="T106">
+                <Name>null</Name>
+                <Description>null</Description>
+                <Width>0</Width>
+                <HCode>null</HCode>
+            </Tool>
+            
+            <Tool ID="T107">
+                <Name>null</Name>
+                <Description>null</Description>
+                <Width>0</Width>
+                <HCode>null</HCode>
+            </Tool>
+            
+            <Tool ID="T33">
+                <Name>null</Name>
+                <Description>null</Description>
+                <Width>0</Width>
+                <HCode>null</HCode>
+            </Tool>
+            
+            <Tool ID="T35">
+                <Name>null</Name>
+                <Description>null</Description>
+                <Width>0</Width>
+                <HCode>null</HCode>
+            </Tool>
+            
+            <Tool ID="T108">
+                <Name>null</Name>
+                <Description>null</Description>
+                <Width>0</Width>
+                <HCode>null</HCode>
+            </Tool>
         </Tools>
         <Header>
             <Template>{filename} / - size: {width} x {height} / {timestamp}
