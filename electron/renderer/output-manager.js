@@ -71,7 +71,7 @@ async function initializeOutputManager() {
         
         // Initialize DIN File Structure preview after a short delay to ensure DOM is ready
         setTimeout(() => {
-            updateDinFileStructurePreview();
+            initializeStructureInterface();
         }, 500);
         
     } catch (error) {
@@ -1771,9 +1771,7 @@ function setupEventListeners() {
     // Real-time preview updates for DIN File Structure
     const dinFileStructureElements = [
         'enableLineNumbers', 'startNumber', 'increment', 'formatTemplate',
-        'machineType', 'headerTemplate', 'includeFileInfo', 'includeProgramStart',
-        'includeDrawingBounds', 'includeOperationCount', 'scaleCommand', 'initialCommands',
-        'homeCommand', 'programEndCommand'
+        'machineType'
     ];
     
     dinFileStructureElements.forEach(elementId => {
@@ -1852,25 +1850,16 @@ function updateDinFileStructurePreview() {
         return;
     }
     
-    // Get all current values from the form
+    // Get line number settings
     const enableLineNumbers = document.getElementById('enableLineNumbers')?.checked || false;
     const startNumber = parseInt(document.getElementById('startNumber')?.value) || 10;
     const increment = parseInt(document.getElementById('increment')?.value) || 1;
     const formatTemplate = document.getElementById('formatTemplate')?.value || 'N{number}';
     
+    // Get machine type
     const machineType = document.getElementById('machineType')?.value || 'metric';
-    const headerTemplate = document.getElementById('headerTemplate')?.value || '{filename} / - size: {width} x {height} / {timestamp}';
-    const includeFileInfo = document.getElementById('includeFileInfo')?.checked || false;
-    const includeProgramStart = document.getElementById('includeProgramStart')?.checked || false;
-    const includeDrawingBounds = document.getElementById('includeDrawingBounds')?.checked || false;
-    const includeOperationCount = document.getElementById('includeOperationCount')?.checked || false;
-    const scaleCommand = document.getElementById('scaleCommand')?.value || '';
-    const initialCommands = document.getElementById('initialCommands')?.value || 'G90\nG60 X0';
     
-    const homeCommand = document.getElementById('homeCommand')?.value || 'G0 X0 Y0';
-    const programEndCommand = document.getElementById('programEndCommand')?.value || 'M30';
-    
-    // Generate header preview
+    // Generate header preview from drag-and-drop elements
     let headerLines = [];
     let lineNumber = startNumber;
     
@@ -1885,52 +1874,80 @@ function updateDinFileStructurePreview() {
         headerLines.push(line);
     };
     
-    // Program start marker
-    if (includeProgramStart) {
-        addLine('%1');
-    }
-    
-    // File information comment
-    if (includeFileInfo) {
-        const mockTemplate = headerTemplate
-            .replace('{filename}', 'example.dxf')
-            .replace('{width}', '100.0')
-            .replace('{height}', '50.0')
-            .replace('{timestamp}', new Date().toLocaleString())
-            .replace('{user}', 'Operator')
-            .replace('{material}', 'Steel');
-        addLine(`{ ${mockTemplate}`);
-    }
-    
-    // Drawing bounds
-    if (includeDrawingBounds) {
-        addLine('{ BOUNDS: X0.0 Y0.0 to X100.0 Y50.0');
-    }
-    
-    // Operation count
-    if (includeOperationCount) {
-        addLine('{ OPERATIONS: 25');
-    }
-    
-    // Scale command (if provided)
-    if (scaleCommand.trim()) {
-        addLine(scaleCommand, true);
-        addLine('{ Scaling applied');
-    }
-    
-    // Initial setup commands
-    const setupCommands = initialCommands.split('\n').filter(cmd => cmd.trim());
-    setupCommands.forEach(cmd => {
-        addLine(cmd.trim(), true);
+    // Process header elements in order
+    headerElements.forEach(element => {
+        if (!element.enabled) return;
+        
+        const config = element.config || {};
+        
+        switch (element.type) {
+            case 'program-start':
+                addLine(config.marker || '%1');
+                break;
+                
+            case 'file-info':
+                const template = config.template || '{filename} / - size: {width} x {height} / {timestamp}';
+                const mockTemplate = template
+                    .replace('{filename}', 'example.dxf')
+                    .replace('{width}', '100.0')
+                    .replace('{height}', '50.0')
+                    .replace('{timestamp}', new Date().toLocaleString())
+                    .replace('{user}', 'Operator')
+                    .replace('{material}', 'Steel');
+                addLine(`{ ${mockTemplate}`);
+                break;
+                
+            case 'bounds':
+                const boundsFormat = config.format || 'BOUNDS: X{minX} Y{minY} to X{maxX} Y{maxY}';
+                const mockBounds = boundsFormat
+                    .replace('{minX}', '0.0')
+                    .replace('{minY}', '0.0')
+                    .replace('{maxX}', '100.0')
+                    .replace('{maxY}', '50.0');
+                addLine(`{ ${mockBounds}`);
+                break;
+                
+            case 'operations':
+                const opsFormat = config.format || 'OPERATIONS: {count}';
+                const mockOps = opsFormat.replace('{count}', '25');
+                addLine(`{ ${mockOps}`);
+                break;
+                
+            case 'scaling':
+                if (machineType === 'imperial' && config.command) {
+                    addLine(config.command, true);
+                    if (config.comment) {
+                        addLine(`{ ${config.comment}`);
+                    }
+                }
+                break;
+                
+            case 'setup-commands':
+                const setupCommands = (config.commands || 'G90\nG60 X0').split('\n').filter(cmd => cmd.trim());
+                setupCommands.forEach(cmd => {
+                    addLine(cmd.trim(), true);
+                });
+                break;
+                
+            case 'home-command':
+                addLine(config.command || 'G0 X0 Y0', true);
+                break;
+                
+            case 'custom':
+                if (config.content) {
+                    const customLines = config.content.split('\n').filter(line => line.trim());
+                    customLines.forEach(line => {
+                        addLine(line.trim());
+                    });
+                }
+                break;
+        }
     });
-    
-    // Home command
-    addLine(homeCommand, true);
     
     // Add separator
     addLine('{ BEGIN CUTTING OPERATIONS...');
     
-    // Generate footer preview
+    // Generate footer preview from drag-and-drop elements
     let footerLines = [];
     let footerLineNumber = lineNumber;
     
@@ -1946,10 +1963,29 @@ function updateDinFileStructurePreview() {
     
     addFooterLine('{ END CUTTING OPERATIONS');
     
-    // Program end commands
-    const endCommands = programEndCommand.split('\n').filter(cmd => cmd.trim());
-    endCommands.forEach(cmd => {
-        addFooterLine(cmd.trim(), true);
+    // Process footer elements in order
+    footerElements.forEach(element => {
+        if (!element.enabled) return;
+        
+        const config = element.config || {};
+        
+        switch (element.type) {
+            case 'end-commands':
+                const endCommands = (config.commands || 'M30').split('\n').filter(cmd => cmd.trim());
+                endCommands.forEach(cmd => {
+                    addFooterLine(cmd.trim(), true);
+                });
+                break;
+                
+            case 'custom':
+                if (config.content) {
+                    const customLines = config.content.split('\n').filter(line => line.trim());
+                    customLines.forEach(line => {
+                        addFooterLine(line.trim());
+                    });
+                }
+                break;
+        }
     });
     
     addFooterLine('{ End of Program');
@@ -2005,3 +2041,642 @@ window.outputManager = {
     loadHeaderFooterConfig,
     loadOutputSettings
 };
+
+// DIN File Structure Elements Management
+let headerElements = [];
+let footerElements = [];
+let draggedElement = null;
+
+// Default element definitions
+const defaultElements = {
+    'program-start': {
+        type: 'program-start',
+        title: 'Program Start Marker',
+        icon: '🚀',
+        enabled: true,
+        config: {
+            marker: '%1'
+        }
+    },
+    'file-info': {
+        type: 'file-info',
+        title: 'File Information',
+        icon: '📄',
+        enabled: true,
+        config: {
+            template: '{filename} / - size: {width} x {height} / {timestamp}'
+        }
+    },
+    'bounds': {
+        type: 'bounds',
+        title: 'Drawing Bounds',
+        icon: '📐',
+        enabled: true,
+        config: {
+            format: 'BOUNDS: X{minX} Y{minY} to X{maxX} Y{maxY}'
+        }
+    },
+    'operations': {
+        type: 'operations',
+        title: 'Operation Count',
+        icon: '🔢',
+        enabled: true,
+        config: {
+            format: 'OPERATIONS: {count}'
+        }
+    },
+    'scaling': {
+        type: 'scaling',
+        title: 'Scaling Commands',
+        icon: '⚖️',
+        enabled: false,
+        config: {
+            command: 'G51 X1.0 Y1.0 Z1.0',
+            comment: 'Scaling applied'
+        }
+    },
+    'setup-commands': {
+        type: 'setup-commands',
+        title: 'Setup Commands',
+        icon: '⚙️',
+        enabled: true,
+        config: {
+            commands: 'G90\nG60 X0'
+        }
+    },
+    'home-command': {
+        type: 'home-command',
+        title: 'Home Command',
+        icon: '🏠',
+        enabled: true,
+        config: {
+            command: 'G0 X0 Y0'
+        }
+    },
+    'end-commands': {
+        type: 'end-commands',
+        title: 'End Commands',
+        icon: '🏁',
+        enabled: true,
+        config: {
+            commands: 'M30'
+        }
+    }
+};
+
+// Initialize the drag-and-drop structure interface
+function initializeStructureInterface() {
+    console.log('Initializing structure interface...');
+    
+    // Load saved structure or use defaults
+    loadStructureConfiguration();
+    
+    // Populate containers
+    populateElementsContainers();
+    
+    // Set up drag and drop
+    setupDragAndDrop();
+    
+    // Set up add element button
+    setupAddElementButton();
+    
+    // Initial preview update
+    updateDinFileStructurePreview();
+}
+
+// Load structure configuration from profile
+async function loadStructureConfiguration() {
+    try {
+        if (!currentProfile) return;
+        
+        const profileName = currentProfile.filename || currentProfile.id || currentProfile.name;
+        const config = await window.electronAPI.loadPostprocessorConfig(profileName);
+        
+        if (config && config.structure) {
+            headerElements = config.structure.header || [];
+            footerElements = config.structure.footer || [];
+        } else {
+            // Use default structure
+            headerElements = [
+                { ...defaultElements['program-start'] },
+                { ...defaultElements['file-info'] },
+                { ...defaultElements['bounds'] },
+                { ...defaultElements['operations'] },
+                { ...defaultElements['setup-commands'] },
+                { ...defaultElements['home-command'] }
+            ];
+            footerElements = [
+                { ...defaultElements['end-commands'] }
+            ];
+        }
+        
+        console.log('Structure configuration loaded:', { headerElements, footerElements });
+        
+    } catch (error) {
+        console.error('Error loading structure configuration:', error);
+        // Use default structure on error
+        headerElements = [
+            { ...defaultElements['program-start'] },
+            { ...defaultElements['file-info'] },
+            { ...defaultElements['bounds'] },
+            { ...defaultElements['operations'] },
+            { ...defaultElements['setup-commands'] },
+            { ...defaultElements['home-command'] }
+        ];
+        footerElements = [
+            { ...defaultElements['end-commands'] }
+        ];
+    }
+}
+
+// Save structure configuration to profile
+async function saveStructureConfiguration() {
+    try {
+        if (!currentProfile) return;
+        
+        const profileName = currentProfile.filename || currentProfile.id || currentProfile.name;
+        const config = await window.electronAPI.loadPostprocessorConfig(profileName) || {};
+        
+        config.structure = {
+            header: headerElements,
+            footer: footerElements
+        };
+        
+        await window.electronAPI.savePostprocessorConfig(profileName, config);
+        console.log('Structure configuration saved');
+        
+    } catch (error) {
+        console.error('Error saving structure configuration:', error);
+        showError('Failed to save structure configuration');
+    }
+}
+
+// Populate the elements containers
+function populateElementsContainers() {
+    const headerContainer = document.getElementById('headerElementsContainer');
+    const footerContainer = document.getElementById('footerElementsContainer');
+    
+    if (!headerContainer || !footerContainer) {
+        console.error('Elements containers not found');
+        return;
+    }
+    
+    // Clear containers
+    headerContainer.innerHTML = '';
+    footerContainer.innerHTML = '';
+    
+    // Add header elements
+    headerElements.forEach((element, index) => {
+        const elementFrame = createElementFrame(element, 'header', index);
+        headerContainer.appendChild(elementFrame);
+    });
+    
+    // Add footer elements
+    footerElements.forEach((element, index) => {
+        const elementFrame = createElementFrame(element, 'footer', index);
+        footerContainer.appendChild(elementFrame);
+    });
+}
+
+// Create an element frame
+function createElementFrame(element, container, index) {
+    const frame = document.createElement('div');
+    frame.className = 'element-frame';
+    frame.setAttribute('data-type', element.type);
+    frame.setAttribute('data-index', index);
+    frame.setAttribute('data-container', container);
+    
+    const isExpanded = element.expanded || false;
+    if (isExpanded) frame.classList.add('expanded');
+    
+    frame.innerHTML = `
+        <div class="element-header">
+            <div class="element-title" onclick="toggleElementExpansion(this.parentElement.parentElement)">
+                <span class="element-icon">${element.icon}</span>
+                <span>${element.title}</span>
+            </div>
+            <div class="element-controls">
+                <div class="element-toggle">
+                    <input type="checkbox" id="toggle_${container}_${index}" 
+                           ${element.enabled ? 'checked' : ''} 
+                           onchange="toggleElement('${container}', ${index}, this.checked)">
+                    <label for="toggle_${container}_${index}">Enabled</label>
+                </div>
+                <span class="drag-handle" draggable="true" 
+                      onmousedown="startDrag(event, '${container}', ${index})">⋮⋮</span>
+                ${element.type === 'custom' ? 
+                    `<button class="element-delete" onclick="deleteElement('${container}', ${index})">×</button>` : 
+                    ''}
+            </div>
+        </div>
+        <div class="element-content">
+            ${generateElementConfig(element, container, index)}
+            <div class="element-preview" id="preview_${container}_${index}">
+                ${generateElementPreview(element)}
+            </div>
+        </div>
+    `;
+    
+    return frame;
+}
+
+// Generate element configuration HTML
+function generateElementConfig(element, container, index) {
+    const config = element.config || {};
+    
+    switch (element.type) {
+        case 'program-start':
+            return `
+                <div class="element-config">
+                    <label>Program Start Marker:</label>
+                    <input type="text" value="${config.marker || '%1'}" 
+                           onchange="updateElementConfig('${container}', ${index}, 'marker', this.value)">
+                    <small>Marker that indicates the start of the program</small>
+                </div>
+            `;
+            
+        case 'file-info':
+            return `
+                <div class="element-config">
+                    <label>File Information Template:</label>
+                    <input type="text" value="${config.template || '{filename} / - size: {width} x {height} / {timestamp}'}" 
+                           onchange="updateElementConfig('${container}', ${index}, 'template', this.value)">
+                    <small>Variables: {filename}, {width}, {height}, {timestamp}, {user}, {material}</small>
+                </div>
+            `;
+            
+        case 'bounds':
+            return `
+                <div class="element-config">
+                    <label>Bounds Format:</label>
+                    <input type="text" value="${config.format || 'BOUNDS: X{minX} Y{minY} to X{maxX} Y{maxY}'}" 
+                           onchange="updateElementConfig('${container}', ${index}, 'format', this.value)">
+                    <small>Format for displaying drawing bounds</small>
+                </div>
+            `;
+            
+        case 'operations':
+            return `
+                <div class="element-config">
+                    <label>Operations Format:</label>
+                    <input type="text" value="${config.format || 'OPERATIONS: {count}'}" 
+                           onchange="updateElementConfig('${container}', ${index}, 'format', this.value)">
+                    <small>Format for displaying operation count</small>
+                </div>
+            `;
+            
+        case 'scaling':
+            return `
+                <div class="element-config">
+                    <label>Scaling Command:</label>
+                    <input type="text" value="${config.command || 'G51 X1.0 Y1.0 Z1.0'}" 
+                           onchange="updateElementConfig('${container}', ${index}, 'command', this.value)">
+                    <small>G-code command for scaling</small>
+                </div>
+                <div class="element-config">
+                    <label>Scaling Comment:</label>
+                    <input type="text" value="${config.comment || 'Scaling applied'}" 
+                           onchange="updateElementConfig('${container}', ${index}, 'comment', this.value)">
+                    <small>Comment to display after scaling command</small>
+                </div>
+            `;
+            
+        case 'setup-commands':
+            return `
+                <div class="element-config">
+                    <label>Setup Commands:</label>
+                    <textarea rows="3" onchange="updateElementConfig('${container}', ${index}, 'commands', this.value)">${config.commands || 'G90\nG60 X0'}</textarea>
+                    <small>Initial setup commands (one per line)</small>
+                </div>
+            `;
+            
+        case 'home-command':
+            return `
+                <div class="element-config">
+                    <label>Home Command:</label>
+                    <input type="text" value="${config.command || 'G0 X0 Y0'}" 
+                           onchange="updateElementConfig('${container}', ${index}, 'command', this.value)">
+                    <small>Command to move to home position</small>
+                </div>
+            `;
+            
+        case 'end-commands':
+            return `
+                <div class="element-config">
+                    <label>End Commands:</label>
+                    <textarea rows="3" onchange="updateElementConfig('${container}', ${index}, 'commands', this.value)">${config.commands || 'M30'}</textarea>
+                    <small>Program end commands (one per line)</small>
+                </div>
+            `;
+            
+        case 'custom':
+            return `
+                <div class="element-config">
+                    <label>Custom Content:</label>
+                    <textarea rows="3" onchange="updateElementConfig('${container}', ${index}, 'content', this.value)">${config.content || ''}</textarea>
+                    <small>Custom text or commands</small>
+                </div>
+            `;
+            
+        default:
+            return '<div class="element-config">No configuration available for this element type.</div>';
+    }
+}
+
+// Generate element preview
+function generateElementPreview(element) {
+    if (!element.enabled) return '<span class="comment">Element disabled</span>';
+    
+    const config = element.config || {};
+    
+    switch (element.type) {
+        case 'program-start':
+            return `<span class="command">${config.marker || '%1'}</span>`;
+            
+        case 'file-info':
+            const template = config.template || '{filename} / - size: {width} x {height} / {timestamp}';
+            const mockTemplate = template
+                .replace('{filename}', 'example.dxf')
+                .replace('{width}', '100.0')
+                .replace('{height}', '50.0')
+                .replace('{timestamp}', new Date().toLocaleString());
+            return `<span class="comment">{ ${mockTemplate}</span>`;
+            
+        case 'bounds':
+            const boundsFormat = config.format || 'BOUNDS: X{minX} Y{minY} to X{maxX} Y{maxY}';
+            const mockBounds = boundsFormat
+                .replace('{minX}', '0.0')
+                .replace('{minY}', '0.0')
+                .replace('{maxX}', '100.0')
+                .replace('{maxY}', '50.0');
+            return `<span class="comment">{ ${mockBounds}</span>`;
+            
+        case 'operations':
+            const opsFormat = config.format || 'OPERATIONS: {count}';
+            const mockOps = opsFormat.replace('{count}', '25');
+            return `<span class="comment">{ ${mockOps}</span>`;
+            
+        case 'scaling':
+            let scalingPreview = '';
+            if (config.command) {
+                scalingPreview += `<span class="command">${config.command}</span>\n`;
+            }
+            if (config.comment) {
+                scalingPreview += `<span class="comment">{ ${config.comment}</span>`;
+            }
+            return scalingPreview;
+            
+        case 'setup-commands':
+            const setupCommands = (config.commands || 'G90\nG60 X0').split('\n').filter(cmd => cmd.trim());
+            return setupCommands.map(cmd => `<span class="command">${cmd.trim()}</span>`).join('\n');
+            
+        case 'home-command':
+            return `<span class="command">${config.command || 'G0 X0 Y0'}</span>`;
+            
+        case 'end-commands':
+            const endCommands = (config.commands || 'M30').split('\n').filter(cmd => cmd.trim());
+            return endCommands.map(cmd => `<span class="command">${cmd.trim()}</span>`).join('\n');
+            
+        case 'custom':
+            return config.content || '<span class="comment">No content</span>';
+            
+        default:
+            return '<span class="comment">Preview not available</span>';
+    }
+}
+
+// Element management functions
+function toggleElementExpansion(frame) {
+    frame.classList.toggle('expanded');
+    const element = frame.querySelector('.element-icon');
+    if (frame.classList.contains('expanded')) {
+        element.style.transform = 'rotate(90deg)';
+    } else {
+        element.style.transform = 'rotate(0deg)';
+    }
+}
+
+function toggleElement(container, index, enabled) {
+    const elements = container === 'header' ? headerElements : footerElements;
+    if (elements[index]) {
+        elements[index].enabled = enabled;
+        updateElementPreview(container, index);
+        updateDinFileStructurePreview();
+        saveStructureConfiguration();
+    }
+}
+
+function updateElementConfig(container, index, key, value) {
+    const elements = container === 'header' ? headerElements : footerElements;
+    if (elements[index] && elements[index].config) {
+        elements[index].config[key] = value;
+        updateElementPreview(container, index);
+        updateDinFileStructurePreview();
+        saveStructureConfiguration();
+    }
+}
+
+function updateElementPreview(container, index) {
+    const previewElement = document.getElementById(`preview_${container}_${index}`);
+    if (previewElement) {
+        const elements = container === 'header' ? headerElements : footerElements;
+        const element = elements[index];
+        if (element) {
+            previewElement.innerHTML = generateElementPreview(element);
+        }
+    }
+}
+
+function deleteElement(container, index) {
+    const elements = container === 'header' ? headerElements : footerElements;
+    if (elements[index] && elements[index].type === 'custom') {
+        elements.splice(index, 1);
+        populateElementsContainers();
+        updateDinFileStructurePreview();
+        saveStructureConfiguration();
+    }
+}
+
+// Drag and drop functionality
+function setupDragAndDrop() {
+    const containers = ['headerElementsContainer', 'footerElementsContainer'];
+    
+    containers.forEach(containerId => {
+        const container = document.getElementById(containerId);
+        if (!container) return;
+        
+        container.addEventListener('dragover', handleDragOver);
+        container.addEventListener('drop', handleDrop);
+        container.addEventListener('dragenter', handleDragEnter);
+        container.addEventListener('dragleave', handleDragLeave);
+    });
+}
+
+function startDrag(event, container, index) {
+    event.preventDefault();
+    draggedElement = { container, index };
+    
+    const frame = event.target.closest('.element-frame');
+    if (frame) {
+        frame.classList.add('dragging');
+    }
+    
+    event.dataTransfer.effectAllowed = 'move';
+    event.dataTransfer.setData('text/html', frame.outerHTML);
+}
+
+function handleDragOver(event) {
+    event.preventDefault();
+    event.dataTransfer.dropEffect = 'move';
+}
+
+function handleDragEnter(event) {
+    event.preventDefault();
+    const container = event.currentTarget;
+    container.classList.add('drag-over');
+}
+
+function handleDragLeave(event) {
+    event.preventDefault();
+    const container = event.currentTarget;
+    if (!container.contains(event.relatedTarget)) {
+        container.classList.remove('drag-over');
+    }
+}
+
+function handleDrop(event) {
+    event.preventDefault();
+    const container = event.currentTarget;
+    container.classList.remove('drag-over');
+    
+    if (!draggedElement) return;
+    
+    const sourceContainer = draggedElement.container;
+    const sourceIndex = draggedElement.index;
+    const targetContainer = container.id === 'headerElementsContainer' ? 'header' : 'footer';
+    
+    // Calculate target index based on drop position
+    const targetIndex = calculateDropIndex(container, event.clientY);
+    
+    // Move element
+    moveElement(sourceContainer, sourceIndex, targetContainer, targetIndex);
+    
+    // Clean up
+    const draggingFrame = document.querySelector('.element-frame.dragging');
+    if (draggingFrame) {
+        draggingFrame.classList.remove('dragging');
+    }
+    draggedElement = null;
+}
+
+function calculateDropIndex(container, clientY) {
+    const frames = container.querySelectorAll('.element-frame:not(.dragging)');
+    const containerRect = container.getBoundingClientRect();
+    const containerTop = containerRect.top;
+    
+    for (let i = 0; i < frames.length; i++) {
+        const frameRect = frames[i].getBoundingClientRect();
+        const frameMiddle = frameRect.top + frameRect.height / 2;
+        
+        if (clientY < frameMiddle) {
+            return i;
+        }
+    }
+    
+    return frames.length;
+}
+
+function moveElement(sourceContainer, sourceIndex, targetContainer, targetIndex) {
+    const sourceElements = sourceContainer === 'header' ? headerElements : footerElements;
+    const targetElements = targetContainer === 'header' ? headerElements : footerElements;
+    
+    if (sourceContainer === targetContainer) {
+        // Move within same container
+        const element = sourceElements.splice(sourceIndex, 1)[0];
+        targetElements.splice(targetIndex, 0, element);
+    } else {
+        // Move between containers
+        const element = sourceElements.splice(sourceIndex, 1)[0];
+        targetElements.splice(targetIndex, 0, element);
+    }
+    
+    populateElementsContainers();
+    updateDinFileStructurePreview();
+    saveStructureConfiguration();
+}
+
+// Add custom element functionality
+function setupAddElementButton() {
+    const addBtn = document.getElementById('addElementBtn');
+    if (addBtn) {
+        addBtn.addEventListener('click', showAddElementDialog);
+    }
+}
+
+function showAddElementDialog() {
+    const dialog = document.createElement('div');
+    dialog.className = 'modal';
+    dialog.innerHTML = `
+        <div class="modal-content" style="width: 400px;">
+            <div class="modal-header">
+                <h3>Add Custom Element</h3>
+                <button class="modal-close" onclick="this.closest('.modal').remove()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>Element Title:</label>
+                    <input type="text" id="customElementTitle" class="form-input" placeholder="My Custom Element">
+                </div>
+                <div class="form-group">
+                    <label>Custom Content:</label>
+                    <textarea id="customElementContent" class="form-input" rows="4" placeholder="Enter your custom text or commands..."></textarea>
+                </div>
+                <div class="form-group">
+                    <label>Add to:</label>
+                    <select id="customElementContainer" class="form-select">
+                        <option value="header">Header</option>
+                        <option value="footer">Footer</option>
+                    </select>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="this.closest('.modal').remove()">Cancel</button>
+                <button class="btn btn-primary" onclick="addCustomElement()">Add Element</button>
+            </div>
+        </div>
+    `;
+    
+    document.body.appendChild(dialog);
+}
+
+function addCustomElement() {
+    const title = document.getElementById('customElementTitle').value.trim();
+    const content = document.getElementById('customElementContent').value.trim();
+    const container = document.getElementById('customElementContainer').value;
+    
+    if (!title || !content) {
+        showError('Please provide both title and content for the custom element');
+        return;
+    }
+    
+    const customElement = {
+        type: 'custom',
+        title: title,
+        icon: '📝',
+        enabled: true,
+        config: {
+            content: content
+        }
+    };
+    
+    const elements = container === 'header' ? headerElements : footerElements;
+    elements.push(customElement);
+    
+    populateElementsContainers();
+    updateDinFileStructurePreview();
+    saveStructureConfiguration();
+    
+    // Close dialog
+    document.querySelector('.modal').remove();
+    showSuccess('Custom element added successfully');
+}

@@ -829,8 +829,10 @@
                     </div>
                     
                     <div class="settings-section">
-                        <h6>📋 Header Settings</h6>
-                        <p style="color: #ccc; font-size: 0.9rem; margin-bottom: 1rem;">Configure the header information that appears at the top of the DIN file.</p>
+                        <h6>📋 Header & Footer Structure</h6>
+                        <p style="color: #ccc; font-size: 0.9rem; margin-bottom: 1rem;">Drag and drop elements to reorder the sequence. Each element can be enabled/disabled and configured individually.</p>
+                        
+                        <!-- Machine Type (Global Setting) -->
                         <div class="form-group">
                             <label for="machineType">Machine Type:</label>
                             <select id="machineType" class="form-select">
@@ -839,59 +841,33 @@
                             </select>
                         </div>
                         
-                        <div class="form-group">
-                            <label for="headerTemplate">Header Template:</label>
-                            <input type="text" id="headerTemplate" class="form-input" value="{filename} / - size: {width} x {height} / {timestamp}">
-                            <small>Variables: {filename}, {width}, {height}, {timestamp}, {user}, {material}</small>
+                        <!-- Header Elements Container -->
+                        <div class="structure-container">
+                            <h6 style="margin-bottom: 0.5rem; color: #4a90e2;">📄 Header Elements</h6>
+                            <div id="headerElementsContainer" class="elements-container">
+                                <!-- Elements will be populated by JavaScript -->
+                            </div>
                         </div>
                         
-                        <div class="checkbox-group">
-                            <label>
-                                <input type="checkbox" id="includeFileInfo" checked>
-                                File information
-                            </label>
-                            <label>
-                                <input type="checkbox" id="includeProgramStart" checked>
-                                Program start marker (%1)
-                            </label>
-                            <label>
-                                <input type="checkbox" id="includeDrawingBounds" checked>
-                                Drawing bounds
-                            </label>
-                            <label>
-                                <input type="checkbox" id="includeOperationCount" checked>
-                                Operation count
-                            </label>
+                        <!-- Footer Elements Container -->
+                        <div class="structure-container">
+                            <h6 style="margin-bottom: 0.5rem; color: #4a90e2;">📄 Footer Elements</h6>
+                            <div id="footerElementsContainer" class="elements-container">
+                                <!-- Elements will be populated by JavaScript -->
+                            </div>
                         </div>
                         
-                        <div class="form-group">
-                            <label for="scaleCommand">Scale Command:</label>
-                            <input type="text" id="scaleCommand" class="form-input" placeholder="e.g., G51 X1.0 Y1.0 Z1.0">
-                            <small>Optional scaling command for the machine. Leave empty for no scaling.</small>
-                        </div>
-                        
-                        <div class="form-group">
-                            <label for="initialCommands">Initial Setup Commands:</label>
-                            <textarea id="initialCommands" class="form-input" rows="4" placeholder="G90&#10;G60 X0">G90
-G60 X0</textarea>
+                        <!-- Add New Element Button -->
+                        <div class="form-group" style="margin-top: 1rem;">
+                            <button id="addElementBtn" class="btn btn-secondary" style="width: 100%;">
+                                ➕ Add Custom Element
+                            </button>
                         </div>
                     </div>
                 </div>
                 
                 <div>
-                    <div class="settings-section">
-                        <h6>⚙️ G-Code Commands</h6>
-                        <p style="color: #ccc; font-size: 0.9rem; margin-bottom: 1rem;">Configure the G-code commands that appear at the beginning and end of the DIN file.</p>
-                        <div class="form-group">
-                            <label for="homeCommand">Home Command:</label>
-                            <input type="text" id="homeCommand" class="form-input" value="G0 X0 Y0">
-                        </div>
-                        <div class="form-group">
-                            <label for="programEndCommand">Program End Command:</label>
-                            <textarea id="programEndCommand" class="form-input" rows="3" placeholder="M30">M30</textarea>
-                            <small>Common end commands: M30 (End of Program), M02 (End of Program), M99 (End of Subprogram)</small>
-                        </div>
-                    </div>
+
                     
                     <div class="settings-section">
                         <h6>👁️ Live Preview</h6>

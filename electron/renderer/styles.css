@@ -3278,3 +3278,274 @@ input.output-toggle.disabled { outline: 2px solid rgba(70, 140, 255, 0.6); box-s
 .color-indicator.black {
     filter: drop-shadow(0 0 1px rgba(255, 255, 255, 0.3));
 }
+
+/* Drag and Drop Structure Interface */
+.structure-container {
+    margin-bottom: 1.5rem;
+}
+
+.elements-container {
+    min-height: 50px;
+    border: 2px dashed #444;
+    border-radius: 8px;
+    padding: 0.5rem;
+    background: rgba(68, 68, 68, 0.1);
+    transition: all 0.3s ease;
+}
+
+.elements-container.drag-over {
+    border-color: #4a90e2;
+    background: rgba(74, 144, 226, 0.1);
+    box-shadow: 0 0 10px rgba(74, 144, 226, 0.3);
+}
+
+.element-frame {
+    background: linear-gradient(135deg, #2a2a2a 0%, #333 100%);
+    border: 1px solid #555;
+    border-radius: 6px;
+    margin-bottom: 0.5rem;
+    padding: 0.75rem;
+    cursor: move;
+    transition: all 0.3s ease;
+    position: relative;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.element-frame:hover {
+    border-color: #4a90e2;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+    transform: translateY(-1px);
+}
+
+.element-frame.dragging {
+    opacity: 0.8;
+    transform: rotate(2deg);
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.4);
+    z-index: 1000;
+}
+
+.element-frame.drag-over {
+    border-color: #4a90e2;
+    background: linear-gradient(135deg, #2a2a2a 0%, #3a3a3a 100%);
+}
+
+.element-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 0.5rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid #444;
+}
+
+.element-title {
+    display: flex;
+    align-items: center;
+    font-weight: bold;
+    color: #fff;
+    font-size: 0.9rem;
+}
+
+.element-icon {
+    margin-right: 0.5rem;
+    font-size: 1rem;
+}
+
+.element-controls {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.drag-handle {
+    cursor: grab;
+    color: #888;
+    font-size: 1.2rem;
+    padding: 0.25rem;
+    border-radius: 4px;
+    transition: all 0.2s ease;
+}
+
+.drag-handle:hover {
+    color: #4a90e2;
+    background: rgba(74, 144, 226, 0.1);
+}
+
+.drag-handle:active {
+    cursor: grabbing;
+    transform: scale(1.1);
+}
+
+.element-toggle {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+}
+
+.element-toggle input[type="checkbox"] {
+    margin: 0;
+}
+
+.element-toggle label {
+    font-size: 0.8rem;
+    color: #ccc;
+    cursor: pointer;
+}
+
+.element-delete {
+    background: #dc3545;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    padding: 0.25rem 0.5rem;
+    font-size: 0.8rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.element-delete:hover {
+    background: #c82333;
+    transform: scale(1.05);
+}
+
+.element-content {
+    display: none;
+    padding-top: 0.5rem;
+}
+
+.element-frame.expanded .element-content {
+    display: block;
+}
+
+.element-frame.expanded .element-icon {
+    transform: rotate(90deg);
+}
+
+.element-config {
+    margin-bottom: 0.5rem;
+}
+
+.element-config:last-child {
+    margin-bottom: 0;
+}
+
+.element-config label {
+    display: block;
+    font-size: 0.8rem;
+    color: #ccc;
+    margin-bottom: 0.25rem;
+}
+
+.element-config input,
+.element-config textarea,
+.element-config select {
+    width: 100%;
+    font-size: 0.8rem;
+}
+
+.element-config small {
+    font-size: 0.7rem;
+    color: #888;
+    display: block;
+    margin-top: 0.25rem;
+}
+
+.element-preview {
+    background: #1a1a1a;
+    border: 1px solid #444;
+    border-radius: 4px;
+    padding: 0.5rem;
+    font-family: 'Courier New', monospace;
+    font-size: 0.8rem;
+    color: #ccc;
+    margin-top: 0.5rem;
+    white-space: pre-wrap;
+    max-height: 100px;
+    overflow-y: auto;
+}
+
+.element-preview .comment {
+    color: #888;
+    font-style: italic;
+}
+
+.element-preview .command {
+    color: #4a90e2;
+    font-weight: bold;
+}
+
+/* Empty state styling */
+.elements-container:empty::after {
+    content: "Drag elements here to build your DIN file structure";
+    display: block;
+    text-align: center;
+    color: #888;
+    font-style: italic;
+    padding: 1rem;
+    font-size: 0.9rem;
+}
+
+/* Drag drop zones */
+.drop-zone {
+    height: 20px;
+    margin: 0.25rem 0;
+    border: 2px dashed transparent;
+    border-radius: 4px;
+    transition: all 0.2s ease;
+}
+
+.drop-zone.drag-over {
+    border-color: #4a90e2;
+    background: rgba(74, 144, 226, 0.1);
+}
+
+/* Element types styling */
+.element-frame[data-type="program-start"] {
+    border-left: 4px solid #28a745;
+}
+
+.element-frame[data-type="file-info"] {
+    border-left: 4px solid #17a2b8;
+}
+
+.element-frame[data-type="bounds"] {
+    border-left: 4px solid #ffc107;
+}
+
+.element-frame[data-type="operations"] {
+    border-left: 4px solid #6f42c1;
+}
+
+.element-frame[data-type="scaling"] {
+    border-left: 4px solid #fd7e14;
+}
+
+.element-frame[data-type="setup-commands"] {
+    border-left: 4px solid #20c997;
+}
+
+.element-frame[data-type="home-command"] {
+    border-left: 4px solid #e83e8c;
+}
+
+.element-frame[data-type="end-commands"] {
+    border-left: 4px solid #dc3545;
+}
+
+.element-frame[data-type="custom"] {
+    border-left: 4px solid #6c757d;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .element-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.5rem;
+    }
+    
+    .element-controls {
+        width: 100%;
+        justify-content: space-between;
+    }
+}
