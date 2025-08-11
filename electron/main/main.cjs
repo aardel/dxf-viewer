@@ -3706,7 +3706,7 @@ ipcMain.handle('save-priority-configuration', async (event, profileName, mode, i
         items.forEach((item, index) => {
             const itemElement = xmlDoc.createElement('PriorityItem');
             itemElement.setAttribute('order', index + 1);
-            itemElement.setAttribute('value', item);
+            itemElement.setAttribute('value', item.value || item);
             prioritySection.appendChild(itemElement);
         });
         
@@ -3789,9 +3789,13 @@ ipcMain.handle('load-priority-configuration', async (event, profileName) => {
         const priorityItems = prioritySection.getElementsByTagName('PriorityItem');
         const items = Array.from(priorityItems)
             .sort((a, b) => parseInt(a.getAttribute('order')) - parseInt(b.getAttribute('order')))
-            .map(item => item.getAttribute('value'));
+            .map(item => ({
+                order: parseInt(item.getAttribute('order')),
+                value: item.getAttribute('value')
+            }));
         
         console.log(`Priority configuration loaded: mode=${mode}, items=${items.length}`);
+        console.log('Priority items:', items);
         return { success: true, data: { mode, items } };
         
     } catch (error) {

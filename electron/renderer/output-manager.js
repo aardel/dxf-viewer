@@ -708,6 +708,7 @@ async function loadCuttingPriority() {
         }
         
         console.log('Loaded priority order:', currentPriorityOrder.length, 'items');
+        console.log('Priority order details:', currentPriorityOrder);
         displayCuttingPriority();
         
     } catch (error) {
@@ -742,6 +743,7 @@ function displayCuttingPriority() {
     }
     
     // Display available tools (from currentTools, excluding those already in priority)
+    console.log('Available tools for display:', currentTools);
     if (Array.isArray(currentTools) && currentTools.length > 0) {
         currentTools.forEach((tool, index) => {
             if (!priorityToolIds.has(tool.id)) {
@@ -780,7 +782,8 @@ function displayCuttingPriority() {
             } else {
                 // Find the tool details
                 const tool = Array.isArray(currentTools) ? currentTools.find(t => t.id === item.value) : null;
-                const toolName = tool ? tool.name : 'Unknown Tool';
+                console.log('Looking for tool:', item.value, 'Found:', tool);
+                const toolName = tool ? (tool.name || 'Unknown Tool') : 'Unknown Tool';
                 priorityItem.innerHTML = `
                     <span class="priority-number">${index + 1}.</span>
                     <span class="item-name">${item.value} - ${toolName}</span>
@@ -945,9 +948,7 @@ async function savePriorityConfiguration() {
         const profileName = currentProfile.filename || currentProfile.id || currentProfile.name;
         
         // Save priority configuration to profile
-        await window.electronAPI.savePriorityConfiguration(profileName, {
-            items: currentPriorityOrder
-        });
+        await window.electronAPI.savePriorityConfiguration(profileName, 'tool', currentPriorityOrder);
         
         showSuccess('Priority configuration saved successfully');
         
@@ -971,9 +972,7 @@ async function autoSavePriorityConfiguration() {
         const profileName = currentProfile.filename || currentProfile.id || currentProfile.name;
         
         // Save priority configuration to profile silently
-        await window.electronAPI.savePriorityConfiguration(profileName, {
-            items: currentPriorityOrder
-        });
+        await window.electronAPI.savePriorityConfiguration(profileName, 'tool', currentPriorityOrder);
         
         console.log('Priority configuration auto-saved');
         
