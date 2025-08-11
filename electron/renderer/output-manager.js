@@ -458,6 +458,14 @@ async function deleteMainTool(index) {
                 
                 // Automatically save the changes after deletion
                 await saveMainTools();
+                
+                // Refresh line type mappings to update tool dropdowns
+                try {
+                    await loadLineTypeMappings();
+                    console.log('Line type mappings refreshed after tool deletion');
+                } catch (error) {
+                    console.error('Error refreshing line type mappings after tool deletion:', error);
+                }
             }
         } else {
             showToolsStatus('❌ Invalid tool index for deletion', 'error');
@@ -511,6 +519,14 @@ async function duplicateMainTool(index) {
             
             // Automatically save the changes after duplication
             await saveMainTools();
+            
+            // Refresh line type mappings to update tool dropdowns
+            try {
+                await loadLineTypeMappings();
+                console.log('Line type mappings refreshed after tool duplication');
+            } catch (error) {
+                console.error('Error refreshing line type mappings after tool duplication:', error);
+            }
         } else {
             showToolsStatus('❌ Invalid tool index for duplication', 'error');
         }
@@ -689,6 +705,14 @@ async function saveMainTools() {
         if (response && response.success) {
             showToolsStatus('✅ Tools saved successfully!', 'success');
             // No need to refresh the display since we're reading from it
+            
+            // Refresh line type mappings to update tool dropdowns with new tools
+            try {
+                await loadLineTypeMappings();
+                console.log('Line type mappings refreshed after tool save');
+            } catch (error) {
+                console.error('Error refreshing line type mappings after tool save:', error);
+            }
         } else {
             showToolsStatus('❌ Failed to save tools', 'error');
         }
@@ -1644,9 +1668,17 @@ function setupEventListeners() {
     
     const reloadMappingsBtn = document.getElementById('reloadMappingsBtn');
     if (reloadMappingsBtn) {
-        reloadMappingsBtn.addEventListener('click', () => {
-            loadLineTypeMappings();
-            showSuccess('Mappings reloaded');
+        reloadMappingsBtn.addEventListener('click', async () => {
+            try {
+                // Reload tools first to get the latest data
+                await loadTools();
+                // Then reload line type mappings to update dropdowns
+                await loadLineTypeMappings();
+                showSuccess('Tools and mappings reloaded successfully');
+            } catch (error) {
+                console.error('Error reloading tools and mappings:', error);
+                showError('Failed to reload tools and mappings');
+            }
         });
     }
     
@@ -1692,7 +1724,7 @@ function setupEventListeners() {
     
     // Tab switching
     document.querySelectorAll('.tab-button').forEach(button => {
-        button.addEventListener('click', (e) => {
+        button.addEventListener('click', async (e) => {
             const targetTab = e.target.dataset.tab;
             
             // Remove active class from all buttons and content
@@ -1704,6 +1736,20 @@ function setupEventListeners() {
             const targetContent = document.getElementById(targetTab + 'Tab');
             if (targetContent) {
                 targetContent.classList.add('active');
+            }
+            
+            // Refresh tool dropdowns when switching to Line Type Mapping tab
+            if (targetTab === 'mapping') {
+                console.log('Switching to Line Type Mapping tab - refreshing tool dropdowns...');
+                try {
+                    // Reload tools to get the latest data
+                    await loadTools();
+                    // Refresh the line type mappings display to update dropdowns
+                    await loadLineTypeMappings();
+                    console.log('Tool dropdowns refreshed successfully');
+                } catch (error) {
+                    console.error('Error refreshing tool dropdowns:', error);
+                }
             }
         });
     });
