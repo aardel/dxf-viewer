@@ -68,8 +68,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
     saveLineTypeMappingsToProfile: (mappings, profileName) => ipcRenderer.invoke('save-line-type-mappings-to-profile', mappings, profileName),
     updateOutputSettingsOnly: (outputSettings, profileName) => ipcRenderer.invoke('update-output-settings-only', outputSettings, profileName),
     
-    // Machine Tool Import API
-    saveMachineTools: (tools, importMode, profileName) => ipcRenderer.invoke('save-machine-tools', tools, importMode, profileName),
+            // Machine Tool Import API
+        saveMachineTools: (tools, importMode, profileName) => ipcRenderer.invoke('save-machine-tools', tools, importMode, profileName),
+        
+        // Output Manager API
+        updateOutputManagerTitle: (profileName) => ipcRenderer.invoke('update-output-manager-title', profileName),
     openMachineToolImporter: () => ipcRenderer.invoke('open-machine-tool-importer'),
     refreshToolConfiguration: () => ipcRenderer.invoke('refresh-tool-configuration'),
     // Output Manager

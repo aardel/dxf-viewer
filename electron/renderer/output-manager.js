@@ -64,6 +64,11 @@ async function initializeOutputManager() {
         // Load all configuration data
         await loadAllConfiguration();
         
+        // Update window title with current profile name
+        if (currentProfile && currentProfile.name) {
+            await window.electronAPI.updateOutputManagerTitle(currentProfile.name);
+        }
+        
     } catch (error) {
         console.error('Error initializing Output Manager:', error);
         showError('Failed to initialize Output Manager');
@@ -1130,8 +1135,13 @@ function setupEventListeners() {
                     // Reload all configuration data for the new profile
                     await loadAllConfiguration();
                     console.log('Switched to profile:', profile.name);
+                    
+                    // Update window title with profile name
+                    await window.electronAPI.updateOutputManagerTitle(profile.name);
                 } else {
                     console.warn('Selected profile not found:', selectedProfileId);
+                    // Update window title to show no profile
+                    await window.electronAPI.updateOutputManagerTitle('No Profile Selected');
                 }
             }
         });

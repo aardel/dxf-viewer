@@ -877,6 +877,10 @@ ipcMain.handle('open-output-manager', async () => {
         outputManagerWindow.on('closed', () => {
             outputManagerWindow = null;
         });
+        
+        // Set initial title
+        updateOutputManagerTitle('No Profile Selected');
+        
         return { success: true };
     } catch (err) {
         console.error('Failed to open Output Manager', err);
@@ -3662,6 +3666,17 @@ function generateUniqueToolId(existingTools, proposedId) {
     return newId;
 }
 
+// Update Output Manager window title
+ipcMain.handle('update-output-manager-title', async (event, profileName) => {
+    try {
+        updateOutputManagerTitle(profileName);
+        return { success: true };
+    } catch (error) {
+        console.error('Error updating Output Manager title:', error);
+        return { success: false, error: error.message };
+    }
+});
+
 // Priority Configuration IPC Handlers
 ipcMain.handle('save-priority-configuration', async (event, profileName, mode, items) => {
     try {
@@ -3839,6 +3854,14 @@ function updateProfileWithTools(profileContent, tools) {
     } catch (error) {
         console.error('Error updating profile with tools:', error);
         return profileContent;
+    }
+}
+
+// Function to update Output Manager window title
+function updateOutputManagerTitle(profileName) {
+    if (outputManagerWindow && !outputManagerWindow.isDestroyed()) {
+        const title = profileName ? `Output Manager - ${profileName}` : 'Output Manager';
+        outputManagerWindow.setTitle(title);
     }
 }
 
