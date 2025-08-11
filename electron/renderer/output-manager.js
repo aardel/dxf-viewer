@@ -354,12 +354,12 @@ function populateMainToolsTable() {
         const hCodeInput = tool.hCode ? tool.hCode.replace(/^H/, '') : '';
         
         row.innerHTML = `
-            <td><input type="number" value="${tool.id ? tool.id.replace(/[^\d]/g, '') : ''}" min="1" onchange="updateMainTool(${index}, 'id', 'T' + this.value)" onblur="validateMainToolField(${index}, 'id', this)"></td>
-            <td><input type="text" value="${tool.name || ''}" maxlength="50" onchange="updateMainTool(${index}, 'name', this.value)" onblur="validateMainToolField(${index}, 'name', this)"></td>
-            <td><input type="text" value="${tool.description || ''}" maxlength="100" onchange="updateMainTool(${index}, 'description', this.value)" onblur="validateMainToolField(${index}, 'description', this)"></td>
-            <td><input type="number" value="${tool.width || 0}" min="0.1" max="100" step="0.1" onchange="updateMainTool(${index}, 'width', parseFloat(this.value))" onblur="validateMainToolField(${index}, 'width', this)"></td>
-            <td><input type="number" value="${hCodeInput}" min="1" max="999" onchange="updateMainTool(${index}, 'hCode', 'H' + this.value)" onblur="validateMainToolField(${index}, 'hCode', this)"></td>
-            <td><input type="text" value="${tool.type || 'cut'}" maxlength="20" onchange="updateMainTool(${index}, 'type', this.value)" onblur="validateMainToolField(${index}, 'type', this)"></td>
+            <td><input type="number" value="${tool.id ? tool.id.replace(/[^\d]/g, '') : ''}" min="1"></td>
+            <td><input type="text" value="${tool.name || ''}" maxlength="50"></td>
+            <td><input type="text" value="${tool.description || ''}" maxlength="100"></td>
+            <td><input type="number" value="${tool.width || 0}" min="0.1" max="100" step="0.1"></td>
+            <td><input type="number" value="${hCodeInput}" min="1" max="999"></td>
+            <td><input type="text" value="${tool.type || 'cut'}" maxlength="20"></td>
             <td>
                 <div class="action-buttons">
                     <button class="btn btn-danger btn-small" onclick="deleteMainTool(${index})">Delete</button>
@@ -382,92 +382,15 @@ function sortTable(column) {
     populateMainToolsTable();
 }
 
-// Main table operation functions
-function updateMainTool(index, field, value) {
-    if (currentTools[index]) {
-        console.log(`Updating tool ${index}, field: ${field}, value: ${value}`);
-        currentTools[index][field] = value;
-        console.log(`Tool ${index} after update:`, currentTools[index]);
-    }
-}
+// Main table operation functions - No longer needed with table rebuild approach
+// function updateMainTool(index, field, value) {
+//     // This function is no longer used since we rebuild from table on save
+// }
 
-function validateMainToolField(index, field, input) {
-    const tool = currentTools[index];
-    if (!tool) return;
-    
-    let isValid = true;
-    let errorMessage = '';
-    
-    switch (field) {
-        case 'id':
-            const idNum = parseInt(input.value);
-            if (isNaN(idNum) || idNum < 1) {
-                isValid = false;
-                errorMessage = 'Tool ID must be a positive number';
-            } else {
-                // Check for duplicate IDs
-                const duplicate = currentTools.find((t, i) => i !== index && t.id === 'T' + idNum);
-                if (duplicate) {
-                    isValid = false;
-                    errorMessage = 'Tool ID must be unique';
-                }
-            }
-            break;
-            
-        case 'name':
-            if (!input.value.trim()) {
-                isValid = false;
-                errorMessage = 'Tool name is required';
-            }
-            break;
-            
-        case 'description':
-            if (!input.value.trim()) {
-                isValid = false;
-                errorMessage = 'Description is required';
-            }
-            break;
-            
-        case 'width':
-            const width = parseFloat(input.value);
-            if (isNaN(width) || width < 0.1 || width > 100) {
-                isValid = false;
-                errorMessage = 'Width must be between 0.1 and 100 mm';
-            }
-            break;
-            
-        case 'hCode':
-            const hCode = parseInt(input.value);
-            if (isNaN(hCode) || hCode < 1 || hCode > 999) {
-                isValid = false;
-                errorMessage = 'H-Code must be between 1 and 999';
-            } else {
-                // Check for duplicate H-Codes
-                const duplicate = currentTools.find((t, i) => i !== index && t.hCode === 'H' + hCode);
-                if (duplicate) {
-                    isValid = false;
-                    errorMessage = 'H-Code must be unique';
-                }
-            }
-            break;
-            
-        case 'type':
-            if (!input.value.trim()) {
-                isValid = false;
-                errorMessage = 'Type is required';
-            }
-            break;
-    }
-    
-    if (!isValid) {
-        input.style.borderColor = '#dc3545';
-        input.title = errorMessage;
-        showError(errorMessage);
-    } else {
-        input.style.borderColor = '#555';
-        input.title = '';
-    }
-}
+// Validation function - No longer needed with table rebuild approach
+// function validateMainToolField(index, field, input) {
+//     // This function is no longer used since we validate on save
+// }
 
 function deleteMainTool(index) {
     try {
@@ -537,41 +460,94 @@ function addNewMainTool() {
 async function saveMainTools() {
     try {
         // Show saving status
-        showToolsStatus('Validating tools...', 'info');
+        showToolsStatus('Reading table data...', 'info');
         
-        // Validate all tools before saving
+        // Read all data from the table and rebuild tools array
+        const tableBody = document.getElementById('toolsTableBody');
+        if (!tableBody) {
+            showToolsStatus('❌ Tools table not found', 'error');
+            return;
+        }
+        
+        const tableRows = tableBody.querySelectorAll('tr');
+        const newTools = [];
         const validationErrors = [];
         
-        currentTools.forEach((tool, index) => {
-            if (!tool.id || !tool.id.trim()) {
+        console.log('Reading', tableRows.length, 'table rows');
+        
+        tableRows.forEach((row, index) => {
+            // Skip empty rows or "No tools found" message
+            if (row.cells.length < 6) {
+                console.log('Skipping row', index, '- not a tool row');
+                return;
+            }
+            
+            const inputs = row.querySelectorAll('input');
+            if (inputs.length < 6) {
+                console.log('Skipping row', index, '- insufficient inputs');
+                return;
+            }
+            
+            // Extract values from table inputs
+            const toolIdInput = inputs[0];
+            const nameInput = inputs[1];
+            const descriptionInput = inputs[2];
+            const widthInput = inputs[3];
+            const hCodeInput = inputs[4];
+            const typeInput = inputs[5];
+            
+            // Get values and apply formatting
+            const toolId = toolIdInput.value.trim();
+            const name = nameInput.value.trim();
+            const description = descriptionInput.value.trim();
+            const width = parseFloat(widthInput.value) || 0;
+            const hCode = hCodeInput.value.trim();
+            const type = typeInput.value.trim();
+            
+            console.log(`Row ${index + 1}: ID=${toolId}, Name=${name}, HCode=${hCode}`);
+            
+            // Validation
+            if (!toolId) {
                 validationErrors.push(`Tool ${index + 1}: ID is required`);
             }
-            if (!tool.name || !tool.name.trim()) {
+            if (!name) {
                 validationErrors.push(`Tool ${index + 1}: Name is required`);
             }
-            if (!tool.description || !tool.description.trim()) {
+            if (!description) {
                 validationErrors.push(`Tool ${index + 1}: Description is required`);
             }
-            if (isNaN(tool.width) || tool.width < 0.1 || tool.width > 100) {
+            if (isNaN(width) || width < 0.1 || width > 100) {
                 validationErrors.push(`Tool ${index + 1}: Width must be between 0.1 and 100 mm`);
             }
-            if (!tool.hCode || !tool.hCode.trim()) {
+            if (!hCode) {
                 validationErrors.push(`Tool ${index + 1}: H-Code is required`);
             }
-            if (!tool.type || !tool.type.trim()) {
+            if (!type) {
                 validationErrors.push(`Tool ${index + 1}: Type is required`);
             }
+            
+            // Create tool object with proper formatting
+            const tool = {
+                id: toolId.startsWith('T') ? toolId : `T${toolId}`,
+                name: name,
+                description: description,
+                width: width,
+                hCode: hCode.startsWith('H') ? hCode : `H${hCode}`,
+                type: type
+            };
+            
+            newTools.push(tool);
         });
         
         // Check for duplicate IDs
-        const ids = currentTools.map(t => t.id);
+        const ids = newTools.map(t => t.id);
         const duplicateIds = ids.filter((id, index) => ids.indexOf(id) !== index);
         if (duplicateIds.length > 0) {
             validationErrors.push(`Duplicate Tool IDs found: ${duplicateIds.join(', ')}`);
         }
         
         // Check for duplicate H-Codes
-        const hCodes = currentTools.map(t => t.hCode);
+        const hCodes = newTools.map(t => t.hCode);
         const duplicateHCodes = hCodes.filter((code, index) => hCodes.indexOf(code) !== index);
         if (duplicateHCodes.length > 0) {
             validationErrors.push(`Duplicate H-Codes found: ${duplicateHCodes.join(', ')}`);
@@ -592,14 +568,17 @@ async function saveMainTools() {
         
         // Debug: Log the tools being saved
         console.log('Saving tools to profile:', currentProfile.filename);
-        console.log('Tools data being saved:', currentTools);
+        console.log('Tools data being saved:', newTools);
+        
+        // Update currentTools with the new data
+        currentTools = newTools;
         
         // Save tools to profile using existing method
         const response = await window.electronAPI.saveMachineTools(currentTools, 'replace', currentProfile.filename);
         
         if (response && response.success) {
             showToolsStatus('✅ Tools saved successfully!', 'success');
-            populateMainToolsTable(); // Refresh the display
+            // No need to refresh the display since we're reading from it
         } else {
             showToolsStatus('❌ Failed to save tools', 'error');
         }
