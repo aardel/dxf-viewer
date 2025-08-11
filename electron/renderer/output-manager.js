@@ -461,47 +461,75 @@ function validateMainToolField(index, field, input) {
 }
 
 function deleteMainTool(index) {
-    if (confirm('Are you sure you want to delete this tool?')) {
-        currentTools.splice(index, 1);
-        populateMainToolsTable();
+    try {
+        if (index >= 0 && index < currentTools.length) {
+            const toolToDelete = currentTools[index];
+            const confirmDelete = confirm(`Are you sure you want to delete tool "${toolToDelete.name}" (${toolToDelete.id})?\n\nThis action cannot be undone.`);
+            
+            if (confirmDelete) {
+                currentTools.splice(index, 1);
+                populateMainToolsTable();
+                showToolsStatus(`✅ Tool "${toolToDelete.name}" deleted successfully!`, 'success');
+            }
+        } else {
+            showToolsStatus('❌ Invalid tool index for deletion', 'error');
+        }
+    } catch (error) {
+        console.error('Error deleting tool:', error);
+        showToolsStatus('❌ Error deleting tool', 'error');
     }
 }
 
 function addNewMainTool() {
-    // Find the next available ID
-    const existingIds = currentTools.map(t => parseInt(t.id.replace(/[^\d]/g, ''))).filter(id => !isNaN(id));
-    const nextId = existingIds.length > 0 ? Math.max(...existingIds) + 1 : 1;
-    
-    // Find the next available H-Code
-    const existingHCodes = currentTools.map(t => parseInt(t.hCode.replace(/^H/, ''))).filter(code => !isNaN(code));
-    const nextHCode = existingHCodes.length > 0 ? Math.max(...existingHCodes) + 1 : 1;
-    
-    const newTool = {
-        id: 'T' + nextId,
-        name: '',
-        description: '',
-        width: 1,
-        hCode: 'H' + nextHCode,
-        type: 'cut'
-    };
-    
-    currentTools.push(newTool);
-    populateMainToolsTable();
-    
-    // Focus on the name field of the new tool
-    setTimeout(() => {
-        const newRow = document.getElementById('toolsTableBody').lastElementChild;
-        if (newRow) {
-            const nameInput = newRow.querySelector('input[type="text"]');
-            if (nameInput) {
-                nameInput.focus();
-            }
-        }
-    }, 100);
+    try {
+        // Find the highest existing ID to generate a new unique ID
+        const existingIds = currentTools.map(tool => {
+            const idNum = parseInt(tool.id.toString().replace(/[^\d]/g, '')) || 0;
+            return idNum;
+        });
+        
+        const maxId = existingIds.length > 0 ? Math.max(...existingIds) : 0;
+        const newId = maxId + 1;
+        
+        // Find the highest existing H-Code to generate a new unique H-Code
+        const existingHCodes = currentTools.map(tool => {
+            const hCodeNum = parseInt(tool.hCode.toString().replace(/[^\d.]/g, '')) || 0;
+            return hCodeNum;
+        });
+        
+        const maxHCode = existingHCodes.length > 0 ? Math.max(...existingHCodes) : 0;
+        const newHCode = maxHCode + 1;
+        
+        // Create new tool with empty fields
+        const newTool = {
+            id: `T${newId}`,
+            name: '',
+            description: '',
+            width: 1,
+            hCode: `H${newHCode}`,
+            type: 'cut'
+        };
+        
+        // Add to current tools array
+        currentTools.push(newTool);
+        
+        // Refresh the table display
+        populateMainToolsTable();
+        
+        // Show success message
+        showToolsStatus('✅ New tool added! Please fill in the details and save.', 'success');
+        
+    } catch (error) {
+        console.error('Error adding new tool:', error);
+        showToolsStatus('❌ Error adding new tool', 'error');
+    }
 }
 
 async function saveMainTools() {
     try {
+        // Show saving status
+        showToolsStatus('Validating tools...', 'info');
+        
         // Validate all tools before saving
         const validationErrors = [];
         
@@ -515,8 +543,8 @@ async function saveMainTools() {
             if (!tool.description || !tool.description.trim()) {
                 validationErrors.push(`Tool ${index + 1}: Description is required`);
             }
-            if (!tool.width || tool.width < 0.1) {
-                validationErrors.push(`Tool ${index + 1}: Width must be at least 0.1 mm`);
+            if (isNaN(tool.width) || tool.width < 0.1 || tool.width > 100) {
+                validationErrors.push(`Tool ${index + 1}: Width must be between 0.1 and 100 mm`);
             }
             if (!tool.hCode || !tool.hCode.trim()) {
                 validationErrors.push(`Tool ${index + 1}: H-Code is required`);
@@ -541,28 +569,31 @@ async function saveMainTools() {
         }
         
         if (validationErrors.length > 0) {
-            showError('Validation errors:\n' + validationErrors.join('\n'));
+            showToolsStatus('Validation errors:\n' + validationErrors.join('\n'), 'error');
             return;
         }
         
         if (!currentProfile) {
-            showError('No profile selected');
+            showToolsStatus('No profile selected', 'error');
             return;
         }
+        
+        // Show saving status
+        showToolsStatus('Saving tools to profile...', 'info');
         
         // Save tools to profile using existing method
         const response = await window.electronAPI.saveMachineTools(currentTools, 'replace');
         
         if (response && response.success) {
-            showSuccess('Tools saved successfully');
+            showToolsStatus('✅ Tools saved successfully!', 'success');
             populateMainToolsTable(); // Refresh the display
         } else {
-            showError('Failed to save tools');
+            showToolsStatus('❌ Failed to save tools', 'error');
         }
         
     } catch (error) {
         console.error('Error saving tools:', error);
-        showError('Failed to save tools');
+        showToolsStatus('❌ Error saving tools: ' + error.message, 'error');
     }
 }
 
@@ -1016,8 +1047,14 @@ function setupEventListeners() {
     // Main table buttons
     const refreshToolsBtn = document.getElementById('refreshToolsBtn');
     if (refreshToolsBtn) {
-        refreshToolsBtn.addEventListener('click', () => {
-            loadTools();
+        refreshToolsBtn.addEventListener('click', async () => {
+            showToolsStatus('Refreshing tools...', 'info');
+            try {
+                await loadTools();
+                showToolsStatus('✅ Tools refreshed successfully!', 'success');
+            } catch (error) {
+                showToolsStatus('❌ Error refreshing tools', 'error');
+            }
         });
     }
     
@@ -1154,6 +1191,30 @@ function showError(message) {
 function showInfo(message) {
     console.log('Info:', message);
     // You could add a more sophisticated notification system here
+}
+
+// Tools tab specific status message functions
+function showToolsStatus(message, type = 'info') {
+    const statusElement = document.getElementById('toolsStatusMessage');
+    if (statusElement) {
+        statusElement.textContent = message;
+        statusElement.className = `status-message ${type}`;
+        statusElement.style.display = 'block';
+        
+        // Auto-hide success messages after 3 seconds
+        if (type === 'success') {
+            setTimeout(() => {
+                statusElement.style.display = 'none';
+            }, 3000);
+        }
+    }
+}
+
+function hideToolsStatus() {
+    const statusElement = document.getElementById('toolsStatusMessage');
+    if (statusElement) {
+        statusElement.style.display = 'none';
+    }
 }
 
 // Export functions for potential use by other modules
