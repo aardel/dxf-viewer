@@ -805,7 +805,32 @@
             <div class="two-column">
                 <div>
                     <div class="settings-section">
+                        <h6>🔢 Line Numbers Settings</h6>
+                        <p style="color: #ccc; font-size: 0.9rem; margin-bottom: 1rem;">Configure how line numbers are applied to all lines in the DIN file.</p>
+                        <div class="form-group">
+                            <label>
+                                <input type="checkbox" id="enableLineNumbers" checked>
+                                Enable line numbers
+                            </label>
+                        </div>
+                        <div class="form-group">
+                            <label for="startNumber">Start Number:</label>
+                            <input type="number" id="startNumber" class="form-input" value="10">
+                        </div>
+                        <div class="form-group">
+                            <label for="increment">Increment:</label>
+                            <input type="number" id="increment" class="form-input" value="1">
+                        </div>
+                        <div class="form-group">
+                            <label for="formatTemplate">Format Template:</label>
+                            <input type="text" id="formatTemplate" class="form-input" value="N{number}">
+                            <small>Variables: {number} - will be replaced with actual line number</small>
+                        </div>
+                    </div>
+                    
+                    <div class="settings-section">
                         <h6>📋 Header Settings</h6>
+                        <p style="color: #ccc; font-size: 0.9rem; margin-bottom: 1rem;">Configure the header information that appears at the top of the DIN file.</p>
                         <div class="form-group">
                             <label for="machineType">Machine Type:</label>
                             <select id="machineType" class="form-select">
@@ -851,34 +876,12 @@
 G60 X0</textarea>
                         </div>
                     </div>
-                    
-                    <div class="settings-section">
-                        <h6>🔢 Line Numbers Settings</h6>
-                        <div class="form-group">
-                            <label>
-                                <input type="checkbox" id="enableLineNumbers" checked>
-                                Enable line numbers
-                            </label>
-                        </div>
-                        <div class="form-group">
-                            <label for="startNumber">Start Number:</label>
-                            <input type="number" id="startNumber" class="form-input" value="10">
-                        </div>
-                        <div class="form-group">
-                            <label for="increment">Increment:</label>
-                            <input type="number" id="increment" class="form-input" value="1">
-                        </div>
-                        <div class="form-group">
-                            <label for="formatTemplate">Format Template:</label>
-                            <input type="text" id="formatTemplate" class="form-input" value="N{number}">
-                            <small>Variables: {number} - will be replaced with actual line number</small>
-                        </div>
-                    </div>
                 </div>
                 
                 <div>
                     <div class="settings-section">
                         <h6>⚙️ G-Code Commands</h6>
+                        <p style="color: #ccc; font-size: 0.9rem; margin-bottom: 1rem;">Configure the G-code commands that appear at the beginning and end of the DIN file.</p>
                         <div class="form-group">
                             <label for="homeCommand">Home Command:</label>
                             <input type="text" id="homeCommand" class="form-input" value="G0 X0 Y0">
@@ -892,6 +895,7 @@ G60 X0</textarea>
                     
                     <div class="settings-section">
                         <h6>👁️ Live Preview</h6>
+                        <p style="color: #ccc; font-size: 0.9rem; margin-bottom: 1rem;">Preview how your DIN file structure will look when generated.</p>
                         <div class="form-group">
                             <label>Header Preview:</label>
                             <div class="preview-area" id="headerPreview">
