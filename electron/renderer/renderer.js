@@ -3521,6 +3521,27 @@ async function handleOpenFile() {
                 const res = await window.electronAPI.parseUnified(fileResult.content, fileName);
                 if (!res.success) throw new Error(res.error || 'Failed to parse file');
                 window.unifiedGeometries = res.data || [];
+                
+                // Load configuration for unified formats
+                if (!currentPostprocessorConfig) {
+                    try {
+                        // Try to load the active profile first
+                        const activeProfile = await window.electronAPI.getActiveProfile();
+                        if (activeProfile && activeProfile.filename) {
+                            await loadXmlProfileConfiguration(activeProfile.filename);
+                        } else {
+                            // Fallback to default configuration
+                            currentPostprocessorConfig = getDefaultConfiguration();
+                            applyConfigurationToUI(currentPostprocessorConfig);
+                        }
+                    } catch (error) {
+                        console.warn('Failed to load configuration for unified format:', error);
+                        // Fallback to default configuration
+                        currentPostprocessorConfig = getDefaultConfiguration();
+                        applyConfigurationToUI(currentPostprocessorConfig);
+                    }
+                }
+                
                 // Show file name/size for unified formats
                 try { showFileInfo(fileName, new Blob([fileResult.content]).size); } catch {}
                 // Clear any DXF content and previous overlay
@@ -3594,6 +3615,27 @@ function initDragAndDrop() {
                 const res = await window.electronAPI.parseUnified(content, sel.name);
                 if (!res.success) throw new Error(res.error || 'Failed to parse file');
                 window.unifiedGeometries = res.data || [];
+                
+                // Load configuration for unified formats
+                if (!currentPostprocessorConfig) {
+                    try {
+                        // Try to load the active profile first
+                        const activeProfile = await window.electronAPI.getActiveProfile();
+                        if (activeProfile && activeProfile.filename) {
+                            await loadXmlProfileConfiguration(activeProfile.filename);
+                        } else {
+                            // Fallback to default configuration
+                            currentPostprocessorConfig = getDefaultConfiguration();
+                            applyConfigurationToUI(currentPostprocessorConfig);
+                        }
+                    } catch (error) {
+                        console.warn('Failed to load configuration for unified format:', error);
+                        // Fallback to default configuration
+                        currentPostprocessorConfig = getDefaultConfiguration();
+                        applyConfigurationToUI(currentPostprocessorConfig);
+                    }
+                }
+                
                 showStatus(`Loaded ${sel.name} (${window.unifiedGeometries.length} entities)`, 'success');
                 // Table will be created by updateImportPanelForUnified(); avoid replacing it
                 try { if (viewer && viewer.Clear) viewer.Clear(); } catch {}
@@ -4999,8 +5041,14 @@ async function previewDinFile() {
 
         showStatus('Generating DIN preview...', 'info');
 
-        // Extract entities from viewer
-        const entities = extractEntitiesFromViewer();
+        // Extract entities based on file type
+        let entities = [];
+        if (hasDxfViewer) {
+            entities = extractEntitiesFromViewer();
+        } else if (hasUnifiedViewer) {
+            entities = extractEntitiesFromUnifiedFormat();
+        }
+        
         if (entities.length === 0) {
             showStatus('No entities found to process', 'warning');
             return;
