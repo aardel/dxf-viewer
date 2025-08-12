@@ -1,0 +1,16 @@
+{TEST4.cf2 / - size: 0.0 x 0.0 / 12.08.25 17:46:47}
+%1
+{ Bounds: X-0.2 Y0.0 to X20.7 Y2.6 }
+{Number of Sets: 112}
+G253 F="TEST4.cf2 / - size: 0.0 x 0.0 / 12.08.25 17:46:47"
+:P2027=25.4/P674
+G75 X=P2027 Y=P2027
+N1 G90
+N2 G60 X0
+N3 H2 M6 {2pt CW}
+N4 G0 X0.000 Y2.000
+N5 M14 { LASER ON }
+N6 G1 X0.000 Y0.000
+N7 M15 { LASER OFF }
+N8 G0 X0 Y0
+N9 G99

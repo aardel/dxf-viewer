@@ -6770,10 +6770,16 @@ async function saveDinFile(content, defaultFilename, generationStats = null) {
         }
         
         // Otherwise, show save dialog
+        console.log('=== SHOWING SAVE DIALOG ===');
+        console.log('Generated filename:', generatedFilename);
+        console.log('Content length:', content.length);
         const result = await window.electronAPI.saveDinFile(content, generatedFilename, null);
+        console.log('Save dialog result:', result);
         if (result.success) {
+            console.log('Save successful, showing success dialog');
             showDinGenerationSuccessDialog(result.filePath, processedLayers, generationStats);
         } else {
+            console.log('Save failed:', result.error);
             showStatus(`Failed to save DIN file: ${result.error}`, 'error');
         }
         
