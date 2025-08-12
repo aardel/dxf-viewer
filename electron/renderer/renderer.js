@@ -5970,13 +5970,26 @@ function extractEntitiesFromUnifiedFormat(respectVisibility = false) {
                     processedEntity.start = { x: geom.start.x, y: geom.start.y };
                     processedEntity.end = { x: geom.end.x, y: geom.end.y };
                     processedEntity.radius = geom.radius;
+                    processedEntity.clockwise = geom.clockwise; // Add missing clockwise property
+                    
+                    // Add startAngle and endAngle if available (for compatibility with generateArcDin)
+                    if (geom.startAngle !== undefined) {
+                        processedEntity.startAngle = geom.startAngle;
+                    }
+                    if (geom.endAngle !== undefined) {
+                        processedEntity.endAngle = geom.endAngle;
+                    }
+                    
                     // DEBUG: Log bridge data for ARC
                     console.log(`ARC geometry ${index} bridge data:`, {
                         hasBridges: !!geom.bridges,
                         bridgesLength: geom.bridges?.length,
                         bridges: geom.bridges,
                         bridgeCount: geom.bridgeCount,
-                        bridgeWidth: geom.bridgeWidth
+                        bridgeWidth: geom.bridgeWidth,
+                        clockwise: geom.clockwise, // Log clockwise property
+                        startAngle: geom.startAngle,
+                        endAngle: geom.endAngle
                     });
                     // Add bridge information if available
                     if (geom.bridgeCount && geom.bridgeWidth) {
