@@ -436,7 +436,7 @@ export class DinGenerator {
             // Derive start/end angles from given start/end points
             const a0 = Math.atan2(entity.start.y - cy, entity.start.x - cx);
             const a1 = Math.atan2(entity.end.y - cy, entity.end.x - cx);
-            const ccw = entity.clockwise === false; // clockwise true means CW; ccw if false
+            const ccw = !entity.clockwise; // clockwise true means CW; ccw if false
             let sweep = a1 - a0;
             
             // Handle full circle case (start and end points are the same)
@@ -444,6 +444,7 @@ export class DinGenerator {
                 sweep = ccw ? Math.PI * 2 : -Math.PI * 2;
                 console.log('🔄 Full circle detected, setting sweep to:', sweep);
             } else {
+                // Normalize sweep to match the intended direction
                 if (ccw && sweep < 0) sweep += Math.PI * 2;
                 if (!ccw && sweep > 0) sweep -= Math.PI * 2;
             }
