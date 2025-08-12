@@ -14,6 +14,61 @@ export class DinGenerator {
     }
 
     /**
+     * Convert coordinates from file units to output units
+     * @param {number} value - Value in file units
+     * @param {string} fileUnits - Source units (e.g., 'mm', 'in', 'pt')
+     * @param {string} outputUnits - Target units (e.g., 'mm', 'in')
+     * @returns {number} Converted value
+     */
+    convertCoordinates(value, fileUnits, outputUnits) {
+        // If units are the same, no conversion needed
+        if (fileUnits === outputUnits) {
+            return value;
+        }
+
+        // Convert to mm first (internal standard)
+        let valueInMm = value;
+        switch (fileUnits) {
+            case 'in':
+                valueInMm = value * 25.4;
+                break;
+            case 'ft':
+                valueInMm = value * 304.8;
+                break;
+            case 'pt':
+                valueInMm = value * 0.3527777778; // 1 point = 0.3527777778 mm
+                break;
+            case 'cm':
+                valueInMm = value * 10;
+                break;
+            case 'm':
+                valueInMm = value * 1000;
+                break;
+            case 'mm':
+            default:
+                valueInMm = value;
+                break;
+        }
+
+        // Convert from mm to output units
+        switch (outputUnits) {
+            case 'in':
+                return valueInMm / 25.4;
+            case 'ft':
+                return valueInMm / 304.8;
+            case 'pt':
+                return valueInMm / 0.3527777778;
+            case 'cm':
+                return valueInMm / 10;
+            case 'm':
+                return valueInMm / 1000;
+            case 'mm':
+            default:
+                return valueInMm;
+        }
+    }
+
+    /**
      * Generate DIN file content from DXF entities
      * @param {Array} entities - DXF entities to convert
      * @param {Object} config - Postprocessor configuration
@@ -30,7 +85,10 @@ export class DinGenerator {
         this.lineNumber = config.lineNumbers?.startNumber || 10;
         this.currentTool = null;
 
-
+        // Log unit conversion information
+        const fileUnits = metadata.fileUnits || 'mm';
+        const outputUnits = config.units?.system || 'mm';
+        console.log(`Unit conversion: ${fileUnits} → ${outputUnits}`);
 
         // Load tools with priority information
         const toolsWithPriority = this.loadToolsFromConfig(config);
@@ -632,8 +690,18 @@ export class DinGenerator {
     generateLineDin(entity) {
         const lines = [];
         
+        // Get unit conversion parameters
+        const fileUnits = this.metadata.fileUnits || 'mm';
+        const outputUnits = this.config.units?.system || 'mm';
+        
+        // Convert coordinates
+        const startX = this.convertCoordinates(entity.start.x, fileUnits, outputUnits);
+        const startY = this.convertCoordinates(entity.start.y, fileUnits, outputUnits);
+        const endX = this.convertCoordinates(entity.end.x, fileUnits, outputUnits);
+        const endY = this.convertCoordinates(entity.end.y, fileUnits, outputUnits);
+        
         // Move to start position
-        lines.push(this.formatLine(`${this.config.gcode.rapidMove} X${entity.start.x.toFixed(3)} Y${entity.start.y.toFixed(3)}`));
+        lines.push(this.formatLine(`${this.config.gcode.rapidMove} X${startX.toFixed(3)} Y${startY.toFixed(3)}`));
         
         // Laser on
         if (this.config.laser?.comments?.enabled) {
@@ -643,7 +711,7 @@ export class DinGenerator {
         }
         
         // Cut to end position
-        lines.push(this.formatLine(`${this.config.gcode.linearMove} X${entity.end.x.toFixed(3)} Y${entity.end.y.toFixed(3)}`));
+        lines.push(this.formatLine(`${this.config.gcode.linearMove} X${endX.toFixed(3)} Y${endY.toFixed(3)}`));
         
         // Laser off
         if (this.config.laser?.comments?.enabled) {
@@ -661,6 +729,10 @@ export class DinGenerator {
     generateArcDin(entity) {
         const lines = [];
         
+        // Get unit conversion parameters
+        const fileUnits = this.metadata.fileUnits || 'mm';
+        const outputUnits = this.config.units?.system || 'mm';
+        
         // Calculate start and end points
         const startAngle = entity.startAngle || 0;
         const endAngle = entity.endAngle || Math.PI * 2;
@@ -670,8 +742,16 @@ export class DinGenerator {
         const endX = entity.center.x + entity.radius * Math.cos(endAngle);
         const endY = entity.center.y + entity.radius * Math.sin(endAngle);
         
+        // Convert coordinates
+        const convertedStartX = this.convertCoordinates(startX, fileUnits, outputUnits);
+        const convertedStartY = this.convertCoordinates(startY, fileUnits, outputUnits);
+        const convertedEndX = this.convertCoordinates(endX, fileUnits, outputUnits);
+        const convertedEndY = this.convertCoordinates(endY, fileUnits, outputUnits);
+        const convertedCenterX = this.convertCoordinates(entity.center.x, fileUnits, outputUnits);
+        const convertedCenterY = this.convertCoordinates(entity.center.y, fileUnits, outputUnits);
+        
         // Move to start position
-        lines.push(this.formatLine(`${this.config.gcode.rapidMove} X${startX.toFixed(3)} Y${startY.toFixed(3)}`));
+        lines.push(this.formatLine(`${this.config.gcode.rapidMove} X${convertedStartX.toFixed(3)} Y${convertedStartY.toFixed(3)}`));
         
         // Laser on
         if (this.config.laser?.comments?.enabled) {
@@ -694,10 +774,10 @@ export class DinGenerator {
         }
         
         const arcCommand = isClockwise ? this.config.gcode.cwArc : this.config.gcode.ccwArc;
-        const i = entity.center.x - startX;
-        const j = entity.center.y - startY;
+        const i = convertedCenterX - convertedStartX;
+        const j = convertedCenterY - convertedStartY;
         
-        lines.push(this.formatLine(`${arcCommand} X${endX.toFixed(3)} Y${endY.toFixed(3)} I${i.toFixed(3)} J${j.toFixed(3)}`));
+        lines.push(this.formatLine(`${arcCommand} X${convertedEndX.toFixed(3)} Y${convertedEndY.toFixed(3)} I${i.toFixed(3)} J${j.toFixed(3)}`));
         
         // Laser off
         if (this.config.laser?.comments?.enabled) {
@@ -715,12 +795,22 @@ export class DinGenerator {
     generateCircleDin(entity) {
         const lines = [];
         
+        // Get unit conversion parameters
+        const fileUnits = this.metadata.fileUnits || 'mm';
+        const outputUnits = this.config.units?.system || 'mm';
+        
         // Start at rightmost point of circle
         const startX = entity.center.x + entity.radius;
         const startY = entity.center.y;
         
+        // Convert coordinates
+        const convertedStartX = this.convertCoordinates(startX, fileUnits, outputUnits);
+        const convertedStartY = this.convertCoordinates(startY, fileUnits, outputUnits);
+        const convertedCenterX = this.convertCoordinates(entity.center.x, fileUnits, outputUnits);
+        const convertedCenterY = this.convertCoordinates(entity.center.y, fileUnits, outputUnits);
+        
         // Move to start position
-        lines.push(this.formatLine(`${this.config.gcode.rapidMove} X${startX.toFixed(3)} Y${startY.toFixed(3)}`));
+        lines.push(this.formatLine(`${this.config.gcode.rapidMove} X${convertedStartX.toFixed(3)} Y${convertedStartY.toFixed(3)}`));
         
         // Laser on
         if (this.config.laser?.comments?.enabled) {
@@ -730,10 +820,11 @@ export class DinGenerator {
         }
         
         // Full circle as 360-degree arc
-        const i = -entity.radius;
+        const convertedRadius = this.convertCoordinates(entity.radius, fileUnits, outputUnits);
+        const i = -convertedRadius;
         const j = 0;
         
-        lines.push(this.formatLine(`${this.config.gcode.cwArc} X${startX.toFixed(3)} Y${startY.toFixed(3)} I${i.toFixed(3)} J${j.toFixed(3)}`));
+        lines.push(this.formatLine(`${this.config.gcode.cwArc} X${convertedStartX.toFixed(3)} Y${convertedStartY.toFixed(3)} I${i.toFixed(3)} J${j.toFixed(3)}`));
         
         // Laser off
         if (this.config.laser?.comments?.enabled) {
@@ -755,9 +846,15 @@ export class DinGenerator {
             return lines;
         }
 
+        // Get unit conversion parameters
+        const fileUnits = this.metadata.fileUnits || 'mm';
+        const outputUnits = this.config.units?.system || 'mm';
+
         // Move to first vertex
         const firstVertex = entity.vertices[0];
-        lines.push(this.formatLine(`${this.config.gcode.rapidMove} X${firstVertex.x.toFixed(3)} Y${firstVertex.y.toFixed(3)}`));
+        const convertedFirstX = this.convertCoordinates(firstVertex.x, fileUnits, outputUnits);
+        const convertedFirstY = this.convertCoordinates(firstVertex.y, fileUnits, outputUnits);
+        lines.push(this.formatLine(`${this.config.gcode.rapidMove} X${convertedFirstX.toFixed(3)} Y${convertedFirstY.toFixed(3)}`));
         
         // Laser on
         if (this.config.laser?.comments?.enabled) {
@@ -771,20 +868,27 @@ export class DinGenerator {
             const prevVertex = entity.vertices[i - 1];
             const vertex = entity.vertices[i];
             
+            // Convert coordinates
+            const convertedVertexX = this.convertCoordinates(vertex.x, fileUnits, outputUnits);
+            const convertedVertexY = this.convertCoordinates(vertex.y, fileUnits, outputUnits);
+            
             // Check if previous vertex has a bulge value (indicating an arc segment)
             if (prevVertex.bulge && Math.abs(prevVertex.bulge) > 0.001) {
                 // Generate arc command using bulge value
                 const arcData = this.calculateArcFromBulge(prevVertex, vertex, prevVertex.bulge);
                 if (arcData) {
                     const arcCommand = arcData.clockwise ? this.config.gcode.cwArc : this.config.gcode.ccwArc;
-                    lines.push(this.formatLine(`${arcCommand} X${vertex.x.toFixed(3)} Y${vertex.y.toFixed(3)} I${arcData.i.toFixed(3)} J${arcData.j.toFixed(3)}`));
+                    // Convert arc center coordinates
+                    const convertedI = this.convertCoordinates(arcData.i, fileUnits, outputUnits);
+                    const convertedJ = this.convertCoordinates(arcData.j, fileUnits, outputUnits);
+                    lines.push(this.formatLine(`${arcCommand} X${convertedVertexX.toFixed(3)} Y${convertedVertexY.toFixed(3)} I${convertedI.toFixed(3)} J${convertedJ.toFixed(3)}`));
                 } else {
                     // Fallback to linear move if arc calculation fails
-                    lines.push(this.formatLine(`${this.config.gcode.linearMove} X${vertex.x.toFixed(3)} Y${vertex.y.toFixed(3)}`));
+                    lines.push(this.formatLine(`${this.config.gcode.linearMove} X${convertedVertexX.toFixed(3)} Y${convertedVertexY.toFixed(3)}`));
                 }
             } else {
                 // Standard linear move
-                lines.push(this.formatLine(`${this.config.gcode.linearMove} X${vertex.x.toFixed(3)} Y${vertex.y.toFixed(3)}`));
+                lines.push(this.formatLine(`${this.config.gcode.linearMove} X${convertedVertexX.toFixed(3)} Y${convertedVertexY.toFixed(3)}`));
             }
         }
         

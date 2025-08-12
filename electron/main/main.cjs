@@ -1288,7 +1288,6 @@ function parseXMLProfile(xmlContent) {
     const machineSettings = root.getElementsByTagName('MachineSettings')[0];
     if (machineSettings) {
         config.units = {
-            feedInchMachine: getTextContent(machineSettings, 'FeedInchMachine') === 'true',
             system: getTextContent(machineSettings, 'Units') || 'mm' // Default to mm if not specified
         };
     }
@@ -1704,9 +1703,7 @@ function generateXMLProfile(config) {
     // Add MachineSettings
     if (config.units) {
         const machineSettings = xmlDoc.createElement('MachineSettings');
-        addTextElement(xmlDoc, machineSettings, 'Type', config.units.feedInchMachine ? 'inch_with_scaling' : 'metric');
-        addTextElement(xmlDoc, machineSettings, 'Units', config.units.system || (config.units.feedInchMachine ? 'inch' : 'mm'));
-        addTextElement(xmlDoc, machineSettings, 'FeedInchMachine', config.units.feedInchMachine ? 'true' : 'false');
+        addTextElement(xmlDoc, machineSettings, 'Units', config.units.system || 'mm');
         root.appendChild(machineSettings);
     }
     

@@ -6620,6 +6620,7 @@ function getCurrentOptimizationSettings() {
 function getFileMetadata() {
     let dimensions;
     let entityCount = 0;
+    let fileUnits = 'mm'; // Default to mm
     
     // Check for either DXF viewer (with scene) or unified format viewer (with overlayCanvas)
     const hasDxfViewer = !!(viewer && viewer.scene);
@@ -6628,9 +6629,44 @@ function getFileMetadata() {
     if (hasDxfViewer) {
         dimensions = getDrawingDimensions();
         entityCount = extractEntitiesFromViewer().length;
+        
+        // Get DXF file units from header
+        if (window.currentDxfHeader) {
+            const insunits = window.currentDxfHeader.$INSUNITS || window.currentDxfHeader.INSUNITS || 4;
+            const unitMap = {
+                0: 'unitless',
+                1: 'in',
+                2: 'ft',
+                3: 'mi',
+                4: 'mm',
+                5: 'cm',
+                6: 'm',
+                7: 'km',
+                8: 'micron',
+                9: 'dm',
+                10: 'yd',
+                11: 'angstrom',
+                12: 'nm',
+                13: 'pm',
+                14: 'dam',
+                15: 'hm',
+                16: 'gm',
+                17: 'AU',
+                18: 'ly',
+                19: 'pc'
+            };
+            const unitInfo = unitMap[insunits] || unitMap[4];
+            fileUnits = unitInfo;
+        }
     } else if (hasUnifiedViewer) {
         dimensions = getUnifiedBounds(window.unifiedGeometries);
         entityCount = extractEntitiesFromUnifiedFormat().length;
+        
+        // Get unified format file units from geometries
+        if (window.unifiedGeometries && window.unifiedGeometries.length > 0) {
+            const unit = window.unifiedGeometries.find(g => g?.properties?.unitCode)?.properties?.unitCode || 'mm';
+            fileUnits = unit;
+        }
     } else {
         dimensions = { width: 0, height: 0 };
         entityCount = 0;
@@ -6641,6 +6677,7 @@ function getFileMetadata() {
         width: dimensions?.width || 0,
         height: dimensions?.height || 0,
         entityCount: entityCount,
+        fileUnits: fileUnits, // Add file units information
         bounds: {
             minX: dimensions?.minX || 0,
             minY: dimensions?.minY || 0,

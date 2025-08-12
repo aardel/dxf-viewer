@@ -15,12 +15,8 @@
             </Author>
         </ProfileInfo>
         <MachineSettings>
-            <Type>metric
-            </Type>
             <Units>mm
             </Units>
-            <FeedInchMachine>false
-            </FeedInchMachine>
         </MachineSettings>
         <Tools>
             <Tool ID="T22" Name="Fine Cut" Description="Cutting" Width="1" HCode="H22"/>
