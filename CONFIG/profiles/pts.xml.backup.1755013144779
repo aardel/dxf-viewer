@@ -15,7 +15,7 @@
             </Author>
         </ProfileInfo>
         <MachineSettings>
-            <Units>mm
+            <Units>inch
             </Units>
         </MachineSettings>
         <Tools>
@@ -145,7 +145,7 @@
             </DefaultSavePath>
             <FilenameFormat>{original_name}.din
             </FilenameFormat>
-            <AutoSaveEnabled>false
+            <AutoSaveEnabled>true
             </AutoSaveEnabled>
         </OutputSettings>
         <MappingWorkflow>

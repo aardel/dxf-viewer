@@ -4723,6 +4723,14 @@ async function loadPostprocessorConfiguration(profileName) {
 async function loadXmlProfileConfiguration(filename) {
     try {
         currentPostprocessorConfig = await window.electronAPI.loadXmlProfile(filename);
+        
+        // Debug configuration loading
+        console.log('=== CONFIGURATION LOADING DEBUG ===');
+        console.log('Loaded configuration:', currentPostprocessorConfig);
+        console.log('Output settings:', currentPostprocessorConfig?.outputSettings);
+        console.log('AutoSaveEnabled from XML:', currentPostprocessorConfig?.outputSettings?.autoSaveEnabled);
+        console.log('=== END CONFIGURATION LOADING DEBUG ===');
+        
         applyConfigurationToUI(currentPostprocessorConfig);
         // Bridges setting is now managed in Output Manager profile
         updateHeaderPreview();
@@ -6718,6 +6726,14 @@ async function saveDinFile(content, defaultFilename, generationStats = null) {
         const autoSaveEnabled = outputSettings.autoSaveEnabled !== false;
         const defaultSavePath = outputSettings.defaultSavePath || '';
         const filenameFormat = outputSettings.filenameFormat || '{original_name}.din';
+        
+        // Debug auto-save settings
+        console.log('=== AUTO-SAVE DEBUG ===');
+        console.log('currentPostprocessorConfig:', currentPostprocessorConfig);
+        console.log('outputSettings:', outputSettings);
+        console.log('autoSaveEnabled:', autoSaveEnabled);
+        console.log('defaultSavePath:', defaultSavePath);
+        console.log('=== END AUTO-SAVE DEBUG ===');
         
         // Generate filename based on format (use profile template if no defaultFilename provided)
         let generatedFilename;
