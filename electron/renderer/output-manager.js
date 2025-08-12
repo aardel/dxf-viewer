@@ -152,32 +152,43 @@ async function loadCurrentProfile() {
         const savedProfile = await loadActiveProfile();
         let currentProfileName = null;
         
+        console.log('=== LOAD CURRENT PROFILE DEBUG ===');
+        console.log('Saved profile from loadActiveProfile:', savedProfile);
+        
         if (savedProfile) {
             currentProfileName = savedProfile.filename || savedProfile.name;
-            console.log('Loaded saved active profile:', currentProfileName);
+            console.log('Using saved active profile:', currentProfileName);
         } else {
             // Try to get the current profile from the main application's dropdown
             const mainProfileSelect = document.querySelector('#postprocessorProfile');
+            console.log('Main profile select element:', mainProfileSelect);
             
             if (mainProfileSelect && mainProfileSelect.value && mainProfileSelect.value !== 'custom') {
                 currentProfileName = mainProfileSelect.value.trim();
+                console.log('Got profile name from main window dropdown:', currentProfileName);
             } else {
                 // Fallback: try to get from main window via IPC
                 try {
+                    console.log('Trying getMainWindowCurrentProfile via IPC...');
                     currentProfileName = await window.electronAPI.getMainWindowCurrentProfile();
+                    console.log('getMainWindowCurrentProfile returned:', currentProfileName);
                     if (currentProfileName) {
                         currentProfileName = currentProfileName.trim();
+                        console.log('Trimmed currentProfileName:', currentProfileName);
                     }
                 } catch (ipcError) {
-                    console.log('IPC getMainWindowCurrentProfile failed, trying alternative method');
+                    console.log('IPC getMainWindowCurrentProfile failed:', ipcError);
                     // Try the old method as last resort
                     try {
+                        console.log('Trying getCurrentProfile via IPC...');
                         const profile = await window.electronAPI.getCurrentProfile();
+                        console.log('getCurrentProfile returned:', profile);
                         if (profile) {
                             currentProfileName = (profile.id || profile.name).trim();
+                            console.log('Using profile from getCurrentProfile:', currentProfileName);
                         }
                     } catch (oldIpcError) {
-                        console.log('All IPC methods failed');
+                        console.log('All IPC methods failed:', oldIpcError);
                     }
                 }
             }
@@ -203,6 +214,7 @@ async function loadCurrentProfile() {
                 if (profileSelect) {
                     profileSelect.value = profile.filename || profile.id || profile.name;
                 }
+                console.log('About to load profile configuration for:', profile);
                 await loadProfileConfiguration(profile);
                 console.log('Successfully loaded current profile:', profile.name);
                 
@@ -242,7 +254,16 @@ async function saveActiveProfile(profile) {
             id: profile.id,
             timestamp: Date.now()
         };
+        
+        // Save to Output Manager's localStorage
         localStorage.setItem('outputManager_activeProfile', JSON.stringify(profileData));
+        
+        // Also save to main window's localStorage for synchronization
+        if (profile.filename) {
+            localStorage.setItem('lastSelectedProfile', profile.filename);
+            console.log('Synced profile to main window localStorage:', profile.filename);
+        }
+        
         console.log('Saved active profile:', profile.name);
     } catch (error) {
         console.error('Error saving active profile:', error);
@@ -252,12 +273,28 @@ async function saveActiveProfile(profile) {
 // Load active profile from localStorage
 async function loadActiveProfile() {
     try {
+        // First try to get from main window's localStorage key
+        const mainWindowProfile = localStorage.getItem('lastSelectedProfile');
+        console.log('Main window saved profile:', mainWindowProfile);
+        
+        if (mainWindowProfile) {
+            // Find the profile in available profiles
+            const profile = availableProfiles.find(p => p.filename === mainWindowProfile);
+            if (profile) {
+                console.log('Found profile from main window:', profile);
+                return profile;
+            }
+        }
+        
+        // Fallback to Output Manager's own localStorage
         const savedData = localStorage.getItem('outputManager_activeProfile');
         if (savedData) {
             const profileData = JSON.parse(savedData);
-            console.log('Loaded saved profile data:', profileData);
+            console.log('Loaded saved profile data from Output Manager:', profileData);
             return profileData;
         }
+        
+        console.log('No active profile found in localStorage');
         return null;
     } catch (error) {
         console.error('Error loading active profile:', error);
@@ -330,9 +367,41 @@ async function saveOutputSettingsToProfile() {
     }
 }
 
+async function saveAutoSaveSettingToProfile(autoSaveEnabled) {
+    try {
+        if (!currentProfile) return;
+        
+        // Use the correct profile filename
+        const profileName = currentProfile.filename || currentProfile.id || currentProfile.name;
+        
+        // Load current XML profile
+        const config = await window.electronAPI.loadXmlProfile(profileName) || {};
+        
+        // Update output settings
+        if (!config.outputSettings) {
+            config.outputSettings = {};
+        }
+        
+        config.outputSettings.autoSaveEnabled = autoSaveEnabled;
+        
+        // Save back to XML profile
+        await window.electronAPI.saveXmlProfile(profileName, config);
+        
+        console.log(`Auto-save setting saved to profile: ${autoSaveEnabled}`);
+        showSuccess(`Auto-save ${autoSaveEnabled ? 'enabled' : 'disabled'}`);
+        
+    } catch (error) {
+        console.error('Error saving auto-save setting:', error);
+        showError('Failed to save auto-save setting');
+    }
+}
+
 async function loadProfileConfiguration(profile) {
     try {
-        const config = await window.electronAPI.loadXmlProfile(profile.id || profile.name);
+        console.log('loadProfileConfiguration called with profile:', profile);
+        const profileName = profile.filename || profile.id || profile.name;
+        console.log('Using profile name for loadXmlProfile:', profileName);
+        const config = await window.electronAPI.loadXmlProfile(profileName);
         
         if (config) {
             populateConfigurationFields(config);
@@ -1520,6 +1589,21 @@ async function loadOutputSettings() {
                 filenameTemplate.value = config.outputSettings?.filenameFormat || '{original_name}.din';
             }
             
+            // Load units setting from profile
+            const outputUnits = document.getElementById('outputUnits');
+            if (outputUnits) {
+                const unitsValue = config.units?.system || 'mm';
+                outputUnits.value = unitsValue;
+                console.log('Loaded units setting from profile:', unitsValue);
+            }
+            
+            // Load auto-save setting from profile
+            const autoSaveEnabled = document.getElementById('autoSaveEnabled');
+            if (autoSaveEnabled) {
+                autoSaveEnabled.checked = config.outputSettings?.autoSaveEnabled !== false;
+                console.log('Loaded auto-save setting from profile:', autoSaveEnabled.checked);
+            }
+            
             // Load line numbers settings from profile
             const startNumber = document.getElementById('startNumber');
             if (startNumber) {
@@ -1556,6 +1640,18 @@ async function loadOutputSettings() {
             const filenameTemplate = document.getElementById('filenameTemplate');
             if (filenameTemplate) {
                 filenameTemplate.value = '{original_name}.din';
+            }
+            
+            // Set default units setting
+            const outputUnits = document.getElementById('outputUnits');
+            if (outputUnits) {
+                outputUnits.value = 'mm'; // Default to millimeters
+            }
+            
+            // Set default auto-save setting
+            const autoSaveEnabled = document.getElementById('autoSaveEnabled');
+            if (autoSaveEnabled) {
+                autoSaveEnabled.checked = false; // Default to disabled
             }
             
             const startNumber = document.getElementById('startNumber');
@@ -2041,6 +2137,17 @@ function setupEventListeners() {
     const rotaryOutput = document.getElementById('rotaryOutput');
     if (rotaryOutput) {
         rotaryOutput.addEventListener('change', saveOptimizationSettings);
+    }
+    
+    // Auto-save enabled checkbox
+    const autoSaveEnabled = document.getElementById('autoSaveEnabled');
+    if (autoSaveEnabled) {
+        autoSaveEnabled.addEventListener('change', (e) => {
+            console.log('AutoSaveEnabled checkbox changed to:', e.target.checked);
+            if (currentProfile) {
+                saveAutoSaveSettingToProfile(e.target.checked);
+            }
+        });
     }
 }
 
@@ -3568,3 +3675,32 @@ function initializeDinFileStructure() {
     
     console.log('DIN file structure configuration initialized');
 }
+
+// Add reload profile functionality
+document.addEventListener('DOMContentLoaded', function() {
+    const reloadProfileBtn = document.getElementById('reloadProfileBtn');
+    if (reloadProfileBtn) {
+        reloadProfileBtn.addEventListener('click', async function() {
+            try {
+                console.log('Reloading profile configuration...');
+                
+                // Force reload of current profile
+                if (currentProfile) {
+                    await loadProfileConfiguration(currentProfile);
+                    
+                    // Also reload the main renderer configuration
+                    if (window.loadFileOutputSettings) {
+                        window.loadFileOutputSettings();
+                    }
+                    
+                    showSuccess('Profile configuration reloaded successfully');
+                } else {
+                    showError('No active profile to reload');
+                }
+            } catch (error) {
+                console.error('Error reloading profile:', error);
+                showError('Failed to reload profile configuration');
+            }
+        });
+    }
+});

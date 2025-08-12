@@ -112,32 +112,32 @@
                 <form id="ruleForm">
                     <div class="form-group">
                         <label for="ruleLayerName">Layer Name:</label>
-                        <input type="text" id="ruleLayerName" class="form-input" required placeholder="Enter layer name">
+                        <input type="text" id="ruleLayerName" name="layerName" class="form-input" required placeholder="Enter layer name">
                     </div>
                     
                     <div class="form-group">
                         <label for="ruleColor">Display Color (for mapped rows):</label>
                         <div class="color-input-group">
                             <input type="color" id="ruleColorPicker" value="#ff0000">
-                            <input type="text" id="ruleColor" class="form-input" placeholder="#FF0000" pattern="^#[0-9A-Fa-f]{6}$">
+                            <input type="text" id="ruleColor" name="color" class="form-input" placeholder="#FF0000" pattern="^#[0-9A-Fa-f]{6}$">
                         </div>
                     </div>
                     
                     <div class="form-group">
                         <label for="ruleLineType">Line Type:</label>
-                        <select id="ruleLineType" class="form-select" required>
+                        <select id="ruleLineType" name="lineTypeId" class="form-select" required>
                             <option value="">Select line type...</option>
                         </select>
                     </div>
                     
                     <div class="form-group">
                         <label for="ruleDescription">Description:</label>
-                        <textarea id="ruleDescription" class="form-input" placeholder="Optional description"></textarea>
+                        <textarea id="ruleDescription" name="description" class="form-input" placeholder="Optional description"></textarea>
                     </div>
                     
                     <div class="form-group">
                         <label for="ruleSource">Source:</label>
-                        <input type="text" id="ruleSource" class="form-input" placeholder="e.g., manual, wizard, profile_name">
+                        <input type="text" id="ruleSource" name="source" class="form-input" placeholder="e.g., manual, wizard, profile_name">
                     </div>
                 </form>
             </div>

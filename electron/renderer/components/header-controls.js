@@ -177,17 +177,19 @@ class HeaderControls {
             this.elements.warningCount.textContent = '';
             this.elements.warningCount.style.display = 'none';
         } else if (isComplete) {
-            // All layers mapped
+            // Ready for generation (all visible layers mapped)
             this.elements.warningIcon.className = 'warning-icon status-complete';
             this.elements.warningSymbol.textContent = '✅';
             this.elements.warningCount.textContent = '';
             this.elements.warningCount.style.display = 'none';
         } else {
-            // Has unmapped layers
+            // Has visible unmapped layers or other generation blockers
             this.elements.warningIcon.className = 'warning-icon status-warning';
             this.elements.warningSymbol.textContent = '⚠️';
-            this.elements.warningCount.textContent = unmappedLayers;
-            this.elements.warningCount.style.display = 'inline';
+            // Only show count if there are visible unmapped layers
+            const visibleUnmappedCount = this.mappingStatus.generationBlockers.includes('unmapped layers') ? unmappedLayers : 0;
+            this.elements.warningCount.textContent = visibleUnmappedCount;
+            this.elements.warningCount.style.display = visibleUnmappedCount > 0 ? 'inline' : 'none';
         }
     }
 

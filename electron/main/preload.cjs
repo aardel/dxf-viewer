@@ -36,6 +36,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     deleteRuleFromGlobalImportFilter: (ruleId) => ipcRenderer.invoke('delete-rule-from-global-import-filter', ruleId),
 
     openGlobalImportFilterManager: () => ipcRenderer.invoke('open-global-import-filter-manager'),
+    onGlobalFilterUpdated: (callback) => ipcRenderer.on('global-filter-updated', callback),
 
     // Tool Library API (still needed for tool management)
     loadToolLibrary: (libraryName) => ipcRenderer.invoke('load-tool-library', libraryName),

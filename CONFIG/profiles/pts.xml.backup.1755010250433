@@ -3,7 +3,7 @@
         <ProfileInfo>
             <Name>PTS
             </Name>
-            <Description>Copy of MTL_Flatbed
+            <Description>PTS FLATBED
             </Description>
             <Version>1.0
             </Version>
@@ -243,7 +243,6 @@ G75 X=P2027 Y=P2027
                     </Icon>
                     <Config>
                         <Commands>G90
-                
 G60 X0
                         </Commands>
                     </Config>

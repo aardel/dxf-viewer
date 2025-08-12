@@ -3,7 +3,7 @@
         <ProfileInfo>
             <Name>PTS
             </Name>
-            <Description>Copy of MTL_Flatbed
+            <Description>PTS FLATBED
             </Description>
             <Version>1.0
             </Version>
@@ -203,7 +203,7 @@
                     <Icon>⚖️
                     </Icon>
                     <Config>
-                        <Commands>:P2027=25.4/P674
+                        <Commands>:P2027=25.4/P674 
 G75 X=P2027 Y=P2027
                         </Commands>
                         <Comment/>

@@ -149,7 +149,7 @@
             </DefaultSavePath>
             <FilenameFormat>{original_name}.din
             </FilenameFormat>
-            <AutoSaveEnabled>true
+            <AutoSaveEnabled>false
             </AutoSaveEnabled>
         </OutputSettings>
         <MappingWorkflow>

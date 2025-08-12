@@ -26,6 +26,7 @@ export class DinGenerator {
         console.info('ℹ️ INFO LOG - generateDin method entered');
         console.log('📝 NORMAL LOG - Standard console log');
         this.config = config;
+        this.metadata = metadata; // Store metadata for use in other methods
         this.lineNumber = config.lineNumbers?.startNumber || 10;
         this.currentTool = null;
 
@@ -433,23 +434,37 @@ export class DinGenerator {
                 return [];
             }
 
-            // Derive start/end angles from given start/end points
+            // Calculate angles from start and end points
             const a0 = Math.atan2(entity.start.y - cy, entity.start.x - cx);
             const a1 = Math.atan2(entity.end.y - cy, entity.end.x - cx);
             let sweep = a1 - a0;
             
-            // Normalize sweep using the same logic as DDS parser
-            if (!entity.clockwise && sweep > 0) sweep -= Math.PI * 2;
-            if (entity.clockwise && sweep < 0) sweep += Math.PI * 2;
+            console.log('=== ARC ANGLE CALCULATION ===');
+            console.log('entity.start:', entity.start);
+            console.log('entity.end:', entity.end);
+            console.log('a0 (start angle):', a0);
+            console.log('a1 (end angle):', a1);
+            console.log('initial sweep:', sweep);
+            console.log('entity.clockwise:', entity.clockwise);
+            console.log('entity.radius:', entity.radius);
             
-            // Use the clockwise property set by the parser (DDS: negative radius = CCW, positive = CW)
-            const ccw = !entity.clockwise;
+            // Check if this is a full circle (start and end points are very close)
+            const isFullCircle = Math.abs(entity.start.x - entity.end.x) < 1e-6 && Math.abs(entity.start.y - entity.end.y) < 1e-6;
             
-            // Handle full circle case (start and end points are the same)
-            if (Math.abs(sweep) < 0.001 && Math.abs(entity.start.x - entity.end.x) < 0.001 && Math.abs(entity.start.y - entity.end.y) < 0.001) {
+            if (isFullCircle) {
+                // For full circles, use the radius sign to determine direction
+                const ccw = entity.radius < 0;
                 sweep = ccw ? Math.PI * 2 : -Math.PI * 2;
                 console.log('🔄 Full circle detected, setting sweep to:', sweep);
+            } else {
+                // For partial arcs, normalize sweep using the same logic as CAD viewer
+                // This matches the logic in CAD VIEWER/js/dds.js and unified-viewer.html
+                if (entity.radius < 0 && sweep > 0) sweep -= Math.PI * 2;
+                if (entity.radius >= 0 && sweep < 0) sweep += Math.PI * 2;
             }
+            
+            // Determine direction from radius sign (negative = counterclockwise, positive = clockwise)
+            const ccw = entity.radius < 0;
             
             const totalArcLen = Math.abs(entity.radius) * Math.abs(sweep);
             if (!isFinite(totalArcLen) || totalArcLen === 0) {
@@ -476,9 +491,9 @@ export class DinGenerator {
             }
             const segmentLen = drawableLen / (bridgeCount + 1);
             
-            // For full circles, we need to ensure we complete the full arc
-            const isFullCircle = Math.abs(sweep) >= Math.PI * 1.9; // Allow for small numerical errors
-            console.log('Is full circle:', isFullCircle, 'sweep:', sweep);
+            // Check if this is a full circle based on sweep angle (for bridge processing)
+            const isFullCircleForBridges = Math.abs(sweep) >= Math.PI * 1.9; // Allow for small numerical errors
+            console.log('Is full circle for bridges:', isFullCircleForBridges, 'sweep:', sweep);
             
             console.log('✅ Bridge processing will generate segments. segmentLen:', segmentLen);
 
@@ -502,7 +517,7 @@ export class DinGenerator {
                     segEnd = segStart + segmentLen;
                 } else {
                     // Last segment - go to the end of the arc
-                    if (isFullCircle) {
+                    if (isFullCircleForBridges) {
                         // For full circles, go back to the start point
                         segEnd = totalArcLen;
                     } else {
@@ -533,6 +548,12 @@ export class DinGenerator {
                 }
             }
 
+            // Add final move to end point for partial arcs (not full circles)
+            if (!isFullCircleForBridges) {
+                lines.push(this.formatLine(`${this.config.gcode.rapidMove} X${entity.end.x.toFixed(3)} Y${entity.end.y.toFixed(3)}`));
+                console.log('✅ Added final move to end point:', entity.end);
+            }
+            
             console.log('✅ Bridge processing completed. Generated', lines.length, 'lines');
             return lines;
         }

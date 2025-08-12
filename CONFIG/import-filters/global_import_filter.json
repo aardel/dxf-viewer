@@ -114,6 +114,60 @@
       "lineTypeId": "1",
       "description": "Rule for OFFLINE",
       "source": "manual"
+    },
+    {
+      "id": 13,
+      "layerName": "FNL_DIMS-363",
+      "color": 52224,
+      "colorHex": "#00CC00",
+      "lineTypeId": "2",
+      "description": "Rule for FNL_DIMS-363 (green variant)",
+      "source": "manual"
+    },
+    {
+      "id": 14,
+      "layerName": "FNL_DIMS-363",
+      "color": 255,
+      "colorHex": "#0000FF",
+      "lineTypeId": "2",
+      "description": "Rule for FNL_DIMS-363 (blue variant)",
+      "source": "manual"
+    },
+    {
+      "id": 15,
+      "layerName": "FNL_DIMS-363",
+      "color": 65535,
+      "colorHex": "#00FFFF",
+      "lineTypeId": "2",
+      "description": "Rule for FNL_DIMS-363 (cyan variant)",
+      "source": "manual"
+    },
+    {
+      "id": 16,
+      "layerName": "FNL_DIMS-363",
+      "color": 38912,
+      "colorHex": "#009800",
+      "lineTypeId": "2",
+      "description": "Rule for FNL_DIMS-363 (dark green variant)",
+      "source": "manual"
+    },
+    {
+      "id": 17,
+      "layerName": "FNL_DIMS-363",
+      "color": 16711680,
+      "colorHex": "#FF0000",
+      "lineTypeId": "2",
+      "description": "Rule for FNL_DIMS-363 (red variant)",
+      "source": "manual"
+    },
+    {
+      "id": 18,
+      "layerName": "GRIP",
+      "color": 65407,
+      "colorHex": "#00FF7F",
+      "lineTypeId": "13",
+      "description": "Rule for GRIP (light green variant)",
+      "source": "manual"
     }
   ],
   "settings": {
@@ -125,9 +179,9 @@
     "conflictResolution": "prompt_user"
   },
   "statistics": {
-    "totalRules": 12,
-    "uniqueLayers": 11,
-    "uniqueColors": 8,
+    "totalRules": 18,
+    "uniqueLayers": 13,
+    "uniqueColors": 13,
     "lastConsolidated": "2025-08-05T01:48:21.353Z"
   }
 }

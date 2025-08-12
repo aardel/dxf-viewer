@@ -5,11 +5,27 @@ let lineTypes = [];
 // Initialize when page loads
 document.addEventListener('DOMContentLoaded', async () => {
     try {
+        console.log('Global Import Filter Manager: Starting initialization...');
         await loadGlobalFilter();
+        console.log('Global Import Filter Manager: Global filter loaded, rules count:', globalFilter?.rules?.length || 0);
         await loadLineTypes();
+        console.log('Global Import Filter Manager: Line types loaded, count:', lineTypes?.length || 0);
         updateStatistics();
         renderRulesTable();
         setupEventListeners();
+        
+        // Listen for updates from other windows
+        if (window.electronAPI) {
+            console.log('Setting up global filter update listener...');
+            window.electronAPI.onGlobalFilterUpdated(() => {
+                console.log('Received global filter update notification');
+                refreshData();
+            });
+        } else {
+            console.log('window.electronAPI not available');
+        }
+        
+        console.log('Global Import Filter Manager: Initialization complete');
     } catch (error) {
         console.error('Error initializing Global Import Filter Manager:', error);
         showError('Failed to initialize: ' + error.message);
@@ -19,12 +35,16 @@ document.addEventListener('DOMContentLoaded', async () => {
 // Load global import filter
 async function loadGlobalFilter() {
     try {
+        console.log('Loading global import filter...');
         const response = await window.electronAPI.loadGlobalImportFilter();
         console.log('Global import filter loaded:', response);
         
         if (response && response.success && response.data) {
             globalFilter = response.data;
+            console.log('Global filter set successfully, rules count:', globalFilter?.rules?.length || 0);
+            console.log('First few rules:', globalFilter?.rules?.slice(0, 3) || []);
         } else {
+            console.error('Failed to load global import filter - response:', response);
             throw new Error('Failed to load global import filter');
         }
     } catch (error) {
@@ -44,6 +64,7 @@ async function loadGlobalFilter() {
                 conflictResolution: 'global-first'
             }
         };
+        console.log('Created default global filter with empty rules');
     }
 }
 
@@ -129,10 +150,24 @@ function renderRulesTable() {
         // Clean up corrupted layer names
         const cleanLayerName = (rule.layerName || '').replace(/\n\s*⚠\s*\n\s*Add to Global/g, '').trim();
         
-        // Format color display - show just the ACI number (same as import filters manager)
-        const aciNum = parseInt(rule.color);
-        const hasAci = Number.isInteger(aciNum) && aciNum >= 0 && aciNum <= 255;
-        const colorDisplay = hasAci ? String(aciNum) : '-';
+        // Format color display - handle both ACI numbers and hex colors
+        let aciNum = null;
+        let hasAci = false;
+        let colorDisplay = '-';
+        
+        if (rule.color) {
+            // Check if it's a hex color (starts with #)
+            if (rule.color.startsWith('#')) {
+                // For hex colors, we'll show the hex value
+                colorDisplay = rule.color;
+                hasAci = false;
+            } else {
+                // Try to parse as ACI number
+                aciNum = parseInt(rule.color);
+                hasAci = Number.isInteger(aciNum) && aciNum >= 0 && aciNum <= 255;
+                colorDisplay = hasAci ? String(aciNum) : rule.color;
+            }
+        }
         const fmt = rule.format || 'dxf';
         const key = rule.key || '';
         let ddsColor = '', rawW='', unit='', cff2Pen='', cff2Layer='';
@@ -147,7 +182,7 @@ function renderRulesTable() {
                 <td>${cleanLayerName}</td>
                 <td>
                     <div style="display: flex; align-items: center; gap: 0.5rem;">
-                        <div class="color-swatch" style="background-color: ${hasAci ? aciToHex(aciNum) : 'transparent'}"></div>
+                        <div class="color-swatch" style="background-color: ${rule.color || 'transparent'}"></div>
                         <span>${colorDisplay}</span>
                     </div>
                 </td>
@@ -205,17 +240,16 @@ function applyColumnVisibility() {
     // Column indexes
     const COLS = {
         ID: 0, FORMAT: 1, KEY: 2, LAYER: 3, ACI: 4, DDS_COLOR: 5, RAW_WIDTH: 6, UNIT: 7, CFF2_PEN: 8, CFF2_LAYER: 9,
-        LINE_TYPE: 10, ENABLED: 11, SOURCE: 12, DESC: 13, ACTIONS: 14
+        COLOR: 10, LINE_TYPE: 11, ENABLED: 12, SOURCE: 13, DESC: 14, ACTIONS: 15
     };
     // By default, show all if no format filter
     let visible = new Set(Object.values(COLS));
     if (fmt === 'dxf') {
-        visible = new Set([COLS.ID, COLS.FORMAT, COLS.KEY, COLS.LAYER, COLS.ACI, COLS.LINE_TYPE, COLS.ENABLED, COLS.SOURCE, COLS.DESC, COLS.ACTIONS]);
+        visible = new Set([COLS.ID, COLS.FORMAT, COLS.KEY, COLS.LAYER, COLS.ACI, COLS.COLOR, COLS.LINE_TYPE, COLS.ENABLED, COLS.SOURCE, COLS.DESC, COLS.ACTIONS]);
     } else if (fmt === 'dds') {
-        visible = new Set([COLS.ID, COLS.FORMAT, COLS.KEY, COLS.DDS_COLOR, COLS.RAW_WIDTH, COLS.UNIT, COLS.LINE_TYPE, COLS.ENABLED, COLS.SOURCE, COLS.DESC, COLS.ACTIONS]);
+        visible = new Set([COLS.ID, COLS.FORMAT, COLS.KEY, COLS.DDS_COLOR, COLS.RAW_WIDTH, COLS.UNIT, COLS.COLOR, COLS.LINE_TYPE, COLS.ENABLED, COLS.SOURCE, COLS.DESC, COLS.ACTIONS]);
     } else if (fmt === 'cff2') {
-        // include the Color column (index shifts by +1 after adding Color before Line Type)
-        visible = new Set([COLS.ID, COLS.FORMAT, COLS.KEY, COLS.CFF2_PEN, COLS.CFF2_LAYER, COLS.ACI, COLS.LINE_TYPE, COLS.ENABLED, COLS.SOURCE, COLS.DESC, COLS.ACTIONS]);
+        visible = new Set([COLS.ID, COLS.FORMAT, COLS.KEY, COLS.CFF2_PEN, COLS.CFF2_LAYER, COLS.ACI, COLS.COLOR, COLS.LINE_TYPE, COLS.ENABLED, COLS.SOURCE, COLS.DESC, COLS.ACTIONS]);
     }
     const setColDisplay = (row, colIdx, show) => {
         const cell = row.children[colIdx];
@@ -259,6 +293,26 @@ function setupEventListeners() {
     const refreshBtn = document.getElementById('refreshBtn');
     if (refreshBtn) {
         refreshBtn.addEventListener('click', refreshData);
+    }
+    
+    // Add a debug button to manually reload data
+    const debugBtn = document.createElement('button');
+    debugBtn.textContent = 'Debug: Reload Data';
+    debugBtn.className = 'btn btn-warning';
+    debugBtn.style.marginLeft = '10px';
+    debugBtn.addEventListener('click', async () => {
+        console.log('Manual debug reload triggered');
+        await loadGlobalFilter();
+        console.log('Manual reload - Global filter rules count:', globalFilter?.rules?.length || 0);
+        console.log('Manual reload - First few rules:', globalFilter?.rules?.slice(0, 3) || []);
+        updateStatistics();
+        renderRulesTable();
+    });
+    
+    // Add the debug button to the page
+    const buttonContainer = document.querySelector('.button-container') || document.querySelector('.header-controls');
+    if (buttonContainer) {
+        buttonContainer.appendChild(debugBtn);
     }
 
     // Clear all button
@@ -422,7 +476,7 @@ function showEditRuleModal(ruleId) {
     
     if (!rule) {
         console.error('Rule not found for ID:', ruleId);
-        console.log('Available rules:', globalFilter.rules.map(r => ({ id: r.id, type: typeof r.id, layerName: r.layerName })));
+        console.log('Available rules:', globalFilter.rules.map(r => ({ id: r.id, type: typeof r.id, key: r.key })));
         return;
     }
 
@@ -433,16 +487,35 @@ function showEditRuleModal(ruleId) {
     const modalTitle = modal.querySelector('#modalTitle');
     if (modalTitle) modalTitle.textContent = 'Edit Rule';
 
+    // Parse the key to extract layer name and color
+    let layerName = '';
+    let color = '';
+    
+    if (rule.key) {
+        // Handle key format: "dxf|FNL_DIMS-363|00CC00" or "cff2|2-1" or "dds|100|0.0280|in"
+        const keyParts = rule.key.split('|');
+        if (keyParts.length >= 2) {
+            layerName = keyParts[1]; // Get the layer name part
+            if (keyParts.length >= 3) {
+                color = keyParts[2]; // Get the color part if it exists
+            }
+        }
+    } else if (rule.layerName) {
+        // Fallback to old format
+        layerName = rule.layerName;
+        color = rule.color || '';
+    }
+
     // Populate form with existing data
     const form = modal.querySelector('#ruleForm');
     if (form) {
-        form.querySelector('#ruleLayerName').value = rule.layerName;
-        form.querySelector('#ruleColor').value = rule.color;
+        form.querySelector('#ruleLayerName').value = layerName;
+        form.querySelector('#ruleColor').value = rule.color || color;
         
         // Update color picker to show the actual color
         const colorPicker = form.querySelector('#ruleColorPicker');
         if (colorPicker) {
-            const hexColor = aciToHex(parseInt(rule.color));
+            const hexColor = rule.color || color;
             colorPicker.value = hexColor;
         }
         
@@ -506,12 +579,41 @@ async function updateRule(formData) {
         const ruleId = modal.dataset.ruleId;
         console.log('Updating rule with ID:', ruleId, 'Type:', typeof ruleId);
         
+        // Find the original rule to get the format
+        const originalRule = globalFilter.rules.find(r => r.id == ruleId);
+        if (!originalRule) {
+            throw new Error('Original rule not found');
+        }
+        
+        const layerName = formData.get('layerName');
+        const color = formData.get('color');
+        const lineTypeId = formData.get('lineTypeId');
+        const description = formData.get('description') || '';
+        const source = formData.get('source') || 'manual';
+        
+        // Reconstruct the key based on the original rule format
+        let newKey = '';
+        if (originalRule.key) {
+            const keyParts = originalRule.key.split('|');
+            if (keyParts.length >= 1) {
+                const format = keyParts[0]; // dxf, cff2, dds
+                if (format === 'dxf') {
+                    newKey = `dxf|${layerName}|${color}`;
+                } else if (format === 'cff2') {
+                    newKey = `cff2|${layerName}`;
+                } else if (format === 'dds') {
+                    // For DDS, preserve the original key structure
+                    newKey = originalRule.key;
+                }
+            }
+        }
+        
         const updatedRule = {
-            layerName: formData.get('layerName'),
-            color: formData.get('color'), // hex for display only
-            lineTypeId: formData.get('lineTypeId'),
-            description: formData.get('description') || '',
-            source: formData.get('source') || 'manual'
+            key: newKey,
+            color: color,
+            lineTypeId: lineTypeId,
+            description: description,
+            source: source
         };
 
         console.log('Updated rule data:', updatedRule);
@@ -631,6 +733,9 @@ async function refreshData() {
         showLoading(false);
     }
 }
+
+// Make refreshData globally accessible so other windows can call it
+window.refreshGlobalImportFilter = refreshData;
 
 // Clear all rules
 async function clearAllRules() {

@@ -58,12 +58,38 @@ function openMapLinePopup(summary, exactKey) {
             }
             showStatus('Mapping saved', 'success');
             document.getElementById(modalId)?.remove();
-            // Refresh rules cache and current table to show mapping and glow
+            
+            // Refresh rules cache first
             await refreshRulesCache();
+            
+            // Re-apply global import filter to current layers to get updated mapping status
             if (currentFileFormat === 'dxf' && window.currentLayerData) {
-                populateLayerTable(window.currentLayerData);
+                try {
+                    const updatedLayers = await window.electronAPI.applyGlobalImportFilter(window.currentLayerData);
+                    if (updatedLayers.success) {
+                        const { appliedLayers, unmatchedLayers } = updatedLayers.data;
+                        const allLayers = appliedLayers.concat(unmatchedLayers);
+                        // Update currentLayerData to reflect new mappings
+                        window.currentLayerData = allLayers;
+                        // Re-populate the table with updated data
+                        populateLayerTable(allLayers);
+                    }
+                } catch (error) {
+                    console.error('Error refreshing layer mappings:', error);
+                    // Fallback to simple refresh
+                    populateLayerTable(window.currentLayerData);
+                }
             } else {
                 updateImportPanelForUnified();
+            }
+            
+            // Refresh Global Import Filter Manager if it's open
+            if (window.refreshGlobalImportFilter) {
+                try {
+                    await window.refreshGlobalImportFilter();
+                } catch (error) {
+                    console.log('Global Import Filter Manager not open or refresh failed:', error);
+                }
             }
         } catch (e) {
             showStatus('Failed to save mapping', 'error');
@@ -1370,6 +1396,8 @@ function populateLayerTable(layers) {
                 const actual = layer.parentLayer || lname;
                 toggleLayerVisibility(actual, isVisible);
             }
+            // Refresh layer status to update generation readiness
+            updateLayerStatus();
         });
         const editBtn = row.querySelector('.edit-mapping-btn');
         if (editBtn) {
@@ -1377,14 +1405,21 @@ function populateLayerTable(layers) {
                 e.preventDefault();
                 e.stopPropagation();
                 const lname = e.currentTarget.dataset.layerName;
+                // Extract base layer name and hex color from layer name
+                const colorSuffixMatch = lname.match(/^(.+)_([0-9A-Fa-f]{6})$/);
+                const baseLayerName = colorSuffixMatch ? colorSuffixMatch[1] : lname;
+                const hexColor = colorSuffixMatch ? colorSuffixMatch[2] : '';
+                const aciColor = viewer.parsedDxf?.tables?.layer?.layers?.[lname]?.color ?? '';
+                
                 openMapLinePopup({
                     format: 'dxf',
                     fields: [
-                        { label: 'Layer', value: lname },
-                        { label: 'ACI', value: (viewer.parsedDxf?.tables?.layer?.layers?.[lname]?.color ?? '-') }
+                        { label: 'Layer', value: baseLayerName },
+                        { label: 'Color', value: hexColor ? `#${hexColor}` : '-' }
                     ],
-                    rulePayload: { format: 'dxf', key: `dxf|${lname}|${viewer.parsedDxf?.tables?.layer?.layers?.[lname]?.color ?? ''}`, layerName: lname, aci: viewer.parsedDxf?.tables?.layer?.layers?.[lname]?.color ?? '' }
-                }, `dxf|${lname}|${viewer.parsedDxf?.tables?.layer?.layers?.[lname]?.color ?? ''}`);
+                    rulePayload: { format: 'dxf', key: `dxf|${baseLayerName}|${hexColor}`, layerName: baseLayerName, aci: aciColor },
+                    displayColor: hexColor ? `#${hexColor}` : '#66d9ef'
+                }, `dxf|${baseLayerName}|${hexColor}`);
             });
         }
     });
@@ -2455,7 +2490,8 @@ function updateLayerStatus() {
             visibleMappedLayers++;
         }
         
-        if (!isMapped) {
+        // Only block generation if a VISIBLE layer is unmapped
+        if (isVisible && !isMapped) {
             readyForGeneration = false;
             if (!generationBlockers.includes('unmapped layers')) {
                 generationBlockers.push('unmapped layers');
@@ -2464,7 +2500,7 @@ function updateLayerStatus() {
     });
     
     // Check if we have visible mapped layers
-    if (visibleMappedLayers === 0 && mappedLayers > 0) {
+    if (visibleMappedLayers === 0) {
         readyForGeneration = false;
         generationBlockers.push('no visible layers');
     }
@@ -2545,7 +2581,9 @@ function updateUnifiedMappingStatus() {
         }
 
         // Visibility gating – visible items must have enabled mapping
-        const isVisible = !!overlayGroups[k]?.visible;
+        // Check the actual output checkbox state in the DOM
+        const checkbox = document.querySelector(`tr[data-key="${k}"] .output-toggle`);
+        const isVisible = checkbox ? checkbox.checked : (overlayGroups[k]?.visible !== false);
         if (isVisible) {
             if (hasEnabledMapping) {
                 visibleMappedLayers++;
@@ -2580,7 +2618,7 @@ function updateUnifiedMappingStatus() {
     });
     document.dispatchEvent(evt);
 }
-// Layer validation and warning functions
+// Layer validation and warning functions - MODULAR APPROACH
 function validateLayerMappings() {
     // Handle DXF files (using currentLayerData)
     if (typeof currentLayerData !== 'undefined' && currentLayerData) {
@@ -2596,167 +2634,279 @@ function validateLayerMappings() {
     return { valid: false, warnings: [], unmappedLayers: [], hiddenLayers: [], includedLayers: [] };
 }
 
+// DXF-specific validation
 function validateDxfLayerMappings() {
     if (!currentLayerData) return { valid: true, warnings: [] };
     
-    // Aggregate layers by name, prioritize unmapped over hidden
-    const layerMap = new Map();
-    const includedLayers = [];
+    console.log('=== DXF VALIDATION STARTED ===');
+    console.log('currentLayerData length:', currentLayerData.length);
+    
+    // Group layers by parent layer (base layer name) to handle color variants
+    const layerGroups = new Map();
     
     currentLayerData.forEach((layer, index) => {
-        const layerName = layer.parentLayer || layer.name;
+        const baseLayerName = layer.parentLayer || layer.name;
         const isVisible = document.getElementById(`layer-${index}`)?.checked || false;
         const objectCount = layer.objectCount !== undefined ? layer.objectCount : (layer.objects ? layer.objects.length : 0);
+        const isMapped = layer.importFilterApplied || layer.lineType;
         
-        // If unmapped, add or update in map
-        if (!layer.importFilterApplied && !layer.lineType) {
-            layerMap.set(layerName, {
-                name: layerName,
-                color: layer.color,
-                objectCount,
-                type: 'unmapped'
+        // Debug logging for DXF validation
+        console.log(`DXF Validation for layer ${index} "${layer.name}" (base: "${baseLayerName}"): isVisible=${isVisible}, isMapped=${isMapped}, objectCount=${objectCount}`);
+        
+        // Initialize group if not exists
+        if (!layerGroups.has(baseLayerName)) {
+            layerGroups.set(baseLayerName, {
+                name: baseLayerName,
+                variants: [],
+                totalObjectCount: 0,
+                visibleVariants: 0,
+                mappedVariants: 0,
+                unmappedVariants: 0
             });
-        } else if (!isVisible && !layerMap.has(layerName)) {
-            // Only add hidden if not already unmapped
-            layerMap.set(layerName, {
-                name: layerName,
-                objectCount,
-                type: 'hidden'
-            });
-        } else if (isVisible && (layer.importFilterApplied || layer.lineType)) {
-            // Layer is visible and mapped - will be included in output
-            const existingIncluded = includedLayers.find(l => l.name === layerName);
-            if (existingIncluded) {
-                existingIncluded.objectCount += objectCount;
-            } else {
-                includedLayers.push({
-                    name: layerName,
-                    objectCount,
-                    type: 'included'
-                });
-            }
+        }
+        
+        const group = layerGroups.get(baseLayerName);
+        group.variants.push({
+            name: layer.name,
+            displayName: layer.displayName || layer.name,
+            isVisible,
+            isMapped,
+            objectCount
+        });
+        group.totalObjectCount += objectCount;
+        
+        if (isVisible) {
+            group.visibleVariants++;
+        }
+        if (isMapped) {
+            group.mappedVariants++;
+        } else {
+            group.unmappedVariants++;
         }
     });
     
-    // Split back into unmapped and hidden
+    // Process groups to determine layer status (variant-level respecting DXF keys)
     const unmappedLayers = [];
     const hiddenLayers = [];
-    for (const layer of layerMap.values()) {
-        if (layer.type === 'unmapped') {
-            unmappedLayers.push(layer);
-        } else if (layer.type === 'hidden') {
-            hiddenLayers.push(layer);
-        }
-    }
+    const hiddenVariants = [];
+    const includedLayers = [];
     
-    // Generate warnings
+    layerGroups.forEach((group, baseLayerName) => {
+        console.log(`Processing group "${baseLayerName}": visible=${group.visibleVariants}, mapped=${group.mappedVariants}, unmapped=${group.unmappedVariants}`);
+        
+        // A layer is considered unmapped only if ALL visible variants are unmapped
+        const hasVisibleUnmappedVariants = group.visibleVariants > 0 && group.unmappedVariants > 0;
+        const hasVisibleMappedVariants = group.visibleVariants > 0 && group.mappedVariants > 0;
+        const isCompletelyHidden = group.visibleVariants === 0;
+
+        // Helper sums for accurate object counts
+        const visibleUnmappedObjectCount = group.variants
+            .filter(v => v.isVisible && !v.isMapped)
+            .reduce((sum, v) => sum + (v.objectCount || 0), 0);
+        const visibleMappedObjectCount = group.variants
+            .filter(v => v.isVisible && v.isMapped)
+            .reduce((sum, v) => sum + (v.objectCount || 0), 0);
+        const allVariantsObjectCount = group.variants
+            .reduce((sum, v) => sum + (v.objectCount || 0), 0);
+        
+        if (hasVisibleUnmappedVariants && !hasVisibleMappedVariants) {
+            // All visible variants are unmapped (emit one entry per visible unmapped variant)
+            group.variants
+                .filter(v => v.isVisible && !v.isMapped)
+                .forEach(v => {
+                    unmappedLayers.push({
+                        name: v.displayName || v.name,
+                        objectCount: v.objectCount || 0,
+                        type: 'unmapped',
+                        baseLayer: baseLayerName
+                    });
+                });
+        }
+        
+        if (hasVisibleMappedVariants) {
+            // Some visible variants are mapped (emit one entry per visible mapped variant)
+            group.variants
+                .filter(v => v.isVisible && v.isMapped)
+                .forEach(v => {
+                    includedLayers.push({
+                        name: v.displayName || v.name,
+                        objectCount: v.objectCount || 0,
+                        type: 'included',
+                        baseLayer: baseLayerName
+                    });
+                });
+        }
+        
+        if (isCompletelyHidden) {
+            // All variants are hidden (emit one entry per hidden variant)
+            group.variants
+                .filter(v => !v.isVisible)
+                .forEach(v => {
+                    hiddenVariants.push({
+                        name: v.displayName || v.name,
+                        objectCount: v.objectCount || 0,
+                        type: 'hidden',
+                        baseLayer: baseLayerName
+                    });
+                });
+        }
+    });
+    
+    // Calculate visible unmapped layers for validation
+    const visibleUnmappedLayers = unmappedLayers.filter(layer => {
+        // Find the corresponding layer in currentLayerData to check visibility
+        const layerIndex = currentLayerData.findIndex(l => 
+            (l.displayName || l.name) === layer.name || l.name === layer.name
+        );
+        return layerIndex >= 0 && document.getElementById(`layer-${layerIndex}`)?.checked;
+    });
+    
+    // Validation logic: valid if no visible unmapped layers AND at least one included layer
+    const valid = visibleUnmappedLayers.length === 0 && includedLayers.length > 0;
+    
+    console.log('=== DXF VALIDATION COMPLETED ===');
+    console.log('includedLayers:', includedLayers.length);
+    console.log('unmappedLayers:', unmappedLayers.length);
+    console.log('hiddenVariants:', hiddenVariants.length);
+    console.log('visibleUnmappedLayers:', visibleUnmappedLayers.length);
+    console.log('valid:', valid);
+    
+    // Build warnings
     const warnings = [];
-    if (unmappedLayers.length > 0) {
-        warnings.push({
-            type: 'unmapped',
-            count: unmappedLayers.length,
-            layers: unmappedLayers,
-            message: `${unmappedLayers.length} layer(s) are unmapped and will be skipped during DIN generation`
-        });
+    if (visibleUnmappedLayers.length > 0) {
+        const unmappedDetails = visibleUnmappedLayers.map(l => `${l.name} (${l.objectCount} objects)`).join(', ');
+        warnings.push(`Unmapped visible layers: ${unmappedDetails}`);
     }
-    if (hiddenLayers.length > 0) {
-        warnings.push({
-            type: 'hidden',
-            count: hiddenLayers.length,
-            layers: hiddenLayers,
-            message: `${hiddenLayers.length} layer(s) are hidden and will be excluded from processing`
-        });
+    if (hiddenVariants.length > 0) {
+        const hiddenDetails = hiddenVariants.map(l => `${l.name} (${l.objectCount} objects)`).join(', ');
+        warnings.push(`Hidden layers: ${hiddenDetails}`);
     }
     
     return {
-        valid: unmappedLayers.length === 0 && includedLayers.length > 0,  // Valid if all layers are mapped AND at least one layer is visible
+        valid,
         warnings,
         unmappedLayers,
-        hiddenLayers,
-        includedLayers
+        hiddenLayers: hiddenVariants,
+        includedLayers,
+        visibleUnmappedLayers
     };
 }
 
+// Unified format validation (DDS/CFF2)
 function validateUnifiedLayerMappings() {
     if (!overlayGroups || Object.keys(overlayGroups).length === 0) {
-        return { valid: false, warnings: [], unmappedLayers: [], hiddenLayers: [], includedLayers: [] };
+        return { valid: true, warnings: [] };
     }
     
-    const keys = Object.keys(overlayGroups);
-    const fmt = currentFileFormat === 'dds' ? 'dds' : 'cff2';
+    console.log('=== UNIFIED VALIDATION STARTED ===');
+    console.log('overlayGroups keys:', Object.keys(overlayGroups));
     
+    const warnings = [];
     const unmappedLayers = [];
     const hiddenLayers = [];
     const includedLayers = [];
-    const warnings = [];
     
-    for (const key of keys) {
+    Object.keys(overlayGroups).forEach(key => {
+        const group = overlayGroups[key];
+        const checkbox = document.querySelector(`.output-toggle[data-key="${key}"]`);
+        const overlayVisible = group.visible !== false;
+        const isVisible = checkbox ? checkbox.checked : (overlayVisible);
+        
+        // Check mapping using the correct format (dds|key or cff2|key)
+        const fmt = currentFileFormat === 'dds' ? 'dds' : 'cff2';
         const entry = exactRulesCache.get(`${fmt}|${key}`);
-        const isVisible = overlayGroups[key]?.visible !== false;
         const isMapped = !!(entry && entry.enabled && entry.lineTypeId);
         
-        // Build a user-friendly name from key
-        let displayName = key;
-        try {
-            if (fmt === 'dds') {
-                const [color, rawKerf, unit] = key.split('|');
-                const pt = (unit==='in' ? Number(rawKerf||0)*72 : unit==='mm' ? Number(rawKerf||0)/25.4*72 : Number(rawKerf||0));
-                displayName = `${pt.toFixed(2)} pt · color ${color}`;
-            } else {
-                const parts = key.split('-');
-                const pen = parts[0] ?? '';
-                const layer = parts.slice(1).join('-');
-                displayName = `${Number(pen||0).toFixed(2)} pt · ${layer}`;
-            }
-        } catch {}
+        console.log(`Unified validation for key "${key}": checkbox=${!!checkbox}, overlayVisible=${overlayVisible}, isVisible=${isVisible}, isMapped=${isMapped}, format=${fmt}`);
         
-        if (!isMapped) {
+        if (isVisible && !isMapped) {
             unmappedLayers.push({
-                name: displayName,
-                objectCount: 1, // Each key represents one layer/group
+                name: key,
+                objectCount: group.entities ? group.entities.length : 0,
                 type: 'unmapped'
+            });
+        } else if (isVisible && isMapped) {
+            includedLayers.push({
+                name: key,
+                objectCount: group.entities ? group.entities.length : 0,
+                type: 'included'
             });
         } else if (!isVisible) {
             hiddenLayers.push({
-                name: displayName,
-                objectCount: 1,
+                name: key,
+                objectCount: group.entities ? group.entities.length : 0,
                 type: 'hidden'
             });
-        } else {
-            includedLayers.push({
-                name: displayName,
-                objectCount: 1,
-                type: 'included'
-            });
         }
-    }
+    });
     
-    // Generate warnings
-    if (unmappedLayers.length > 0) {
-        warnings.push({
-            type: 'unmapped',
-            count: unmappedLayers.length,
-            layers: unmappedLayers,
-            message: `${unmappedLayers.length} layer(s) are unmapped and will be skipped during DIN generation`
-        });
+    // Calculate visible unmapped layers for validation
+    const visibleUnmappedLayers = unmappedLayers.filter(layer => {
+        const key = layer.name;
+        const checkbox = document.querySelector(`.output-toggle[data-key="${key}"]`);
+        const isVisible = checkbox ? checkbox.checked : (overlayGroups[key]?.visible !== false);
+        
+        // Only include if it's actually visible AND unmapped
+        if (isVisible) {
+            const fmt = currentFileFormat === 'dds' ? 'dds' : 'cff2';
+            const entry = exactRulesCache.get(`${fmt}|${key}`);
+            const isMapped = !!(entry && entry.enabled && entry.lineTypeId);
+            return !isMapped; // Return true if visible but unmapped
+        }
+        return false;
+    });
+    
+    // Validation logic: valid if no visible unmapped layers AND at least one included layer
+    const valid = visibleUnmappedLayers.length === 0 && includedLayers.length > 0;
+    
+    console.log('=== UNIFIED VALIDATION COMPLETED ===');
+    console.log('includedLayers:', includedLayers.length);
+    console.log('unmappedLayers:', unmappedLayers.length);
+    console.log('hiddenLayers:', hiddenLayers.length);
+    console.log('visibleUnmappedLayers:', visibleUnmappedLayers.length);
+    console.log('valid:', valid);
+    
+    // Build warnings
+    if (visibleUnmappedLayers.length > 0) {
+        const unmappedDetails = visibleUnmappedLayers.map(l => `${l.name} (${l.objectCount} objects)`).join(', ');
+        warnings.push(`Unmapped visible layers: ${unmappedDetails}`);
     }
     if (hiddenLayers.length > 0) {
-        warnings.push({
-            type: 'hidden',
-            count: hiddenLayers.length,
-            layers: hiddenLayers,
-            message: `${hiddenLayers.length} layer(s) are hidden and will be excluded from processing`
-        });
+        const hiddenDetails = hiddenLayers.map(l => `${l.name} (${l.objectCount} objects)`).join(', ');
+        warnings.push(`Hidden layers: ${hiddenDetails}`);
     }
     
     return {
-        valid: includedLayers.length > 0, // Only require that we have at least one visible and mapped layer
+        valid,
         warnings,
         unmappedLayers,
         hiddenLayers,
-        includedLayers
+        includedLayers,
+        visibleUnmappedLayers
     };
 }
+
+// Silent generation validation - uses file-type specific validation
+function validateForSilentGeneration() {
+    // Check for either DXF viewer (with scene) or unified format viewer (with overlayCanvas)
+    const hasDxfViewer = !!(viewer && viewer.scene);
+    const hasUnifiedViewer = !!(overlayCanvas && window.unifiedGeometries && window.unifiedGeometries.length > 0);
+    
+    if (hasDxfViewer) {
+        console.log('Silent validation: Using DXF validation');
+        return validateDxfLayerMappings();
+    } else if (hasUnifiedViewer) {
+        console.log('Silent validation: Using unified format validation');
+        return validateUnifiedLayerMappings();
+    } else {
+        console.log('Silent validation: No valid viewer found');
+        return { valid: false, warnings: ['No file loaded'], unmappedLayers: [], hiddenLayers: [], includedLayers: [], visibleUnmappedLayers: [] };
+    }
+}
+
+// REMOVED DUPLICATE FUNCTION - This was the old version that's now replaced by the modular approach above
+
+// REMOVED DUPLICATE UNIFIED VALIDATION FUNCTION - This was the old version that's now replaced by the modular approach above
 function showLayerValidationWarning(validation) {
     if (validation.warnings.length === 0) return;
     
@@ -2765,25 +2915,55 @@ function showLayerValidationWarning(validation) {
     let totalSkipped = 0;
     let totalIncluded = 0;
     
+    // Calculate total skipped objects from validation data
+    if (validation.unmappedLayers) {
+        validation.unmappedLayers.forEach(layer => {
+            totalSkipped += layer.objectCount || 0;
+        });
+    }
+    if (validation.hiddenLayers) {
+        validation.hiddenLayers.forEach(layer => {
+            totalSkipped += layer.objectCount || 0;
+        });
+    }
+    if (validation.hiddenVariants) {
+        validation.hiddenVariants.forEach(layer => {
+            totalSkipped += layer.objectCount || 0;
+        });
+    }
+    
     // Show layers that will be excluded (warnings)
     validation.warnings.forEach(warning => {
-        warningContent += `
-            <div class="warning-section">
-                <div class="warning-header">
-                    <span class="warning-icon">⚠️</span>
-                    <span class="warning-title">${warning.message}</span>
+        // Handle both old format (warning object with layers array) and new format (simple string)
+        if (typeof warning === 'string') {
+            // New format: simple string warning
+            warningContent += `
+                <div class="warning-section">
+                    <div class="warning-header">
+                        <span class="warning-icon">⚠️</span>
+                        <span class="warning-title">${warning}</span>
+                    </div>
                 </div>
-                <div class="warning-details">
-                    ${warning.layers.map(layer => {
-                        totalSkipped += layer.objectCount;
-                        return `<div class="warning-layer">
-                            <span class="layer-name">${layer.name}</span>
-                            <span class="object-count">${layer.objectCount} objects</span>
-                        </div>`;
-                    }).join('')}
+            `;
+        } else if (warning.layers && Array.isArray(warning.layers)) {
+            // Old format: warning object with layers array
+            warningContent += `
+                <div class="warning-section">
+                    <div class="warning-header">
+                        <span class="warning-icon">⚠️</span>
+                        <span class="warning-title">${warning.message}</span>
+                    </div>
+                    <div class="warning-details">
+                        ${warning.layers.map(layer => {
+                            return `<div class="warning-layer">
+                                <span class="layer-name">${layer.name}</span>
+                                <span class="object-count">${layer.objectCount} objects</span>
+                            </div>`;
+                        }).join('')}
+                    </div>
                 </div>
-            </div>
-        `;
+            `;
+        }
     });
     
     // Show layers that will be included (success)
@@ -2799,12 +2979,50 @@ function showLayerValidationWarning(validation) {
                     <span class="success-title">${validation.includedLayers.length} layer(s) will be included in DIN generation</span>
                 </div>
                 <div class="success-details">
-                    ${validation.includedLayers.map(layer => `
-                        <div class="success-layer">
+                    ${validation.includedLayers.map(layer => {
+                        // Get friendly mapping name for included layers
+                        let displayName = layer.name;
+                        
+                        // For unified formats, convert technical key to friendly mapping name
+                        if (currentFileFormat === 'dds' || currentFileFormat === 'cf2' || currentFileFormat === 'cff2') {
+                            const fmt = currentFileFormat === 'dds' ? 'dds' : 'cff2';
+                            const entry = exactRulesCache.get(`${fmt}|${layer.name}`);
+                            if (entry && entry.lineTypeId) {
+                                const lineTypeName = getLineTypeName(String(entry.lineTypeId));
+                                if (lineTypeName) {
+                                    displayName = lineTypeName;
+                                }
+                            }
+                        }
+                        
+                        return `
+                            <div class="success-layer">
+                                <span class="layer-name">${displayName}</span>
+                                <span class="object-count">${layer.objectCount} objects</span>
+                            </div>
+                        `;
+                    }).join('')}
+                </div>
+            </div>
+        `;
+    }
+
+    // Additionally, show hidden (unchecked) variants as informational red note
+    if (Array.isArray(validation.hiddenVariants) && validation.hiddenVariants.length > 0) {
+        warningContent += `
+            <div class="warning-section">
+                <div class="warning-header">
+                    <span class="warning-icon">⚠️</span>
+                    <span class="warning-title">${validation.hiddenVariants.length} layer variant(s) are unchecked and will not be processed</span>
+                </div>
+                <div class="warning-details">
+                    ${validation.hiddenVariants.map(layer => {
+                        totalSkipped += layer.objectCount || 0;
+                        return `<div class="warning-layer">
                             <span class="layer-name">${layer.name}</span>
-                            <span class="object-count">${layer.objectCount} objects</span>
-                        </div>
-                    `).join('')}
+                            <span class="object-count">${layer.objectCount || 0} objects</span>
+                        </div>`;
+                    }).join('')}
                 </div>
             </div>
         `;
@@ -2847,7 +3065,9 @@ function showLayerValidationWarning(validation) {
 
 function showLayerProcessingConfirmation(validation) {
     let successContent = '';
+    let warningContent = '';
     let totalIncluded = 0;
+    let totalExcluded = 0;
     
     // Show layers that will be included
     if (validation.includedLayers && validation.includedLayers.length > 0) {
@@ -2873,6 +3093,34 @@ function showLayerProcessingConfirmation(validation) {
         `;
     }
     
+    // Also show layers that will be excluded (unchecked or unmapped) as a non-blocking red note
+    // Use variant-level lists when available so rows match the left table
+    const excludedLayers = [
+        ...(Array.isArray(validation.hiddenVariants) ? validation.hiddenVariants : (Array.isArray(validation.hiddenLayers) ? validation.hiddenLayers : [])),
+        ...(Array.isArray(validation.visibleUnmappedLayers) ? validation.visibleUnmappedLayers : (Array.isArray(validation.unmappedLayers) ? validation.unmappedLayers : []))
+    ];
+    if (excludedLayers.length > 0) {
+        excludedLayers.forEach(layer => {
+            totalExcluded += layer.objectCount || 0;
+        });
+        warningContent = `
+            <div class="warning-section">
+                <div class="warning-header">
+                    <span class="warning-icon">⚠️</span>
+                    <span class="warning-title">${excludedLayers.length} layer(s) will be excluded from DIN generation</span>
+                </div>
+                <div class="warning-details">
+                    ${excludedLayers.map(layer => `
+                        <div class="warning-layer">
+                            <span class="layer-name">${layer.name}</span>
+                            <span class="object-count">${layer.objectCount || 0} objects</span>
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+        `;
+    }
+    
     const modalHTML = `
         <div id="layerValidationModal" class="modal" style="display: flex;">
             <div class="modal-content validation-modal">
@@ -2883,7 +3131,9 @@ function showLayerProcessingConfirmation(validation) {
                 <div class="modal-body">
                     <div class="validation-summary">
                         <p><strong>${totalIncluded} objects</strong> will be processed for DIN generation.</p>
+                        ${totalExcluded > 0 ? `<p style="margin-top:6px;color:#ff6b6b"><strong>${totalExcluded} objects</strong> will be excluded.</p>` : ''}
                     </div>
+                    ${warningContent}
                     ${successContent}
                     <div class="validation-actions">
                         <p>Proceed with DIN generation?</p>
@@ -2987,43 +3237,52 @@ function closeDinSuccessModal() {
 
 function getProcessedLayersInfo() {
     const processedLayers = [];
-    const layerMap = new Map();
     
     // Check for either DXF viewer (with scene) or unified format viewer (with overlayCanvas)
     const hasDxfViewer = !!(viewer && viewer.scene);
     const hasUnifiedViewer = !!(overlayCanvas && window.unifiedGeometries && window.unifiedGeometries.length > 0);
     
     if (hasDxfViewer && currentLayerData) {
-        // Handle DXF files
+        // DXF: return per-variant rows that are visible AND mapped (respect exact rule keys)
         currentLayerData.forEach((layer, index) => {
-            const layerName = layer.parentLayer || layer.name;
             const isVisible = document.getElementById(`layer-${index}`)?.checked || false;
             const objectCount = layer.objectCount !== undefined ? layer.objectCount : (layer.objects ? layer.objects.length : 0);
             
-            // Only include layers that are visible and mapped
-            if (isVisible && (layer.importFilterApplied || layer.lineType)) {
-                const existingLayer = layerMap.get(layerName);
-                if (existingLayer) {
-                    existingLayer.objectCount += objectCount;
-                } else {
-                    layerMap.set(layerName, {
-                        name: layerName,
-                        objectCount: objectCount
-                    });
-                }
+            // Derive base layer name and hex from layer.name when available
+            let baseLayerName = layer.parentLayer || layer.name;
+            let hex = '';
+            const m = (layer.name || '').match(/^(.+)_([0-9A-Fa-f]{6})$/);
+            if (m) {
+                baseLayerName = m[1];
+                hex = m[2].toUpperCase();
+            }
+            const displayName = layer.displayName || (hex ? `${baseLayerName} (#${hex})` : baseLayerName);
+            
+            // Determine mapping using exactRulesCache or layer flags
+            const entry = exactRulesCache.get(`dxf|${baseLayerName}|${hex}`);
+            const hasEnabledMapping = !!(entry && entry.enabled !== false && entry.lineTypeId) || (!!layer.importFilterApplied && !!layer.lineTypeId);
+            
+            if (isVisible && hasEnabledMapping) {
+                processedLayers.push({ name: displayName, objectCount });
             }
         });
     } else if (hasUnifiedViewer && overlayGroups) {
-        // Handle unified formats (CFF2/DDS)
+        // Unified formats (CFF2/DDS): return per-group rows that are visible AND mapped
         const fmt = currentFileFormat === 'dds' ? 'dds' : 'cff2';
-        
         Object.keys(overlayGroups).forEach(key => {
             const group = overlayGroups[key];
-            if (group && group.visible) {
-                const entry = exactRulesCache.get(`${fmt}|${key}`);
-                if (entry && entry.lineTypeId) {
-                    // Build a user-friendly layer name
-                    let layerName = key;
+            if (!group || group.visible === false) return;
+            const entry = exactRulesCache.get(`${fmt}|${key}`);
+            if (!(entry && entry.lineTypeId && entry.enabled !== false)) return;
+            
+            // Use friendly mapping name instead of technical format
+            let layerName = key;
+            if (entry && entry.lineTypeId) {
+                const lineTypeName = getLineTypeName(String(entry.lineTypeId));
+                if (lineTypeName) {
+                    layerName = lineTypeName;
+                } else {
+                    // Fallback to technical format if no friendly name found
                     try {
                         if (fmt === 'dds') {
                             const [color, rawKerf, unit] = key.split('|');
@@ -3036,22 +3295,13 @@ function getProcessedLayersInfo() {
                             layerName = `${Number(pen||0).toFixed(2)} pt · ${layer}`;
                         }
                     } catch {}
-                    
-                    const existingLayer = layerMap.get(layerName);
-                    if (existingLayer) {
-                        existingLayer.objectCount += group.count || 1;
-                    } else {
-                        layerMap.set(layerName, {
-                            name: layerName,
-                            objectCount: group.count || 1
-                        });
-                    }
                 }
             }
+            processedLayers.push({ name: layerName, objectCount: group.count || 1 });
         });
     }
     
-    return Array.from(layerMap.values());
+    return processedLayers;
 }
 
 // Make functions globally accessible for HTML onclick attributes
@@ -4735,7 +4985,24 @@ function initializePostprocessorManagement() {
 // Get the currently selected profile filename
 function getCurrentProfileFilename() {
     const select = document.getElementById('postprocessorProfile');
-    return select?.value && select.value !== 'custom' ? select.value : null;
+    const value = select?.value && select.value !== 'custom' ? select.value : null;
+    console.log('getCurrentProfileFilename - select value:', value);
+    
+    if (!value) return null;
+    
+    // Handle case sensitivity and extension issues
+    let filename = value;
+    
+    // Ensure the filename has .xml extension
+    if (!filename.endsWith('.xml')) {
+        filename = filename + '.xml';
+    }
+    
+    // Convert to lowercase to match actual file system
+    filename = filename.toLowerCase();
+    
+    console.log('getCurrentProfileFilename - final filename:', filename);
+    return filename;
 }
 // Load available XML profiles into dropdown
 async function loadAvailableXmlProfiles() {
@@ -4759,6 +5026,7 @@ async function loadAvailableXmlProfiles() {
             option.textContent = profile.name;
             option.title = profile.description;
             select.appendChild(option);
+            console.log('Added profile option:', { filename: profile.filename, name: profile.name });
         });
         
         // Re-add custom option
@@ -4772,11 +5040,21 @@ async function loadAvailableXmlProfiles() {
         } else {
             // Try to restore saved profile preference
             const savedProfileName = localStorage.getItem('lastSelectedProfile');
+            console.log('Saved profile name from localStorage:', savedProfileName);
+            
             if (savedProfileName && select.querySelector(`option[value="${savedProfileName}"]`)) {
                 select.value = savedProfileName;
                 console.log('Restored saved profile preference:', savedProfileName);
-            } else if (profiles.length > 0) {
-                select.value = profiles[0].filename;
+            } else {
+                // Clear invalid saved preference and use first available
+                if (savedProfileName) {
+                    console.log('Clearing invalid saved profile preference:', savedProfileName);
+                    localStorage.removeItem('lastSelectedProfile');
+                }
+                if (profiles.length > 0) {
+                    select.value = profiles[0].filename;
+                    console.log('Using first available profile:', profiles[0].filename);
+                }
             }
         }
         
@@ -4834,6 +5112,7 @@ async function loadFirstAvailableProfile() {
             // Save the loaded profile as the current preference
             localStorage.setItem('lastSelectedProfile', profileToLoad.filename);
             console.log('Set current profile preference:', profileToLoad.filename);
+            console.log('Profile details:', { filename: profileToLoad.filename, name: profileToLoad.name });
             
             // Also save to main process for persistence
             try {
@@ -4990,33 +5269,49 @@ function displayToolPreview(toolConfig) {
 }
 // DIN file generation and preview
 function initializeDinGeneration() {
+    console.log('=== INITIALIZING DIN GENERATION ===');
     const previewDinBtn = document.getElementById('previewDinBtn');
     const generateDinBtn = document.getElementById('generateDinBtn');
     const advancedPreviewBtn = document.getElementById('advancedPreviewBtn');
     
+    console.log('Found buttons:', {
+        previewDinBtn: !!previewDinBtn,
+        generateDinBtn: !!generateDinBtn,
+        advancedPreviewBtn: !!advancedPreviewBtn
+    });
+    
     previewDinBtn?.addEventListener('click', async () => {
+        console.log('Preview DIN button clicked');
         await previewDinFile();
     });
     
     advancedPreviewBtn?.addEventListener('click', async () => {
+        console.log('Advanced Preview button clicked');
         await showAdvancedVisualization();
     });
     
-    generateDinBtn?.addEventListener('click', async () => {
-    console.log('=== OUTPUT TAB BUTTON CLICKED ===');
-    // Validate layer mappings and visibility before generating
-    const validation = validateLayerMappings();
-    
-    if (validation.warnings.length > 0) {
-        console.log('Showing layer validation warning modal');
-        // Show warning modal and let user decide
-        showLayerValidationWarning(validation);
+    if (generateDinBtn) {
+        console.log('Adding event listener to generateDinBtn');
+        generateDinBtn.addEventListener('click', async () => {
+            console.log('=== OUTPUT TAB BUTTON CLICKED ===');
+            // Validate layer mappings and visibility before generating
+            const validation = validateLayerMappings();
+            console.log('Validation result:', validation);
+            
+            if (validation.warnings.length > 0) {
+                console.log('Showing layer validation warning modal');
+                // Show warning modal and let user decide
+                showLayerValidationWarning(validation);
+            } else {
+                console.log('Showing layer processing confirmation modal');
+                console.log('Included layers:', validation.includedLayers);
+                // No issues, but still show confirmation dialog with layers that will be processed
+                showLayerProcessingConfirmation(validation);
+            }
+        });
     } else {
-        console.log('Showing layer processing confirmation modal');
-        // No issues, but still show confirmation dialog with layers that will be processed
-        showLayerProcessingConfirmation(validation);
+        console.error('generateDinBtn not found!');
     }
-});
     
     // Initialize file output settings
     initializeFileOutputSettings();
@@ -5136,16 +5431,70 @@ async function generateDinContentSilently() {
             throw new Error('Load a supported file (DXF/DDS/CFF2) and configure postprocessor first');
         }
 
-        // VALIDATION: Check layer mappings BEFORE proceeding
-        const layerValidation = validateLayerMappings();
-        console.log('Layer mapping validation result:', layerValidation);
+        // VALIDATION: Use existing readyForGeneration status instead of re-validating
+        // The green "Ready" button already indicates validation has passed
+        let readyForGeneration = false;
+        let generationBlockers = [];
         
-        if (!layerValidation.valid) {
-            if (layerValidation.includedLayers.length === 0) {
-                throw new Error(`Cannot generate DIN: No layers are visible and mapped. Please ensure at least one layer is both visible (checked) and mapped to a line type.`);
-            } else {
-                throw new Error(`Cannot generate DIN: Layer validation failed. Please check layer mappings and visibility.`);
+        if (hasDxfViewer) {
+            // For DXF, check if any visible layers are mapped
+            if (currentLayerData) {
+                let visibleMappedLayers = 0;
+                readyForGeneration = true;
+                
+                currentLayerData.forEach((layer, index) => {
+                    const isVisible = document.getElementById(`layer-${index}`)?.checked || false;
+                    const isMapped = layer.importFilterApplied || layer.lineType;
+                    
+                    if (isVisible && isMapped) {
+                        visibleMappedLayers++;
+                    } else if (isVisible && !isMapped) {
+                        readyForGeneration = false;
+                        generationBlockers.push('unmapped layers');
+                    }
+                });
+                
+                if (visibleMappedLayers === 0) {
+                    readyForGeneration = false;
+                    generationBlockers.push('no visible layers');
+                }
             }
+        } else if (hasUnifiedViewer) {
+            // For unified formats, check the existing mapping status
+            if (overlayGroups && Object.keys(overlayGroups).length > 0) {
+                const keys = Object.keys(overlayGroups);
+                const fmt = currentFileFormat === 'dds' ? 'dds' : 'cff2';
+                let visibleMappedLayers = 0;
+                readyForGeneration = true;
+                
+                for (const k of keys) {
+                    const entry = exactRulesCache.get(`${fmt}|${k}`);
+                    const hasEnabledMapping = !!(entry && entry.enabled && entry.lineTypeId);
+                    const checkbox = document.querySelector(`.output-toggle[data-key="${k}"]`);
+                    const isVisible = checkbox ? checkbox.checked : (overlayGroups[k]?.visible !== false);
+                    
+                    if (isVisible) {
+                        if (hasEnabledMapping) {
+                            visibleMappedLayers++;
+                        } else {
+                            readyForGeneration = false;
+                            generationBlockers.push('unmapped layers');
+                        }
+                    }
+                }
+                
+                if (visibleMappedLayers === 0) {
+                    readyForGeneration = false;
+                    generationBlockers.push('no visible layers');
+                }
+            }
+        }
+        
+        console.log('Silent generation readiness check:', { readyForGeneration, generationBlockers });
+        
+        if (!readyForGeneration) {
+            const blockerText = generationBlockers.join(', ');
+            throw new Error(`Cannot generate DIN: ${blockerText}. Please ensure at least one layer is both visible (checked) and mapped to a line type.`);
         }
 
         // Load line types from CSV to pass to DinGenerator
@@ -5358,42 +5707,48 @@ async function loadDxfFileSilently(filePath) {
  */
 function checkLayerMappingStatus() {
     try {
-        // For silent processing, we need to check layer mappings without relying on UI state
-        if (!currentLayerData) {
-            console.log(`[Silent Check] No layer data available`);
-            return false;
+        const hasDxfViewer = !!(viewer && viewer.scene);
+        const hasUnifiedViewer = !!(overlayCanvas && window.unifiedGeometries && window.unifiedGeometries.length > 0);
+
+        // DXF path – respect Output checkboxes per variant
+        if (hasDxfViewer && Array.isArray(currentLayerData) && currentLayerData.length > 0) {
+            let included = 0;
+            let visibleUnmapped = 0;
+
+            currentLayerData.forEach((layer, index) => {
+                const isChecked = document.getElementById(`layer-${index}`)?.checked || false;
+                const isMapped = !!(layer.importFilterApplied || layer.lineType || layer.lineTypeId);
+                if (isChecked && isMapped) included++;
+                if (isChecked && !isMapped) visibleUnmapped++;
+            });
+
+            const isReady = included > 0 && visibleUnmapped === 0;
+            console.log(`[Silent Check][DXF] Ready=${isReady} included=${included} visibleUnmapped=${visibleUnmapped}`);
+            return isReady;
         }
-        
-        const totalLayers = currentLayerData.length;
-        let mappedLayers = 0;
-        let visibleMappedLayers = 0;
-        
-        currentLayerData.forEach((layer, index) => {
-            const isMapped = layer.importFilterApplied || layer.lineType;
-            
-            if (isMapped) {
-                mappedLayers++;
-                // For silent processing, assume all mapped layers are "visible"
-                // since we want to process all properly mapped content
-                visibleMappedLayers++;
-            }
-        });
-        
-        const isReady = totalLayers > 0 && 
-                       mappedLayers > 0 && 
-                       visibleMappedLayers > 0 &&
-                       mappedLayers === totalLayers; // All layers must be mapped for batch processing
-        
-        console.log(`[Silent Check] Ready for generation: ${isReady}`);
-        console.log(`[Silent Check] Details: Total=${totalLayers}, Mapped=${mappedLayers}, Visible=${visibleMappedLayers}, AllMapped=${mappedLayers === totalLayers}`);
-        
-        if (!isReady) {
-            const unmappedCount = totalLayers - mappedLayers;
-            console.log(`[Silent Check] Generation blocked: ${unmappedCount} unmapped layers out of ${totalLayers}`);
+
+        // Unified (DDS/CFF2) path – respect Output checkboxes and rule keys
+        if (hasUnifiedViewer && overlayGroups && Object.keys(overlayGroups).length > 0) {
+            const fmt = currentFileFormat === 'dds' ? 'dds' : 'cff2';
+            let included = 0;
+            let visibleUnmapped = 0;
+
+            Object.keys(overlayGroups).forEach(key => {
+                const checkbox = document.querySelector(`tr[data-key="${key}"] .output-toggle`);
+                const isVisible = checkbox ? checkbox.checked : (overlayGroups[key]?.visible !== false);
+                const entry = exactRulesCache.get(`${fmt}|${key}`);
+                const isMapped = !!(entry && entry.enabled && entry.lineTypeId);
+                if (isVisible && isMapped) included++;
+                if (isVisible && !isMapped) visibleUnmapped++;
+            });
+
+            const isReady = included > 0 && visibleUnmapped === 0;
+            console.log(`[Silent Check][Unified] Ready=${isReady} included=${included} visibleUnmapped=${visibleUnmapped}`);
+            return isReady;
         }
-        
-        return isReady;
-        
+
+        console.log('[Silent Check] No viewer/layers available');
+        return false;
     } catch (error) {
         console.error(`[Silent Check] Error checking layer mapping status:`, error);
         return false;
@@ -5549,6 +5904,9 @@ async function performDinGeneration() {
         if (!layerValidation.valid) {
             if (layerValidation.includedLayers.length === 0) {
                 showStatus(`Cannot generate DIN: No layers are visible and mapped. Please ensure at least one layer is both visible (checked) and mapped to a line type.`, 'error');
+            } else if (layerValidation.visibleUnmappedLayers && layerValidation.visibleUnmappedLayers.length > 0) {
+                const layerNames = layerValidation.visibleUnmappedLayers.map(l => l.name).join(', ');
+                showStatus(`Cannot generate DIN: ${layerValidation.visibleUnmappedLayers.length} visible layer(s) are unmapped: ${layerNames}. Please map these layers to line types or hide them.`, 'error');
             } else {
                 showStatus(`Cannot generate DIN: Layer validation failed. Please check layer mappings and visibility.`, 'error');
             }
@@ -5776,6 +6134,7 @@ function initializeFileOutputSettings() {
     
     // Auto-save checkbox change event
     autoSaveEnabledCheckbox?.addEventListener('change', () => {
+        console.log('AutoSaveEnabled checkbox changed to:', autoSaveEnabledCheckbox.checked);
         saveFileOutputSettings();
     });
 }
@@ -5815,6 +6174,10 @@ async function saveFileOutputSettings() {
     const filenameFormatInput = document.getElementById('filenameTemplate');
     const autoSaveEnabledCheckbox = document.getElementById('autoSaveEnabled');
     
+    console.log('saveFileOutputSettings called');
+    console.log('autoSaveEnabledCheckbox found:', !!autoSaveEnabledCheckbox);
+    console.log('autoSaveEnabledCheckbox checked:', autoSaveEnabledCheckbox?.checked);
+    
     // Prepare output settings object
     const outputSettings = {
         defaultSavePath: defaultSavePathInput?.value || '',
@@ -5822,6 +6185,8 @@ async function saveFileOutputSettings() {
         autoSaveEnabled: autoSaveEnabledCheckbox?.checked !== false,
         enableBridges: document.getElementById('enableBridges')?.checked !== false
     };
+    
+    console.log('OutputSettings to save:', outputSettings);
     
     // Update local configuration (for immediate use)
     if (currentPostprocessorConfig) {
@@ -5833,9 +6198,13 @@ async function saveFileOutputSettings() {
     
     // SAFE UPDATE: Only update OutputSettings section in XML, don't touch other data
     const currentProfile = getCurrentProfileFilename();
+    console.log('Current profile filename:', currentProfile);
+    
     if (currentProfile) {
         try {
+            console.log('Calling updateOutputSettingsOnly with profile:', currentProfile);
             const result = await window.electronAPI.updateOutputSettingsOnly(outputSettings, currentProfile);
+            console.log('updateOutputSettingsOnly result:', result);
             if (result.success) {
                 console.log('OutputSettings updated safely');
             } else {
@@ -5844,6 +6213,8 @@ async function saveFileOutputSettings() {
         } catch (error) {
             console.error('Error saving file output settings:', error);
         }
+    } else {
+        console.error('No current profile filename found');
     }
 }
 
@@ -6040,12 +6411,19 @@ function extractEntitiesFromViewer(respectVisibility = false) {
     if (respectVisibility && currentLayerData) {
         currentLayerData.forEach((layer, index) => {
             const layerName = layer.parentLayer || layer.name;
+            const fullLayerName = layer.name; // Use the full layer name including color
             const isVisible = document.getElementById(`layer-${index}`)?.checked || false;
             const hasMapping = layer.importFilterApplied || layer.lineType;
             
+            // Store visibility for both the base layer name and the full layer name
             layerVisibility[layerName] = isVisible && hasMapping;
-            console.log(`Layer ${layerName}: visible=${isVisible}, mapped=${hasMapping}, include=${layerVisibility[layerName]}`);
+            layerVisibility[fullLayerName] = isVisible && hasMapping;
+            console.log(`Layer ${layerName} (${fullLayerName}): visible=${isVisible}, mapped=${hasMapping}, include=${layerVisibility[layerName]}`);
         });
+        
+        console.log('Layer visibility map:', layerVisibility);
+    console.log('Layer visibility map keys:', Object.keys(layerVisibility));
+    console.log('Layer visibility map values:', Object.values(layerVisibility));
     }
     // Extract actual DXF entities from the viewer
     console.log('Processing', viewer.parsedDxf.entities.length, 'entities');
@@ -6057,9 +6435,22 @@ function extractEntitiesFromViewer(respectVisibility = false) {
             
             // Check visibility if requested
             if (respectVisibility) {
-                const includeLayer = layerVisibility[layerName];
-                if (includeLayer === false) {
-                    console.log(`Entity ${index} - skipping due to layer visibility/mapping: ${layerName}`);
+                // Prefer variant-level visibility (layer + exact color)
+                const colorHex = (entity.color !== undefined && entity.color !== null)
+                    ? Number(entity.color).toString(16).padStart(6, '0').toUpperCase()
+                    : 'FFFFFF';
+                const variantKey = `${layerName}_${colorHex}`;
+
+                let includeLayer = layerVisibility[variantKey];
+
+                // Fallback: if variant key missing, allow only if base key is explicitly true
+                if (includeLayer === undefined) {
+                    includeLayer = layerVisibility[layerName] === true;
+                }
+
+                console.log(`Entity ${index} - visibility check: variantKey=${variantKey} -> ${includeLayer}, baseKey=${layerName} -> ${layerVisibility[layerName]}`);
+                if (!includeLayer) {
+                    console.log(`Entity ${index} - skipping due to variant not visible/mapped: ${variantKey}`);
                     return; // Skip this entity
                 }
             }
@@ -10374,17 +10765,36 @@ async function showAddToGlobalModal(layerName, layerColor) {
                 const result = await window.electronAPI.addRuleToGlobalImportFilter(ruleData);
                 if (result.success) {
                     showStatus(`Added ${layerName} (color ${layerColor}) to global import filter`, 'success');
+                    
+                    // Refresh rules cache first
+                    await refreshRulesCache();
+                    
                     // Refresh the layer table to show the new mapping
                     if (window.currentDxfLayers) {
-                        const updatedLayers = await window.electronAPI.applyGlobalImportFilter(window.currentDxfLayers);
-                        if (updatedLayers.success) {
-                            const { appliedLayers, unmatchedLayers } = updatedLayers.data;
-                            const allLayers = appliedLayers.concat(unmatchedLayers);
-                            // Update currentLayerData to reflect new mappings
-                            window.currentLayerData = allLayers;
-                            populateLayerTable(allLayers);
-                            // Update layer status counts
-                            updateLayerStatus();
+                        try {
+                            const updatedLayers = await window.electronAPI.applyGlobalImportFilter(window.currentDxfLayers);
+                            if (updatedLayers.success) {
+                                const { appliedLayers, unmatchedLayers } = updatedLayers.data;
+                                const allLayers = appliedLayers.concat(unmatchedLayers);
+                                // Update currentLayerData to reflect new mappings
+                                window.currentLayerData = allLayers;
+                                populateLayerTable(allLayers);
+                                // Update layer status counts
+                                updateLayerStatus();
+                            }
+                        } catch (error) {
+                            console.error('Error refreshing layer mappings:', error);
+                            // Fallback to simple refresh
+                            populateLayerTable(window.currentDxfLayers);
+                        }
+                    }
+                    
+                    // Refresh Global Import Filter Manager if it's open
+                    if (window.refreshGlobalImportFilter) {
+                        try {
+                            await window.refreshGlobalImportFilter();
+                        } catch (error) {
+                            console.log('Global Import Filter Manager not open or refresh failed:', error);
                         }
                     }
                 } else {

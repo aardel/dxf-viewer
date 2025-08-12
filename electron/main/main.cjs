@@ -1207,6 +1207,8 @@ ipcMain.handle('get-main-window-current-profile', async () => {
                 (() => {
                     const select = document.getElementById('postprocessorProfile');
                     if (select && select.value && select.value !== 'custom') {
+                        console.log('Main window dropdown value:', select.value);
+                        console.log('Main window dropdown text:', select.options[select.selectedIndex]?.textContent);
                         return select.value.trim(); // Remove whitespace
                     }
                     return null;
@@ -1214,14 +1216,19 @@ ipcMain.handle('get-main-window-current-profile', async () => {
             `);
             
             if (result) {
+                console.log('Main window returned profile result:', result);
+                
                 // Map display names to actual filenames if needed
                 const profileMap = {
                     'MTL_Flatbed': 'mtl.xml',
                     'Default Metric': 'default_metric.xml',
-                    'Default Inch': 'default_inch.xml'
+                    'Default Inch': 'default_inch.xml',
+                    'PTS': 'pts.xml'
                 };
                 
-                return profileMap[result] || result;
+                const mappedResult = profileMap[result] || result;
+                console.log('Mapped profile result:', mappedResult);
+                return mappedResult;
             }
         }
         
@@ -1281,7 +1288,8 @@ function parseXMLProfile(xmlContent) {
     const machineSettings = root.getElementsByTagName('MachineSettings')[0];
     if (machineSettings) {
         config.units = {
-            feedInchMachine: getTextContent(machineSettings, 'FeedInchMachine') === 'true'
+            feedInchMachine: getTextContent(machineSettings, 'FeedInchMachine') === 'true',
+            system: getTextContent(machineSettings, 'Units') || 'mm' // Default to mm if not specified
         };
     }
     
@@ -1697,7 +1705,7 @@ function generateXMLProfile(config) {
     if (config.units) {
         const machineSettings = xmlDoc.createElement('MachineSettings');
         addTextElement(xmlDoc, machineSettings, 'Type', config.units.feedInchMachine ? 'inch_with_scaling' : 'metric');
-        addTextElement(xmlDoc, machineSettings, 'Units', config.units.feedInchMachine ? 'inch' : 'mm');
+        addTextElement(xmlDoc, machineSettings, 'Units', config.units.system || (config.units.feedInchMachine ? 'inch' : 'mm'));
         addTextElement(xmlDoc, machineSettings, 'FeedInchMachine', config.units.feedInchMachine ? 'true' : 'false');
         root.appendChild(machineSettings);
     }
@@ -3098,21 +3106,103 @@ function applyGlobalImportFilter(dxfLayers, globalFilter) {
 // Find matching rule for a layer
 function findMatchingRule(layer, rules, settings) {
     try {
+        // Validate inputs
+        if (!layer || !layer.name) {
+            console.warn('Layer or layer.name is undefined:', layer);
+            return null;
+        }
+        
+        if (!rules || !Array.isArray(rules)) {
+            console.warn('Rules is not a valid array:', rules);
+            return null;
+        }
+        
+        if (!settings) {
+            console.warn('Settings is undefined');
+            return null;
+        }
+        
         for (const rule of rules) {
-            // Check layer name match
-            const layerNameMatch = settings.caseInsensitive ? 
-                layer.name.toLowerCase() === rule.layerName.toLowerCase() :
-                layer.name === rule.layerName;
+            // Validate rule
+            if (!rule) {
+                console.warn('Rule is undefined:', rule);
+                continue;
+            }
             
-            if (layerNameMatch) {
-                // Convert rule.color to number for comparison
-                const ruleColorNum = parseInt(rule.color);
-                const layerColorNum = parseInt(layer.color);
-                const colorMatch = layerColorNum === ruleColorNum;
-                
-                if (colorMatch) {
-                    return rule;
+            // Handle both old format (layerName + color) and new format (key)
+            if (rule.key) {
+                // New format: key contains format|layerName|color
+                const keyParts = rule.key.split('|');
+                if (keyParts.length >= 3 && keyParts[0] === 'dxf') {
+                    const ruleLayerName = keyParts[1];
+                    const ruleColorHex = keyParts[2];
+                    
+                    // Handle DXF layer naming convention: layerName_colorHex
+                    let baseLayerName = layer.name;
+                    let layerColorFromName = null;
+                    
+                    // Check if layer name contains color suffix (e.g., "FNL_DIMS-363_00CC00")
+                    const colorSuffixMatch = layer.name.match(/^(.+)_([0-9A-Fa-f]{6})$/);
+                    if (colorSuffixMatch) {
+                        baseLayerName = colorSuffixMatch[1];
+                        layerColorFromName = parseInt(colorSuffixMatch[2], 16);
+                    }
+                    
+                    // Check layer name match
+                    const layerNameMatch = settings.caseInsensitive ? 
+                        baseLayerName.toLowerCase() === ruleLayerName.toLowerCase() :
+                        baseLayerName === ruleLayerName;
+                    
+                    if (layerNameMatch) {
+                        // Convert rule color hex to number for comparison
+                        const ruleColorNum = parseInt(ruleColorHex, 16);
+                        
+                        // Use color from layer name if available, otherwise use layer.color
+                        const layerColorNum = layerColorFromName !== null ? layerColorFromName : parseInt(layer.color);
+                        
+                        const colorMatch = layerColorNum === ruleColorNum;
+                        
+                        if (colorMatch) {
+                            console.log(`Matched rule ${rule.id} for layer ${layer.name} (base: ${baseLayerName}, color: ${layerColorNum})`);
+                            return rule;
+                        }
+                    }
                 }
+            } else if (rule.layerName) {
+                // Old format: separate layerName and color properties
+                // Handle DXF layer naming convention: layerName_colorHex
+                let baseLayerName = layer.name;
+                let layerColorFromName = null;
+                
+                // Check if layer name contains color suffix (e.g., "FNL_DIMS-363_00CC00")
+                const colorSuffixMatch = layer.name.match(/^(.+)_([0-9A-Fa-f]{6})$/);
+                if (colorSuffixMatch) {
+                    baseLayerName = colorSuffixMatch[1];
+                    layerColorFromName = parseInt(colorSuffixMatch[2], 16);
+                }
+                
+                // Check layer name match (use base layer name for DXF)
+                const layerNameMatch = settings.caseInsensitive ? 
+                    baseLayerName.toLowerCase() === rule.layerName.toLowerCase() :
+                    baseLayerName === rule.layerName;
+                
+                if (layerNameMatch) {
+                    // Convert rule.color to number for comparison
+                    const ruleColorNum = parseInt(rule.color);
+                    
+                    // Use color from layer name if available, otherwise use layer.color
+                    const layerColorNum = layerColorFromName !== null ? layerColorFromName : parseInt(layer.color);
+                    
+                    const colorMatch = layerColorNum === ruleColorNum;
+                    
+                    if (colorMatch) {
+                        console.log(`Matched rule ${rule.id} for layer ${layer.name} (base: ${baseLayerName}, color: ${layerColorNum})`);
+                        return rule;
+                    }
+                }
+            } else {
+                console.warn('Rule has neither key nor layerName property:', rule);
+                continue;
             }
         }
         
@@ -3217,23 +3307,50 @@ ipcMain.handle('add-rule-to-global-import-filter', async (event, rule) => {
                 globalFilter.rules.push(updated);
             }
             saveGlobalImportFilter(globalFilter);
+            
+            // Notify Global Import Filter Manager window if it's open
+            if (globalFilterManagerWindow && !globalFilterManagerWindow.isDestroyed()) {
+                try {
+                    globalFilterManagerWindow.webContents.send('global-filter-updated');
+                } catch (error) {
+                    console.log('Could not notify Global Import Filter Manager:', error.message);
+                }
+            }
+            
             return { success: true, data: updated };
         }
 
-        // Legacy path: assume DXF layer/color
+        // Legacy path: assume DXF layer/color - convert to new format
         const newRuleId = globalFilter.rules.length + 1;
-        const colorHex = aciToHex(parseInt(rule.color) || 7);
+        const aciColor = parseInt(rule.color) || 7;
+        const colorHex = aciToHex(aciColor);
+        
+        // Convert to new format with key - use hex color in key for consistency
         const newRule = {
             id: newRuleId,
-            layerName: rule.layerName,
-            color: rule.color,
-            colorHex: colorHex,
+            format: 'dxf',
+            key: `dxf|${rule.layerName}|${colorHex.replace('#', '')}`,
             lineTypeId: rule.lineTypeId || '1',
+            enabled: true,
+            color: colorHex,
             description: rule.description || `Rule for ${rule.layerName}`,
             source: rule.source || 'manual'
         };
         globalFilter.rules.push(newRule);
         saveGlobalImportFilter(globalFilter);
+        
+        // Notify Global Import Filter Manager window if it's open
+        if (globalFilterManagerWindow && !globalFilterManagerWindow.isDestroyed()) {
+            try {
+                console.log('Sending global-filter-updated notification to Global Import Filter Manager');
+                globalFilterManagerWindow.webContents.send('global-filter-updated');
+            } catch (error) {
+                console.log('Could not notify Global Import Filter Manager:', error.message);
+            }
+        } else {
+            console.log('Global Import Filter Manager window not open or destroyed');
+        }
+        
         return { success: true, data: newRule };
     } catch (error) {
         console.error('Error adding rule to global import filter:', error);
@@ -3241,11 +3358,31 @@ ipcMain.handle('add-rule-to-global-import-filter', async (event, rule) => {
     }
 });
 
+// Get current postprocessor profile name
+function getCurrentPostprocessorProfileName() {
+    try {
+        const profilesDir = getProfilesDirectory();
+        const activeProfilePath = path.join(profilesDir, 'active_profile.txt');
+        
+        if (fs.existsSync(activeProfilePath)) {
+            const activeProfileContent = fs.readFileSync(activeProfilePath, 'utf8').trim();
+            if (activeProfileContent) {
+                return activeProfileContent;
+            }
+        }
+        
+        return 'pts.xml'; // Default fallback
+    } catch (error) {
+        console.error('Error getting current postprocessor profile name:', error);
+        return 'pts.xml'; // Default fallback
+    }
+}
+
 // Optional: sync the mapping rule to active XML profile
 ipcMain.handle('sync-rule-to-active-profile', async (event, payload) => {
     try {
         // Load current active profile name from settings or default
-        const profileName = currentPostprocessorProfileName || 'pts.xml';
+        const profileName = getCurrentPostprocessorProfileName();
         const profilesDir = getProfilesDirectory();
         const profilePath = path.join(profilesDir, profileName);
         
