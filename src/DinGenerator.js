@@ -436,17 +436,19 @@ export class DinGenerator {
             // Derive start/end angles from given start/end points
             const a0 = Math.atan2(entity.start.y - cy, entity.start.x - cx);
             const a1 = Math.atan2(entity.end.y - cy, entity.end.x - cx);
-            const ccw = !entity.clockwise; // clockwise true means CW; ccw if false
             let sweep = a1 - a0;
+            
+            // Normalize sweep using the same logic as CAD viewer
+            if (entity.radius < 0 && sweep > 0) sweep -= Math.PI * 2;
+            if (entity.radius >= 0 && sweep < 0) sweep += Math.PI * 2;
+            
+            // Determine direction from radius sign (negative = CCW, positive = CW)
+            const ccw = entity.radius < 0;
             
             // Handle full circle case (start and end points are the same)
             if (Math.abs(sweep) < 0.001 && Math.abs(entity.start.x - entity.end.x) < 0.001 && Math.abs(entity.start.y - entity.end.y) < 0.001) {
                 sweep = ccw ? Math.PI * 2 : -Math.PI * 2;
                 console.log('🔄 Full circle detected, setting sweep to:', sweep);
-            } else {
-                // Normalize sweep to match the intended direction
-                if (ccw && sweep < 0) sweep += Math.PI * 2;
-                if (!ccw && sweep > 0) sweep -= Math.PI * 2;
             }
             
             const totalArcLen = Math.abs(entity.radius) * Math.abs(sweep);
