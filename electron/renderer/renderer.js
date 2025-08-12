@@ -2750,7 +2750,7 @@ function validateUnifiedLayerMappings() {
     }
     
     return {
-        valid: unmappedLayers.length === 0 && includedLayers.length > 0,
+        valid: includedLayers.length > 0, // Only require that we have at least one visible and mapped layer
         warnings,
         unmappedLayers,
         hiddenLayers,
@@ -5141,10 +5141,7 @@ async function generateDinContentSilently() {
         console.log('Layer mapping validation result:', layerValidation);
         
         if (!layerValidation.valid) {
-            if (layerValidation.unmappedLayers.length > 0) {
-                const unmappedNames = layerValidation.unmappedLayers.map(l => l.name).join(', ');
-                throw new Error(`Cannot generate DIN: ${layerValidation.unmappedLayers.length} layer(s) are unmapped: ${unmappedNames}. Please map all layers to line types before generating.`);
-            } else if (layerValidation.includedLayers.length === 0) {
+            if (layerValidation.includedLayers.length === 0) {
                 throw new Error(`Cannot generate DIN: No layers are visible and mapped. Please ensure at least one layer is both visible (checked) and mapped to a line type.`);
             } else {
                 throw new Error(`Cannot generate DIN: Layer validation failed. Please check layer mappings and visibility.`);
@@ -5550,10 +5547,7 @@ async function performDinGeneration() {
         console.log('Layer mapping validation result:', layerValidation);
         
         if (!layerValidation.valid) {
-            if (layerValidation.unmappedLayers.length > 0) {
-                const unmappedNames = layerValidation.unmappedLayers.map(l => l.name).join(', ');
-                showStatus(`Cannot generate DIN: ${layerValidation.unmappedLayers.length} layer(s) are unmapped: ${unmappedNames}. Please map all layers to line types.`, 'error');
-            } else if (layerValidation.includedLayers.length === 0) {
+            if (layerValidation.includedLayers.length === 0) {
                 showStatus(`Cannot generate DIN: No layers are visible and mapped. Please ensure at least one layer is both visible (checked) and mapped to a line type.`, 'error');
             } else {
                 showStatus(`Cannot generate DIN: Layer validation failed. Please check layer mappings and visibility.`, 'error');
