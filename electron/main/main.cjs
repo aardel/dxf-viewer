@@ -614,8 +614,11 @@ ipcMain.handle('save-din-file', async (event, content, filename, savePath) => {
             }
         } else {
             // Show OS file picker dialog
-            const { dialog } = require('electron');
-            const result = await dialog.showSaveDialog({
+            console.log('=== SHOWING OS SAVE DIALOG ===');
+            console.log('mainWindow exists:', !!mainWindow);
+            console.log('filename:', filename);
+            
+            const result = await dialog.showSaveDialog(mainWindow, {
                 title: 'Save DIN File',
                 defaultPath: filename,
                 filters: [
@@ -624,7 +627,10 @@ ipcMain.handle('save-din-file', async (event, content, filename, savePath) => {
                 ]
             });
             
+            console.log('Dialog result:', result);
+            
             if (result.canceled) {
+                console.log('User cancelled save dialog');
                 return { 
                     success: false, 
                     error: 'Save operation cancelled by user' 
@@ -632,6 +638,7 @@ ipcMain.handle('save-din-file', async (event, content, filename, savePath) => {
             }
             
             finalPath = result.filePath;
+            console.log('Selected path:', finalPath);
         }
 
         // Write the file
