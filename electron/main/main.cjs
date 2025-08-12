@@ -604,7 +604,7 @@ ipcMain.handle('save-din-file', async (event, content, filename, savePath) => {
         let finalPath;
         
         if (savePath) {
-            // Use the provided save path
+            // Use the provided save path (auto-save mode)
             finalPath = path.join(savePath, filename);
             
             // Create directory if it doesn't exist
@@ -613,14 +613,25 @@ ipcMain.handle('save-din-file', async (event, content, filename, savePath) => {
                 fs.mkdirSync(dir, { recursive: true });
             }
         } else {
-            // Fallback to CONFIG/DXF MAP folder
-            const appRoot = process.cwd();
-            const configDir = path.join(appRoot, 'CONFIG', 'DXF MAP');
-            finalPath = path.join(configDir, filename);
+            // Show OS file picker dialog
+            const { dialog } = require('electron');
+            const result = await dialog.showSaveDialog({
+                title: 'Save DIN File',
+                defaultPath: filename,
+                filters: [
+                    { name: 'DIN Files', extensions: ['din'] },
+                    { name: 'All Files', extensions: ['*'] }
+                ]
+            });
             
-            if (!fs.existsSync(configDir)) {
-                fs.mkdirSync(configDir, { recursive: true });
+            if (result.canceled) {
+                return { 
+                    success: false, 
+                    error: 'Save operation cancelled by user' 
+                };
             }
+            
+            finalPath = result.filePath;
         }
 
         // Write the file
