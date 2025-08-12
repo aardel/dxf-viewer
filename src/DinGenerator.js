@@ -438,12 +438,12 @@ export class DinGenerator {
             const a1 = Math.atan2(entity.end.y - cy, entity.end.x - cx);
             let sweep = a1 - a0;
             
-            // Normalize sweep using the same logic as CAD viewer
-            if (entity.radius < 0 && sweep > 0) sweep -= Math.PI * 2;
-            if (entity.radius >= 0 && sweep < 0) sweep += Math.PI * 2;
+            // Normalize sweep using the same logic as DDS parser
+            if (!entity.clockwise && sweep > 0) sweep -= Math.PI * 2;
+            if (entity.clockwise && sweep < 0) sweep += Math.PI * 2;
             
-            // Determine direction from radius sign (negative = CCW, positive = CW)
-            const ccw = entity.radius < 0;
+            // Use the clockwise property set by the parser (DDS: negative radius = CCW, positive = CW)
+            const ccw = !entity.clockwise;
             
             // Handle full circle case (start and end points are the same)
             if (Math.abs(sweep) < 0.001 && Math.abs(entity.start.x - entity.end.x) < 0.001 && Math.abs(entity.start.y - entity.end.y) < 0.001) {
