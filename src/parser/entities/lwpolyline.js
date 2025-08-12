@@ -1,7 +1,7 @@
 
-const helpers = require("../ParseHelpers.js");
+import * as helpers from "../ParseHelpers.js"
 
-function EntityParser() {}
+export default function EntityParser() {}
 
 EntityParser.ForEntityName = 'LWPOLYLINE';
 
@@ -101,5 +101,3 @@ function parseLWPolylineVertices(n, scanner) {
     scanner.rewind();
     return vertices;
 };
-
-module.exports = EntityParser;

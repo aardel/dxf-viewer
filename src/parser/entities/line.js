@@ -1,22 +1,22 @@
 
-const helpers = require("../ParseHelpers.js");
+import * as helpers from "../ParseHelpers.js"
 
-function EntityParser() {}
+export default function EntityParser() {}
 
 EntityParser.ForEntityName = 'LINE';
 
 EntityParser.prototype.parseEntity = function(scanner, curr) {
-    var entity = { type: curr.value };
+    var entity = { type: curr.value, vertices: [] };
     curr = scanner.next();
     while(curr !== 'EOF') {
         if(curr.code === 0) break;
 
         switch(curr.code) {
-        case 10: // Start point (X, Y, Z)
-            entity.start = helpers.parsePoint(scanner);
+        case 10: // X coordinate of point
+            entity.vertices.unshift(helpers.parsePoint(scanner));
             break;
-        case 11: // End point (X, Y, Z)
-            entity.end = helpers.parsePoint(scanner);
+        case 11:
+            entity.vertices.push(helpers.parsePoint(scanner));
             break;
         case 210:
             entity.extrusionDirection = helpers.parsePoint(scanner);
@@ -32,5 +32,3 @@ EntityParser.prototype.parseEntity = function(scanner, curr) {
     }
     return entity;
 };
-
-module.exports = EntityParser;

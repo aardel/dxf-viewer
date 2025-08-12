@@ -1,6 +1,7 @@
-const helpers = require("../ParseHelpers.js");
 
-function EntityParser() {}
+import * as helpers from "../ParseHelpers.js"
+
+export default function EntityParser() {}
 
 EntityParser.ForEntityName = 'SOLID';
 
@@ -37,5 +38,3 @@ EntityParser.prototype.parseEntity = function(scanner, currentGroup) {
 
     return entity;
 };
-
-module.exports = EntityParser;

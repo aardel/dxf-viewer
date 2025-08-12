@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Header Redesign Mockup</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #1a1a1a;
+            color: white;
+            padding: 20px;
+        }
+
+        /* Option 1: Two-Row Header */
+        .header-option-1 {
+            background: linear-gradient(135deg, #3a3a3a 0%, #2d2d2d 100%);
+            border-radius: 8px;
+            padding: 0;
+            margin-bottom: 30px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+        }
+
+        .header-row-1 {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 16px;
+            border-bottom: 1px solid #404040;
+        }
+
+        .header-row-2 {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 16px;
+        }
+
+        .brand-section {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .app-logo {
+            width: 24px;
+            height: 24px;
+            background: #00BFFF;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: bold;
+        }
+
+        .app-title-compact {
+            font-size: 14px;
+            font-weight: 600;
+            color: #00BFFF;
+        }
+
+        .file-info-compact {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: #404040;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+        }
+
+        .controls-section {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .status-section {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .btn-compact {
+            padding: 6px 12px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            background: #404040;
+            color: white;
+            border: 1px solid #555;
+        }
+
+        .btn-primary { background: #00BFFF; border-color: #0099CC; }
+        .btn-success { background: #28a745; border-color: #1e7e34; }
+
+        .status-indicator {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            background: #333;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+        }
+
+        .status-good { background: #28a745; }
+        .status-warning { background: #ffc107; color: #000; }
+
+        /* Option 2: Sidebar Status */
+        .header-option-2 {
+            display: flex;
+            background: linear-gradient(135deg, #3a3a3a 0%, #2d2d2d 100%);
+            border-radius: 8px;
+            margin-bottom: 30px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+        }
+
+        .header-main {
+            flex: 1;
+            padding: 12px 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .status-sidebar {
+            width: 200px;
+            background: #2a2a2a;
+            padding: 12px;
+            border-left: 1px solid #404040;
+            border-radius: 0 8px 8px 0;
+        }
+
+        .status-title {
+            font-size: 11px;
+            color: #888;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            font-weight: 600;
+        }
+
+        .status-item {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 4px;
+            font-size: 12px;
+        }
+
+        /* Option 3: Icon Bar */
+        .header-option-3 {
+            background: linear-gradient(135deg, #3a3a3a 0%, #2d2d2d 100%);
+            border-radius: 8px;
+            padding: 8px 16px;
+            margin-bottom: 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+        }
+
+        .icon-group {
+            display: flex;
+            gap: 4px;
+        }
+
+        .icon-btn {
+            width: 32px;
+            height: 32px;
+            border: none;
+            border-radius: 4px;
+            background: #404040;
+            color: white;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+        }
+
+        .icon-btn:hover {
+            background: #555;
+        }
+
+        .icon-btn.primary { background: #00BFFF; }
+        .icon-btn.success { background: #28a745; }
+
+        .divider {
+            width: 1px;
+            height: 24px;
+            background: #555;
+            margin: 0 8px;
+        }
+
+        h3 {
+            color: #00BFFF;
+            margin: 20px 0 10px 0;
+            font-size: 16px;
+        }
+
+        .description {
+            color: #aaa;
+            font-size: 14px;
+            margin-bottom: 15px;
+            line-height: 1.4;
+        }
+    </style>
+</head>
+<body>
+    <h1>Header Redesign Options</h1>
+
+    <h3>Option 1: Two-Row Header (Recommended)</h3>
+    <div class="description">Separates branding/file info from controls, maintains all functionality while reducing crowding</div>
+    <div class="header-option-1">
+        <div class="header-row-1">
+            <div class="brand-section">
+                <div class="app-logo">L</div>
+                <span class="app-title-compact">Lasercomb Studio v1.0.0</span>
+            </div>
+            <div class="file-info-compact">
+                <span>📄 test.dxf</span>
+                <span>23.99 kB</span>
+            </div>
+        </div>
+        <div class="header-row-2">
+            <div class="controls-section">
+                <button class="btn-compact btn-primary">Open DXF</button>
+                <button class="btn-compact">Clear</button>
+                <button class="btn-compact">Fit View</button>
+            </div>
+            <div class="status-section">
+                <div class="status-indicator status-warning">
+                    <span>⚠️</span>
+                    <span>6 unmapped</span>
+                </div>
+                <button class="btn-compact btn-success">✓ Generate DIN</button>
+            </div>
+        </div>
+    </div>
+
+    <h3>Option 2: Sidebar Status Panel</h3>
+    <div class="description">Moves detailed status to sidebar, keeps header clean for main actions</div>
+    <div class="header-option-2">
+        <div class="header-main">
+            <div class="brand-section">
+                <div class="app-logo">L</div>
+                <span class="app-title-compact">Lasercomb Studio</span>
+                <div class="file-info-compact">
+                    <span>📄 test.dxf (23.99 kB)</span>
+                </div>
+            </div>
+            <div class="controls-section">
+                <button class="btn-compact btn-primary">Open DXF</button>
+                <button class="btn-compact btn-success">Generate DIN</button>
+                <button class="btn-compact">Clear</button>
+                <button class="btn-compact">Fit View</button>
+            </div>
+        </div>
+        <div class="status-sidebar">
+            <div class="status-title">Layer Status</div>
+            <div class="status-item">
+                <span>Total Layers:</span>
+                <span>12</span>
+            </div>
+            <div class="status-item">
+                <span>Mapped:</span>
+                <span style="color: #28a745">6</span>
+            </div>
+            <div class="status-item">
+                <span>Unmapped:</span>
+                <span style="color: #ffc107">6</span>
+            </div>
+            <div style="margin-top: 8px; font-size: 11px; color: #888;">
+                Click Generate when all layers are mapped
+            </div>
+        </div>
+    </div>
+
+    <h3>Option 3: Compact Icon Bar</h3>
+    <div class="description">Maximum space efficiency using icons with tooltips</div>
+    <div class="header-option-3">
+        <div class="brand-section">
+            <div class="app-logo">L</div>
+            <span class="app-title-compact">Lasercomb Studio</span>
+        </div>
+        
+        <div class="file-info-compact">
+            <span>📄 test.dxf (23.99 kB)</span>
+        </div>
+        
+        <div class="icon-group">
+            <button class="icon-btn primary" title="Open DXF File">📁</button>
+            <div class="divider"></div>
+            <button class="icon-btn" title="6 layers unmapped">⚠️</button>
+            <button class="icon-btn success" title="Generate DIN File">⚡</button>
+            <div class="divider"></div>
+            <button class="icon-btn" title="Clear">🗑️</button>
+            <button class="icon-btn" title="Fit to View">🔍</button>
+        </div>
+    </div>
+
+    <h3>Recommendation</h3>
+    <div class="description">
+        <strong>Option 1 (Two-Row Header)</strong> provides the best balance of:
+        <ul style="margin-left: 20px; margin-top: 8px; color: #ccc;">
+            <li>Visual organization and clarity</li>
+            <li>Maintains all current functionality</li>
+            <li>Reduces horizontal crowding</li>
+            <li>Easy to implement with existing code</li>
+            <li>Scalable for future features</li>
+        </ul>
+    </div>
+</body>
+</html>

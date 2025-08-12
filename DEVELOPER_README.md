@@ -113,13 +113,13 @@ dxf2Laser/
 - Git
 
 ### Installation
-```bash
+   ```bash
 # Clone the repository
 git clone https://github.com/aardel/dxf2Laser.git
 cd dxf2Laser
 
 # Install dependencies
-npm install
+   npm install
 
 # Run in development mode
 npm run dev
@@ -129,9 +129,9 @@ npm start
 ```
 
 ### Development Commands
-```bash
+   ```bash
 # Development mode with hot reload
-npm run dev
+   npm run dev
 
 # Build for production
 npm run build
@@ -200,18 +200,18 @@ XML-based profiles store all application settings:
     <Description>Default configuration</Description>
     <Version>1.0</Version>
   </ProfileInfo>
-  <Tools>
+    <Tools>
     <!-- Tool definitions -->
-  </Tools>
+    </Tools>
   <LineTypeMappings>
     <!-- Line type to tool mappings -->
   </LineTypeMappings>
   <Optimization>
     <!-- Cutting optimization settings -->
   </Optimization>
-  <OutputSettings>
+    <OutputSettings>
     <!-- DIN generation settings -->
-  </OutputSettings>
+    </OutputSettings>
 </Profile>
 ```
 

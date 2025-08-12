@@ -37,11 +37,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
     openGlobalImportFilterManager: () => ipcRenderer.invoke('open-global-import-filter-manager'),
 
-    // Postprocessor Configuration API
-    loadPostprocessorConfig: (profileName) => ipcRenderer.invoke('load-postprocessor-config', profileName),
+    // Tool Library API (still needed for tool management)
     loadToolLibrary: (libraryName) => ipcRenderer.invoke('load-tool-library', libraryName),
     loadOptimizationConfig: () => ipcRenderer.invoke('load-optimization-config'),
-    savePostprocessorConfig: (profileName, configData) => ipcRenderer.invoke('save-postprocessor-config', profileName, configData),
     
     // XML Profile Management API
     loadXmlProfiles: () => ipcRenderer.invoke('load-xml-profiles'),

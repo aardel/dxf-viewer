@@ -1,0 +1,91 @@
+{
+  "name": "Default Inch Postprocessor",
+  "description": "Metric DIN output for inch-based machines with scaling",
+  "version": "1.0", 
+  "created": "2025-01-02",
+  "author": "Lasercomb GmbH",
+  
+  "units": {
+    "system": "metric",
+    "feedInchMachine": true,
+    "scalingHeader": {
+      "enabled": true,
+      "parameter": ":P2027=25.4/P674",
+      "scaleCommand": "G75 X=P2027 Y=P2027",
+      "comment": "{ Bei Bedarf nach inch skalieren"
+    }
+  },
+  
+  "header": {
+    "template": "{filename} / - GROESSE: {width} X {height} / {timestamp}",
+    "includeFileInfo": true,
+    "includeBounds": true,
+    "includeSetCount": true,
+    "includeProgramStart": true,
+    "programStart": "%1",
+    "customFields": {
+      "company": "Lasercomb GmbH",
+      "operator": "{user}",
+      "material": "{material}",
+      "thickness": "{thickness}"
+    },
+    "setupCommands": [
+      "G90",
+      "G60 X0", 
+      "G0 X0 Y0"
+    ]
+  },
+  
+  "gcode": {
+    "absoluteMode": "G90",
+    "homeCommand": "G60 X0",
+    "rapidMove": "G0", 
+    "linearMove": "G1",
+    "cwArc": "G2",
+    "ccwArc": "G3",
+    "programEnd": "G99"
+  },
+  
+  "laser": {
+    "laserOn": "M14",
+    "laserOff": "M15", 
+    "toolChange": "M6",
+    "comments": {
+      "enabled": true,
+      "onCommand": "{ON / Down}",
+      "offCommand": "{OFF / Up}",
+      "toolChange": "{tool_name}"
+    }
+  },
+  "bridges": {
+    "enabled": true,
+    "laserOffAcrossGaps": true
+  },
+  
+  "lineNumbers": {
+    "enabled": true,
+    "startNumber": 1,
+    "increment": 1,
+    "format": "N{number}"
+  },
+  
+  "optimization": {
+    "enablePathOptimization": true,
+    "algorithm": "closest_path",
+    "minimizeRapidMoves": true,
+    "groupByTool": true,
+    "zigzagPattern": false
+  },
+  
+  "lineTypeMappings": {
+    "mappingFile": "line_type_mappings.json",
+    "customMappings": {
+      "cutting": "T2",
+      "engraving": "T1",
+      "perforating": "T3",
+      "scoring": "T1",
+      "marking": "T1",
+      "construction": "none"
+    }
+  }
+}

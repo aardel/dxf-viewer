@@ -172,10 +172,10 @@ function getDXFUnits() {
     };
 }
 import * as THREE from '../../node_modules/three/build/three.module.js';
-import { DxfViewer } from './src/index.js';
-import { PathOptimizer } from './src/PathOptimizer.js';
-import { DinGenerator } from './src/DinGenerator.js';
-import { AdvancedVisualization } from './src/advanced-visualization.js';
+import { DxfViewer } from '../../src/index.js';
+import { PathOptimizer } from '../../src/PathOptimizer.js';
+import { DinGenerator } from '../../src/DinGenerator.js';
+import { AdvancedVisualization } from '../../src/advanced-visualization.js';
 
 // Global variables
 let viewer = null;
@@ -4409,18 +4409,21 @@ function initializeHeaderConfiguration() {
     loadFirstAvailableProfile();
 }
 
-// Load postprocessor configuration from file (legacy JSON)
+// Load postprocessor configuration from XML profile (legacy function - now uses XML)
 async function loadPostprocessorConfiguration(profileName) {
     try {
-        currentPostprocessorConfig = await window.electronAPI.loadPostprocessorConfig(profileName);
+        // Convert profile name to XML filename if needed
+        const xmlFilename = profileName.endsWith('.xml') ? profileName : `${profileName}.xml`;
+        currentPostprocessorConfig = await window.electronAPI.loadXmlProfile(xmlFilename);
         applyConfigurationToUI(currentPostprocessorConfig);
         // Bridges setting is now managed in Output Manager profile
         updateHeaderPreview();
         
-        showStatus(`Loaded postprocessor profile: ${currentPostprocessorConfig.name}`, 'success');
+        const profileDisplayName = currentPostprocessorConfig.profileInfo?.name || profileName;
+        showStatus(`Loaded XML profile: ${profileDisplayName}`, 'success');
     } catch (error) {
-        console.error('Error loading postprocessor configuration:', error);
-        showStatus(`Failed to load postprocessor profile: ${error.message}`, 'error');
+        console.error('Error loading XML profile configuration:', error);
+        showStatus(`Failed to load XML profile: ${error.message}`, 'error');
     }
 }
 
@@ -4495,7 +4498,7 @@ function getDefaultConfiguration() {
         },
         lineNumbers: {
             enabled: true,
-            startNumber: 10,
+            startNumber: 1,
             increment: 1,
             format: 'N{number}'
         },
@@ -8883,7 +8886,7 @@ G0 X0 Y0</textarea>
                         </div>
                         <div class="setting-row">
                             <label for="modalLineNumbersStart">Start Number:</label>
-                            <input type="number" id="modalLineNumbersStart" class="form-input" value="10" min="1" max="9999">
+                            <input type="number" id="modalLineNumbersStart" class="form-input" value="1" min="1" max="9999">
                         </div>
                         <div class="setting-row">
                             <label for="modalLineNumbersIncrement">Increment:</label>
@@ -9615,7 +9618,7 @@ async function saveHeaderConfiguration() {
         
         // Extract new form values
         const lineNumbersEnabled = lineNumbersEnabledEl ? lineNumbersEnabledEl.checked : true;
-        const lineNumbersStart = lineNumbersStartEl ? parseInt(lineNumbersStartEl.value) : 10;
+        const lineNumbersStart = lineNumbersStartEl ? parseInt(lineNumbersStartEl.value) : 1;
         const lineNumbersIncrement = lineNumbersIncrementEl ? parseInt(lineNumbersIncrementEl.value) : 1;
         const lineNumbersFormat = lineNumbersFormatEl ? lineNumbersFormatEl.value : 'N{number}';
         const homeCommand = homeCommandEl ? homeCommandEl.value : 'G0 X0 Y0';

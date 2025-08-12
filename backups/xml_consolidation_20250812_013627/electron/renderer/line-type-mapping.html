@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Line Type Mapping</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="line-types.css">
+</head>
+<body>
+    <div class="header">
+        <div class="header-left">
+            <h2>Line Type Mapping <span style="color: #4a90e2; font-size: 0.8em;">v3.0</span></h2>
+            <p class="subtitle">Map internal line types to machine tools for cutting operations</p>
+        </div>
+        <div class="header-right">
+            <button class="btn btn-primary" id="saveMappingsBtn">
+                <span>💾</span> Save Mappings
+            </button>
+            <button class="btn btn-secondary" id="reloadBtn">
+                <span>🔄</span> Reload
+            </button>
+        </div>
+    </div>
+
+    <div class="main-content">
+        <div class="table-container">
+            <table class="line-type-mapping-table">
+                <thead>
+                    <tr>
+                        <th>Line Type</th>
+                        <th style="width: 60px; text-align: center;">→</th>
+                        <th>Machine Tool</th>
+                        <th style="width: 100px;">Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="lineTypeMappingTableBody">
+                    <!-- Table rows will be dynamically generated here -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Status Bar -->
+    <div id="statusBar" class="status-bar">
+        <span id="statusText">Ready</span>
+    </div>
+
+    <script src="line-types.js"></script>
+</body>
+</html>

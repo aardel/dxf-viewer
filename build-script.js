@@ -1,34 +1,10 @@
 const fs = require('fs');
 const path = require('path');
 
-// Copy src files to renderer directory for build
-function copySrcFiles() {
-    const srcDir = path.join(__dirname, 'src');
-    const rendererDir = path.join(__dirname, 'electron', 'renderer', 'src');
-    
-    // Create src directory in renderer if it doesn't exist
-    if (!fs.existsSync(rendererDir)) {
-        fs.mkdirSync(rendererDir, { recursive: true });
-    }
-    
-    // Copy all files from src to renderer/src
-    function copyRecursive(src, dest) {
-        if (fs.statSync(src).isDirectory()) {
-            if (!fs.existsSync(dest)) {
-                fs.mkdirSync(dest, { recursive: true });
-            }
-            const files = fs.readdirSync(src);
-            files.forEach(file => {
-                copyRecursive(path.join(src, file), path.join(dest, file));
-            });
-        } else {
-            fs.copyFileSync(src, dest);
-        }
-    }
-    
-    copyRecursive(srcDir, rendererDir);
-    console.log('✅ Copied src files to renderer directory');
-}
+// Build script for dxf2Laser
+// Note: With single source of truth implementation, no file copying is needed
+// The renderer now imports directly from ../../src/
 
-// Run the copy operation
-copySrcFiles(); 
+console.log('✅ Build script completed - using single source of truth from src/ directory');
+console.log('📁 All source files are now accessed directly from src/ directory');
+console.log('🚀 No file duplication needed - renderer imports from ../../src/'); 

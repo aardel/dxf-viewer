@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Global Import Filter Manager</title>
+    <link rel="stylesheet" href="global-import-filter.css">
+</head>
+<body>
+    <div class="manager-container">
+        <div class="manager-header">
+            <h1>Global Import Filter Manager</h1>
+            <p class="manager-subtitle">Manage the single global import filter for all supported file types</p>
+        </div>
+
+        <div class="manager-content">
+            <!-- Statistics Panel -->
+            <div class="statistics-panel">
+                <div class="stat-card">
+                    <div class="stat-number" id="totalRules">0</div>
+                    <div class="stat-label">Total Rules</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number" id="uniqueLayers">0</div>
+                    <div class="stat-label">Unique Layers</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number" id="uniqueColors">0</div>
+                    <div class="stat-label">Unique Colors</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-date" id="lastModified">Never</div>
+                    <div class="stat-label">Last Modified</div>
+                </div>
+            </div>
+
+            <!-- Controls Panel -->
+            <div class="controls-panel">
+                <div class="control-group">
+                    <button class="btn btn-primary" id="addRuleBtn">Add New Rule</button>
+                    <button class="btn btn-success" id="exportBtn">Export Rules</button>
+                    <button class="btn btn-warning" id="importBtn">Import Rules</button>
+                </div>
+                <div class="control-group">
+                    <button class="btn btn-info" id="refreshBtn">Refresh</button>
+                    <button class="btn btn-danger" id="clearAllBtn">Clear All Rules</button>
+                </div>
+            </div>
+
+            <!-- Rules Table -->
+            <div class="rules-section">
+                <div class="section-header">
+                    <h2>Import Filter Rules</h2>
+                    <div class="table-controls">
+                        <input type="text" id="searchInput" placeholder="Search rules..." class="search-input">
+                        <select id="filterByFormat" class="filter-select">
+                            <option value="">All Formats</option>
+                            <option value="dxf">DXF</option>
+                            <option value="dds">DDS</option>
+                            <option value="cff2">CFF2</option>
+                        </select>
+                        <select id="filterByLineType" class="filter-select">
+                            <option value="">All Line Types</option>
+                        </select>
+                        <select id="filterBySource" class="filter-select">
+                            <option value="">All Sources</option>
+                        </select>
+                        <button class="btn btn-secondary" id="groupByFormatBtn">Group by Format</button>
+                        <button class="btn btn-secondary" id="groupByLineTypeBtn">Group by Line Type</button>
+                    </div>
+                </div>
+
+                <div class="rules-table-container">
+                    <table class="rules-table" id="rulesTable">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Format</th>
+                                <th>Key</th>
+                                <th>Layer</th>
+                                <th>ACI</th>
+                                <th>DDS Color</th>
+                                <th>Raw Width</th>
+                                <th>Unit</th>
+                                <th>CFF2 Pen</th>
+                                <th>CFF2 Layer</th>
+                                <th>Color</th>
+                                <th>Line Type</th>
+                                <th>Enabled</th>
+                                <th>Source</th>
+                                <th>Description</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="rulesTableBody">
+                            <!-- Rules will be populated here -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add/Edit Rule Modal -->
+    <div id="ruleModal" class="modal hidden">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="modalTitle">Add New Rule</h3>
+                <button class="modal-close" id="modalClose">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="ruleForm">
+                    <div class="form-group">
+                        <label for="ruleLayerName">Layer Name:</label>
+                        <input type="text" id="ruleLayerName" class="form-input" required placeholder="Enter layer name">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="ruleColor">Display Color (for mapped rows):</label>
+                        <div class="color-input-group">
+                            <input type="color" id="ruleColorPicker" value="#ff0000">
+                            <input type="text" id="ruleColor" class="form-input" placeholder="#FF0000" pattern="^#[0-9A-Fa-f]{6}$">
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="ruleLineType">Line Type:</label>
+                        <select id="ruleLineType" class="form-select" required>
+                            <option value="">Select line type...</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="ruleDescription">Description:</label>
+                        <textarea id="ruleDescription" class="form-input" placeholder="Optional description"></textarea>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="ruleSource">Source:</label>
+                        <input type="text" id="ruleSource" class="form-input" placeholder="e.g., manual, wizard, profile_name">
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" id="modalCancel">Cancel</button>
+                <button class="btn btn-primary" id="modalSave">Save Rule</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Confirmation Modal -->
+    <div id="confirmModal" class="modal hidden">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="confirmTitle">Confirm Action</h3>
+                <button class="modal-close" id="confirmClose">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p id="confirmMessage">Are you sure you want to perform this action?</p>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" id="confirmCancel">Cancel</button>
+                <button class="btn btn-danger" id="confirmAction">Confirm</button>
+            </div>
+        </div>
+    </div>
+
+    <script type="module" src="global-import-filter.js"></script>
+</body>
+</html> 

@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Import Filters Manager</title>
+    <link rel="stylesheet" href="import-filters.css">
+</head>
+<body>
+    <div class="header">
+        <h1>Import Filters Manager</h1>
+        <div class="header-actions">
+            <button class="btn btn-success" id="addProfileBtn">+ Create New Profile</button>
+            <button class="btn btn-secondary" id="reloadBtn">🔄 Reload</button>
+        </div>
+    </div>
+
+    <div class="main-content">
+        <div class="info-section">
+            <div class="info-icon">ℹ</div>
+            <div class="info-text">
+                <strong>Import Filters:</strong> Map external DXF properties (layers, colors, line types) to your local line types. 
+                Each profile can have multiple mapping rules that are processed in order.
+            </div>
+        </div>
+
+        <div class="profiles-container">
+            <div class="profiles-header">
+                <h2>Import Filter Profiles</h2>
+            </div>
+            
+            <div class="profiles-table-container">
+                <table class="profiles-table">
+                    <thead>
+                        <tr>
+                            <th>Profile Name</th>
+                            <th>Description</th>
+                            <th>Mappings</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="profilesTableBody">
+                        <!-- Profiles will be dynamically loaded here -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Profile Editor Modal -->
+    <div id="profileModal" class="modal hidden">
+        <div class="modal-content large">
+            <div class="modal-header">
+                <h3 id="modalTitle">Import Filter Editor</h3>
+                <button class="modal-close" id="modalClose">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="profile-info">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="profileName">Profile Name:</label>
+                            <input type="text" id="profileName" placeholder="DXF Import Filter" />
+                        </div>
+                        <div class="form-group">
+                            <label for="profileDescription">Description:</label>
+                            <input type="text" id="profileDescription" placeholder="Created from DXF selection" />
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mapping-rules-section">
+                    <div class="section-header">
+                        <h4>Mapping Rules (DXF):</h4>
+                        <button class="btn btn-success btn-small" id="addRuleBtn">Add Rule</button>
+                    </div>
+                    
+                    <div class="rules-table-container">
+                        <table class="rules-table">
+                            <thead>
+                                <tr>
+                                    <th>Layer Name</th>
+                                    <th>ACI Color</th>
+                                    <th>Line Type</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="rulesTableBody">
+                                <!-- Rules will be dynamically added here -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="rule-types-info">
+                    <h5>Rule Types:</h5>
+                    <ul>
+                        <li><strong>layer:</strong> Match DXF layer name (regex supported)</li>
+                        <li><strong>color:</strong> Match DXF color in RGB format (e.g., "rgb(255,0,0)" or hex "#FF0000")</li>
+                        <li><strong>linetype:</strong> Match DXF linetype name</li>
+                        <li><strong>default:</strong> Fallback rule (should be last)</li>
+                    </ul>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" id="modalCancel">Cancel</button>
+                <button class="btn btn-primary" id="modalSave">Save Profile</button>
+            </div>
+        </div>
+    </div>
+
+    <script type="module" src="import-filters.js"></script>
+</body>
+</html>

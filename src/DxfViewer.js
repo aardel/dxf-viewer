@@ -67,12 +67,8 @@ export class DxfViewer {
                 });
             } catch (fallbackError) {
                 console.error("WebGL fallback also failed:", fallbackError);
-                console.log("Creating simplified 2D fallback...");
-                
-                // Create a simplified fallback renderer
                 this.renderer = null;
-                this.isSimplifiedMode = true;
-                this._createSimplifiedRenderer();
+                this._showWebGLError();
                 return;
             }
         }
@@ -1209,22 +1205,9 @@ DxfViewer.prototype._showWebGLError = function() {
         z-index: 1000;
     `;
     
-    const isVirtual = navigator.userAgent.includes('VirtualBox') || 
-                     navigator.hardwareConcurrency <= 2 ||
-                     window.screen.width === 1024; // Common VM resolution
-    
     errorDiv.innerHTML = `
         <h3 style="margin-top: 0; color: #d32f2f;">⚠️ WebGL Not Available</h3>
         <p>Your system doesn't support WebGL or hardware acceleration is disabled.</p>
-        ${isVirtual ? `
-        <p><strong>🖥️ Virtual Machine Detected:</strong></p>
-        <ul style="text-align: left;">
-            <li>Restart the application (it should auto-detect VM mode)</li>
-            <li>In UTM: Disable 3D acceleration in VM settings</li>
-            <li>Allocate more RAM to the virtual machine (4GB+)</li>
-            <li>Use "Console Only" display mode in UTM</li>
-        </ul>
-        ` : `
         <p><strong>Possible solutions:</strong></p>
         <ul style="text-align: left;">
             <li>Update your graphics drivers</li>
@@ -1232,7 +1215,6 @@ DxfViewer.prototype._showWebGLError = function() {
             <li>Try running as administrator</li>
             <li>Restart the application</li>
         </ul>
-        `}
         <button onclick="this.parentElement.remove()" style="
             background: #f44336; 
             color: white; 
@@ -1241,108 +1223,9 @@ DxfViewer.prototype._showWebGLError = function() {
             border-radius: 4px; 
             cursor: pointer;
         ">Close</button>
-        <button onclick="location.reload()" style="
-            background: #2196f3; 
-            color: white; 
-            border: none; 
-            padding: 8px 16px; 
-            border-radius: 4px; 
-            cursor: pointer;
-            margin-left: 8px;
-        ">Retry</button>
     `;
     
     if (this.domContainer) {
         this.domContainer.appendChild(errorDiv);
     }
-};
-
-// Add simplified 2D renderer for virtual machines
-DxfViewer.prototype._createSimplifiedRenderer = function() {
-    console.log("Creating simplified 2D canvas renderer...");
-    
-    const canvas = document.createElement('canvas');
-    canvas.width = this.domContainer.clientWidth || 800;
-    canvas.height = this.domContainer.clientHeight || 600;
-    canvas.style.cssText = `
-        width: 100%;
-        height: 100%;
-        background: #1a1a1a;
-        display: block;
-    `;
-    
-    this.domContainer.appendChild(canvas);
-    this.simplifiedCanvas = canvas;
-    this.simplifiedCtx = canvas.getContext('2d');
-    
-    // Show compatibility message
-    const messageDiv = document.createElement('div');
-    messageDiv.style.cssText = `
-        position: absolute;
-        top: 10px;
-        left: 10px;
-        background: rgba(255, 193, 7, 0.9);
-        color: #000;
-        padding: 10px;
-        border-radius: 4px;
-        font-family: Arial, sans-serif;
-        font-size: 12px;
-        z-index: 100;
-    `;
-    messageDiv.innerHTML = `
-        🔧 <strong>Compatibility Mode</strong><br>
-        Running in simplified 2D mode for virtual machines.<br>
-        Some features may be limited.
-    `;
-    
-    this.domContainer.appendChild(messageDiv);
-    
-    // Auto-hide message after 5 seconds
-    setTimeout(() => {
-        if (messageDiv.parentElement) {
-            messageDiv.remove();
-        }
-    }, 5000);
-    
-    this._drawSimplifiedView();
-};
-
-// Draw simplified 2D view
-DxfViewer.prototype._drawSimplifiedView = function() {
-    if (!this.simplifiedCtx) return;
-    
-    const ctx = this.simplifiedCtx;
-    const canvas = this.simplifiedCanvas;
-    
-    // Clear canvas
-    ctx.fillStyle = '#1a1a1a';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-    
-    // Draw placeholder content
-    ctx.strokeStyle = '#444';
-    ctx.lineWidth = 1;
-    ctx.setLineDash([5, 5]);
-    
-    // Draw grid
-    const gridSize = 50;
-    for (let x = 0; x < canvas.width; x += gridSize) {
-        ctx.beginPath();
-        ctx.moveTo(x, 0);
-        ctx.lineTo(x, canvas.height);
-        ctx.stroke();
-    }
-    for (let y = 0; y < canvas.height; y += gridSize) {
-        ctx.beginPath();
-        ctx.moveTo(0, y);
-        ctx.lineTo(canvas.width, y);
-        ctx.stroke();
-    }
-    
-    // Draw center message
-    ctx.fillStyle = '#666';
-    ctx.font = '16px Arial';
-    ctx.textAlign = 'center';
-    ctx.fillText('DXF Viewer - Compatibility Mode', canvas.width / 2, canvas.height / 2 - 10);
-    ctx.font = '12px Arial';
-    ctx.fillText('Load a DXF file to view in simplified mode', canvas.width / 2, canvas.height / 2 + 10);
 };

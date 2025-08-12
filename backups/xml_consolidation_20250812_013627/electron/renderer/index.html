@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Lasercomb Studio</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="components/header-controls.css">
+</head>
+<body>
+    <div class="header">
+        <!-- Row 1: Branding and File Info -->
+        <div class="header-row header-row-1">
+            <div class="brand-section">
+                <span class="app-title">Lasercomb Studio</span>
+                <span class="app-version">V1.0.0</span>
+            </div>
+            <div id="fileInfo" class="file-info-compact hidden">
+                <span class="file-name" id="fileName">147926.dxf</span>
+                <span class="file-size" id="fileSize">81.12 kB</span>
+            </div>
+        </div>
+        
+        <!-- Row 2: Controls and Status -->
+        <div class="header-row header-row-2">
+            <div class="controls-section">
+                <button class="btn btn-primary" id="openBtn">Open File</button>
+                <button class="btn btn-secondary" id="clearBtn">Clear</button>
+                <button class="btn btn-secondary" id="fitBtn">Fit View</button>
+            </div>
+            <div class="status-section">
+                <!-- Header Controls will be inserted here -->
+                <div id="header-controls" class="header-controls-inline">
+                    <!-- Will be populated by header-controls.js -->
+                </div>
+                <div id="formatIndicator" class="format-indicator" style="display:none;"></div>
+                <label id="showBridgesContainer" style="display:none; align-items:center; gap:6px; margin-left:8px;">
+                    <input type="checkbox" id="showBridgesToggle" checked>
+                    <span>Show Bridges Overlay</span>
+                </label>
+                <button class="btn btn-secondary btn-toggle" id="togglePanelBtn">
+                    <span id="panelToggleIcon">◀</span>
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <div class="main-content">
+        <div class="viewer-container">
+            <div id="viewer"></div>
+            <div class="background-color-slider">
+                <label for="bgColorSlider" class="slider-label">Background</label>
+                <input type="range" id="bgColorSlider" class="bg-slider" min="0" max="100" value="95">
+                <div class="slider-colors">
+                    <span class="color-indicator black">⚫</span>
+                    <span class="color-indicator white">⚪</span>
+                </div>
+            </div>
+            <div class="canvas-controls">
+                <div class="control-grid">
+                    <!-- First row: +, up, - -->
+                    <button id="zoomInBtn" class="control-btn zoom-btn" title="Zoom In">
+                        <span>+</span>
+                    </button>
+                    <button id="panUpBtn" class="control-btn pan-btn" title="Pan Up">
+                        <span>↑</span>
+                    </button>
+                    <button id="zoomOutBtn" class="control-btn zoom-btn" title="Zoom Out">
+                        <span>−</span>
+                    </button>
+                    
+                    <!-- Second row: left, fit, right -->
+                    <button id="panLeftBtn" class="control-btn pan-btn" title="Pan Left">
+                        <span>←</span>
+                    </button>
+                    <button id="fitToViewBtn" class="control-btn fit-btn" title="Fit to View">
+                        <span>⌂</span>
+                    </button>
+                    <button id="panRightBtn" class="control-btn pan-btn" title="Pan Right">
+                        <span>→</span>
+                    </button>
+                    
+                    <!-- Third row: empty, down, empty -->
+                    <div class="empty-slot"></div>
+                    <button id="panDownBtn" class="control-btn pan-btn" title="Pan Down">
+                        <span>↓</span>
+                    </button>
+                    <div class="empty-slot"></div>
+                </div>
+            </div>
+            <div id="dropZone" class="drop-zone">
+                <div class="drop-content">
+                    <div class="drop-icon">📁</div>
+                    <div class="drop-text">Drop DXF / DDS / CFF2 file here</div>
+                    <div class="drop-subtext">or use File → Open File</div>
+                </div>
+            </div>
+            <div id="loading" class="loading">
+                <div class="spinner"></div>
+                <div>Loading file...</div>
+            </div>
+            <div id="status" class="status">Ready - Open a file to begin</div>
+        </div>
+        
+        <div id="sidePanel" class="side-panel">
+            <div class="resize-handle" id="resizeHandle"></div>
+            <div class="panel-header" style="display:flex; align-items:center; justify-content:space-between; gap:8px;">
+                <h3 style="margin:0;">Import</h3>
+            </div>
+            <div class="panel-content" style="display:flex; flex-direction:column; height:100%; flex:1 1 auto;">
+                <div id="importTab" class="tab-content active" style="flex:1 1 auto;">
+                    <div class="import-controls" style="display:flex; align-items:center; justify-content:space-between; gap:10px; padding:8px; border-bottom:1px solid #444;">
+                        <label class="group-by-pt" title="Collapse rows by pointage (DDS/CFF2)">
+                            <input type="checkbox" id="groupByPtToggle"><span>Group by Pt</span>
+                        </label>
+                        <button class="btn btn-secondary btn-small" id="openGlobalFilterShortcut" title="Open Global Mapping Manager">↗</button>
+                    </div>
+                    <div id="layerTable" class="layer-table">
+                        <div class="no-file">
+                            Load a file to view layers
+                        </div>
+                    </div>
+                    <div id="drawingInfo" class="drawing-info" style="display: none;">
+                        <div class="info-item">
+                            <span class="info-label">Drawing Size:</span>
+                            <span id="drawingDimensions" class="info-value">N/A</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">Units:</span>
+                            <span id="drawingUnits" class="info-value">N/A</span>
+                        </div>
+                    </div>
+
+                </div>
+                <div id="outputTab" class="tab-content" style="flex:1 1 auto;">
+                    <div class="output-content">
+                        <h4>DIN Postprocessor</h4>
+                        
+                        <!-- Postprocessor Profile Selection -->
+                        <div class="settings-section">
+                            <h5>Active Profile</h5>
+                            <div class="profile-selection">
+                                <select id="postprocessorProfile" class="form-select">
+                                    <option value="default_metric">Default Metric</option>
+                                    <option value="default_inch">Default Inch (with scaling)</option>
+                                    <option value="custom">Custom Profile...</option>
+                                </select>
+                                <div class="profile-actions">
+                                    <button class="btn btn-primary btn-small" id="openOutputManagerBtn" title="Open Output Manager (Ctrl+Shift+O)">⚙️ Output Manager</button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Configuration Note -->
+                        <div class="settings-section">
+                            <h5>⚙️ Machine Configuration</h5>
+                            <p>All machine-specific settings (tools, cutting priority, line type mapping, header/footer configuration) have been moved to the <strong>Output Manager</strong> for better organization.</p>
+                            <p>Click the "⚙️ Output Manager" button above to access all configuration options in a dedicated window.</p>
+                        </div>
+
+                        <!-- Basic Output Settings -->
+                        <div class="settings-section">
+                            <h5>💾 Basic Output Settings</h5>
+                            <p>Quick access to essential output settings. For advanced configuration, use the Output Manager.</p>
+                            
+                            <!-- Optimization settings moved to Output Manager profile -->
+                            <div class="form-group">
+                                <p style="color: #888; font-style: italic; margin: 0;">
+                                    Optimization settings (bridges, validation, rotary output) are now configured in the Output Manager profile settings.
+                                </p>
+                            </div>
+                        </div>
+                        
+                        <!-- Generation Actions -->
+                        <div class="generation-section">
+                            <div class="generation-status" id="generationStatus">
+                                <div class="status-text">Ready to generate DIN file</div>
+                                <div class="status-details" id="statusDetails">Load a supported file and configure settings above</div>
+                            </div>
+                            <div class="generation-actions">
+                                <button id="previewDinBtn" class="btn btn-secondary btn-large">
+                                    <span>👁️</span> Preview DIN
+                                </button>
+                                <button id="generateDinBtn" class="btn btn-primary btn-large">
+                                    <span>💾</span> Generate DIN File
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div id="settingsTab" class="tab-content">
+                    <div class="settings-content">
+                        <h4>Application Settings</h4>
+
+                        
+                            <div class="settings-section">
+                                <h5>Display Units</h5>
+                                <p>Choose how dimensions are displayed in the UI. Geometry is never scaled by this setting.</p>
+                                <div class="unit-selector">
+                                    <label for="unitOverride">Display units:</label>
+                                    <select id="unitOverride" class="form-select">
+                                        <option value="mm" selected>Millimeters (mm)</option>
+                                        <option value="in">Inches (in)</option>
+                                    </select>
+                                </div>
+                                <div class="unit-note" style="margin-top:8px; font-size: 12px; color:#bfbfbf;">
+                                    Output units are defined by the selected postprocessor profile (e.g. Default Metric or Default Inch).
+                                </div>
+                            </div>
+                            
+                            <div class="scaling-selector">
+                                <label class="scaling-label">Scaling factor (DXF only):</label>
+                                <p class="scaling-description">Apply scaling when DXF was exported with incorrect scale. CFF2 uses its internal SCALE value automatically.</p>
+                                <select id="scalingDropdown" class="form-select">
+                                    <option value="1">1:1 (No scaling)</option>
+                                    <option value="2">2:1 (×2)</option>
+                                    <option value="5">5:1 (×5)</option>
+                                    <option value="10">10:1 (×10)</option>
+                                    <option value="20">20:1 (×20)</option>
+                                    <option value="50">50:1 (×50)</option>
+                                    <option value="100">100:1 (×100)</option>
+                                    <option value="0.5">1:2 (÷2)</option>
+                                    <option value="0.2">1:5 (÷5)</option>
+                                    <option value="0.1">1:10 (÷10)</option>
+                                    <option value="0.05">1:20 (÷20)</option>
+                                    <option value="0.02">1:50 (÷50)</option>
+                                    <option value="0.01">1:100 (÷100)</option>
+                                    <option value="custom">Custom...</option>
+                                </select>
+                                
+                                <!-- Custom scaling input container -->
+                                <div id="customScalingContainer" class="custom-scaling-container" style="display: none;">
+                                    <div class="custom-scaling-input-group">
+                                        <label for="customScalingInput">Enter custom scaling factor:</label>
+                                        <input type="number" id="customScalingInput" class="form-input" step="0.001" min="0.001" max="1000" placeholder="e.g., 1.5, 25, 0.75">
+                                        <div class="custom-scaling-help">
+                                            Examples: 1.5 (×1.5), 25 (×25), 0.75 (÷1.33)
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="custom-scaling-buttons">
+                                        <button id="applyCustomScaling" class="btn btn-small btn-primary">Apply</button>
+                                        <button id="saveCustomScaling" class="btn btn-small btn-secondary">Save to List</button>
+                                        <button id="cancelCustomScaling" class="btn btn-small btn-tertiary">Cancel</button>
+                                    </div>
+                                    
+                                    <div id="customScalingError" class="custom-scaling-error" style="display: none;">
+                                        Please enter a valid number between 0.001 and 1000
+                                    </div>
+                                </div>
+                                
+                                <!-- Overall Size Display -->
+                                <div id="overallSizeInfo" class="overall-size-info" style="display: none;">
+                                    <label class="size-label">Overall Size:</label>
+                                    <div id="overallDimensions" class="size-value">N/A</div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="settings-section">
+                            <h5>Lascomb Studio Line Types</h5>
+                            <p>Configure and manage internal line types for processing.</p>
+                            <div class="button-group">
+                                <button class="btn btn-primary" id="lineTypesBtn">Manage Line Types</button>
+                            </div>
+                        </div>
+                        
+                        <div class="settings-section">
+                            <h5>Import Filters</h5>
+                            <p>Manage the global import filter for all supported file types.</p>
+                            <div class="button-group">
+                                <button class="btn btn-primary" id="globalFilterManagerBtn">Global Filter Manager</button>
+                            </div>
+                        </div>
+                        
+
+                        
+                        <div class="settings-section">
+                            <h5>Machine Tools</h5>
+                            <p>Import machine tool configurations from XML files to expand your tool library.</p>
+                            <div class="button-group">
+                                <button class="btn btn-primary" id="machineToolImporterBtn">Import Machine Tools</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="panel-tabs">
+                    <button class="tab-button active" data-tab="import">Import</button>
+                    <button class="tab-button" data-tab="output">Output</button>
+                    <button class="tab-button" data-tab="settings">Settings</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Profile Name Modal -->
+    <div id="profileModal" class="modal hidden">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Save Layer Mapping Profile</h3>
+                <button class="modal-close" id="modalClose">&times;</button>
+            </div>
+            <div class="modal-body">
+                <label for="profileNameInput">Profile Name:</label>
+                <input type="text" id="profileNameInput" placeholder="Enter profile name..." />
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" id="modalCancel">Cancel</button>
+                <button class="btn btn-primary" id="modalSave">Save</button>
+            </div>
+        </div>
+    </div>
+
+    <script type="importmap">
+    {
+        "imports": {
+            "three": "../../node_modules/three/build/three.module.js",
+            "three/": "../../node_modules/three/",
+            "loglevel": "../../loglevel-wrapper.js",
+            "opentype.js": "../../node_modules/opentype.js/dist/opentype.module.js",
+            "earcut": "../../node_modules/earcut/src/earcut.js"
+        }
+    }
+    </script>
+    <script src="components/header-controls.js"></script>
+    <script type="module" src="renderer.js"></script>
+</body>
+</html>

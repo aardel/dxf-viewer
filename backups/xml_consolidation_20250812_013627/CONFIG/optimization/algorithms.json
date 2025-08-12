@@ -1,0 +1,154 @@
+{
+  "name": "Path Optimization Algorithms",
+  "description": "Algorithms for optimizing cutting paths and tool usage",
+  "version": "1.0",
+  "created": "2025-01-02",
+  
+  "primaryStrategies": {
+    "tool_grouped": {
+      "name": "Group by Tool",
+      "description": "Complete all operations with one tool before switching",
+      "parameters": {
+        "respectPriority": true,
+        "allowManualBreaks": true,
+        "minimizeToolChanges": true
+      },
+      "suitableFor": ["production", "multi_tool_jobs", "minimize_setup"]
+    },
+    
+    "priority_order": {
+      "name": "Priority Order",
+      "description": "Follow the defined cutting priority regardless of tool",
+      "parameters": {
+        "strictPriorityOrder": true,
+        "allowToolInterleaving": true,
+        "respectManualBreaks": true
+      },
+      "suitableFor": ["complex_sequences", "quality_control", "manual_workflow"]
+    }
+  },
+
+  "withinGroupOptimization": {
+    "closest_path": {
+      "name": "Closest Path First",
+      "description": "Always cut to the nearest uncut geometry within the group",
+      "parameters": {
+        "weightDistance": 1.0,
+        "considerStartPoint": true,
+        "allowReverse": true,
+        "lookAheadDistance": 10.0
+      },
+      "suitableFor": ["general", "mixed_geometry", "small_parts"]
+    },
+    
+    "zigzag_horizontal": {
+      "name": "Zig-Zag Horizontal", 
+      "description": "Cut in horizontal back-and-forth pattern",
+      "parameters": {
+        "direction": "horizontal",
+        "reverseAlternate": true,
+        "groupSpacing": 5.0,
+        "minimumLength": 1.0
+      },
+      "suitableFor": ["parallel_lines", "grids", "text_rows"]
+    },
+
+    "zigzag_vertical": {
+      "name": "Zig-Zag Vertical", 
+      "description": "Cut in vertical back-and-forth pattern",
+      "parameters": {
+        "direction": "vertical",
+        "reverseAlternate": true,
+        "groupSpacing": 5.0,
+        "minimumLength": 1.0
+      },
+      "suitableFor": ["column_layouts", "vertical_grids"]
+    },
+
+    "spiral_out": {
+      "name": "Spiral Outward",
+      "description": "Cut from inside to outside in spiral pattern",
+      "parameters": {
+        "startFromCenter": true,
+        "clockwise": false,
+        "maintainClearance": true
+      },
+      "suitableFor": ["nested_shapes", "part_extraction"]
+    },
+
+    "spiral_in": {
+      "name": "Spiral Inward",
+      "description": "Cut from outside to inside to maintain part support",
+      "parameters": {
+        "startFromPerimeter": true,
+        "clockwise": true,
+        "maintainSupport": true
+      },
+      "suitableFor": ["delicate_parts", "avoid_drop_out"]
+    },
+
+    "left_to_right": {
+      "name": "Left to Right",
+      "description": "Process all geometry from left side to right side",
+      "parameters": {
+        "sortByX": true,
+        "tolerance": 1.0,
+        "groupByY": false
+      },
+      "suitableFor": ["text_processing", "logical_reading_order"]
+    },
+
+    "bottom_to_top": {
+      "name": "Bottom to Top",
+      "description": "Process all geometry from bottom to top",
+      "parameters": {
+        "sortByY": true,
+        "tolerance": 1.0,
+        "groupByX": false
+      },
+      "suitableFor": ["layer_building", "support_structures"]
+    },
+
+    "no_optimization": {
+      "name": "No Optimization",
+      "description": "Keep original drawing order within each tool group",
+      "parameters": {
+        "preserveOriginalOrder": true
+      },
+      "suitableFor": ["manual_control", "specific_sequences", "debugging"]
+    }
+  },
+  
+  "widthHandling": {
+    "singlePass": {
+      "name": "Single Pass",
+      "description": "Cut exactly on the path line",
+      "tolerance": 0.1,
+      "condition": "tool_width >= line_width - tolerance"
+    },
+    
+    "squareCut": {
+      "name": "Square Cut",
+      "description": "Multiple passes to achieve desired width",
+      "minPasses": 2,
+      "maxPasses": 10,
+      "overlapPercent": 10,
+      "offsetDirection": "outside"
+    },
+    
+    "warningOnly": {
+      "name": "Warning Only",
+      "description": "Alert user but proceed with available tool",
+      "showDialog": true,
+      "logToFile": true
+    }
+  },
+  
+  "machineConstraints": {
+    "maxRapidSpeed": 15000,
+    "minCutSpeed": 100,
+    "toolChangeTime": 5.0,
+    "acceleration": 1000,
+    "jerkLimit": 500
+  }
+}

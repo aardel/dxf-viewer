@@ -1,0 +1,277 @@
+{
+  "name": "Standard Tools",
+  "description": "Standard machine tools including imported tools",
+  "tools": [
+    {
+      "id": "T22",
+      "name": "Feinschnitt",
+      "description": "Cutting",
+      "width": 1,
+      "hCode": "H22",
+      "type": "cutting",
+      "color": "#00ffff",
+      "source": "machine_import"
+    },
+    {
+      "id": "T2",
+      "name": "2-Pt CW",
+      "description": "Cutting",
+      "width": 1,
+      "hCode": "H2",
+      "type": "cutting",
+      "color": "#ff0000",
+      "source": "machine_import"
+    },
+    {
+      "id": "T3",
+      "name": "3-Pt CW",
+      "description": "Cutting",
+      "width": 1,
+      "hCode": "H3",
+      "type": "cutting",
+      "color": "#0080ff",
+      "source": "machine_import"
+    },
+    {
+      "id": "T4",
+      "name": "4-Pt CW",
+      "description": "Cutting",
+      "width": 1,
+      "hCode": "H4",
+      "type": "cutting",
+      "color": "#00ff00",
+      "source": "machine_import"
+    },
+    {
+      "id": "T21",
+      "name": "Feinschn. Puls",
+      "description": "Cutting",
+      "width": 1,
+      "hCode": "H21",
+      "type": "cutting",
+      "color": "#ffffff",
+      "source": "machine_import"
+    },
+    {
+      "id": "T12",
+      "name": "2-Pt Puls",
+      "description": "Cutting",
+      "width": 1,
+      "hCode": "H12",
+      "type": "cutting",
+      "color": "#ff0000",
+      "source": "machine_import"
+    },
+    {
+      "id": "T13",
+      "name": "3-Pt Puls",
+      "description": "Cutting",
+      "width": 1,
+      "hCode": "H13",
+      "type": "cutting",
+      "color": "#0080ff",
+      "source": "machine_import"
+    },
+    {
+      "id": "T14",
+      "name": "4-Pt Puls",
+      "description": "Cutting",
+      "width": 1,
+      "hCode": "H14",
+      "type": "cutting",
+      "color": "#00ff00",
+      "source": "machine_import"
+    },
+    {
+      "id": "T20",
+      "name": "Gravur",
+      "description": "Cutting",
+      "width": 1,
+      "hCode": "H20",
+      "type": "cutting",
+      "color": "#ffff00",
+      "source": "machine_import"
+    },
+    {
+      "id": "T33",
+      "name": "Gravur Nozzle",
+      "description": "Cutting",
+      "width": 1,
+      "hCode": "H33",
+      "type": "cutting",
+      "color": "#ff8000",
+      "source": "machine_import"
+    },
+    {
+      "id": "T40",
+      "name": "Einstechen",
+      "description": "Cutting",
+      "width": 1,
+      "hCode": "H40",
+      "type": "cutting",
+      "color": "#ffffff",
+      "source": "machine_import"
+    },
+    {
+      "id": "T41",
+      "name": "CW-Schnitt",
+      "description": "Cutting",
+      "width": 1,
+      "hCode": "H41",
+      "type": "cutting",
+      "color": "#800000",
+      "source": "machine_import"
+    },
+    {
+      "id": "T42",
+      "name": "Puls 1",
+      "description": "Cutting",
+      "width": 1,
+      "hCode": "H42",
+      "type": "cutting",
+      "color": "#ffffff",
+      "source": "machine_import"
+    },
+    {
+      "id": "T43",
+      "name": "Puls 2",
+      "description": "Cutting",
+      "width": 1,
+      "hCode": "H43",
+      "type": "cutting",
+      "color": "#ffffff",
+      "source": "machine_import"
+    },
+    {
+      "id": "T44",
+      "name": "Gravur Steel",
+      "description": "Cutting",
+      "width": 1,
+      "hCode": "H44",
+      "type": "cutting",
+      "color": "#ffffff",
+      "source": "machine_import"
+    },
+    {
+      "id": "T100",
+      "name": "Milling 1",
+      "description": "Milling",
+      "width": 1,
+      "hCode": "H100",
+      "type": "milling",
+      "color": "#ff8000",
+      "source": "machine_import"
+    },
+    {
+      "id": "T101",
+      "name": "Milling 2",
+      "description": "Milling",
+      "width": 1,
+      "hCode": "H101",
+      "type": "milling",
+      "color": "#ffffff",
+      "source": "machine_import"
+    },
+    {
+      "id": "T102",
+      "name": "Milling 3",
+      "description": "Milling",
+      "width": 1,
+      "hCode": "H102",
+      "type": "milling",
+      "color": "#ffffff",
+      "source": "machine_import"
+    },
+    {
+      "id": "T103",
+      "name": "Milling 4",
+      "description": "Milling",
+      "width": 1,
+      "hCode": "H103",
+      "type": "milling",
+      "color": "#ff8040",
+      "source": "machine_import"
+    },
+    {
+      "id": "T104",
+      "name": "Milling 5",
+      "description": "Milling",
+      "width": 1,
+      "hCode": "H104",
+      "type": "milling",
+      "color": "#ffffff",
+      "source": "machine_import"
+    },
+    {
+      "id": "T105",
+      "name": "Milling 6",
+      "description": "Milling",
+      "width": 1,
+      "hCode": "H105",
+      "type": "milling",
+      "color": "#ffffff",
+      "source": "machine_import"
+    },
+    {
+      "id": "T106",
+      "name": "Milling 7",
+      "description": "Milling",
+      "width": 0.5,
+      "hCode": "H106",
+      "type": "milling",
+      "color": "#ffffff",
+      "source": "machine_import"
+    },
+    {
+      "id": "T107",
+      "name": "Milling 8",
+      "description": "Milling",
+      "width": 1,
+      "hCode": "H107",
+      "type": "milling",
+      "color": "#ffffff",
+      "source": "machine_import"
+    },
+    {
+      "id": "T108",
+      "name": "Milling 9",
+      "description": "Milling",
+      "width": 1,
+      "hCode": "H108",
+      "type": "milling",
+      "color": "#ffffff",
+      "source": "machine_import"
+    },
+    {
+      "id": "T109",
+      "name": "Milling 10",
+      "description": "Milling",
+      "width": 1,
+      "hCode": "H109",
+      "type": "milling",
+      "color": "#ffffff",
+      "source": "machine_import"
+    },
+    {
+      "id": "T99",
+      "name": "Schnittspaltmessung",
+      "description": "Cutting",
+      "width": 1,
+      "hCode": "H99",
+      "type": "cutting",
+      "color": "#c0c0c0",
+      "source": "machine_import"
+    },
+    {
+      "id": "T35",
+      "name": "Einstechen Holz",
+      "description": "Cutting",
+      "width": 1,
+      "hCode": "H35",
+      "type": "cutting",
+      "color": "#ffffff",
+      "source": "machine_import"
+    }
+  ],
+  "lastUpdated": "2025-08-04T14:13:39.553Z"
+}

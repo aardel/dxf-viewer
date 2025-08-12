@@ -1,0 +1,90 @@
+{
+  "units": "mm",
+  "includeLineNumbers": true,
+  "scaleCommand": "",
+  "initialCommands": "G90\nG60 X0",
+  "headerTemplate": "",
+  "footerTemplate": "",
+  "enableLineNumbers": true,
+  "enableComments": true,
+  "validateWidths": true,
+  "structure": {
+    "header": [
+      {
+        "type": "file-info",
+        "title": "File Information",
+        "icon": "📄",
+        "enabled": true,
+        "config": {
+          "template": "{filename} / - size: {width} x {height} / {timestamp}"
+        }
+      },
+      {
+        "type": "program-start",
+        "title": "Program Start Marker",
+        "icon": "🚀",
+        "enabled": true,
+        "config": {
+          "marker": "%1"
+        }
+      },
+      {
+        "type": "bounds",
+        "title": "Drawing Bounds",
+        "icon": "📐",
+        "enabled": true,
+        "config": {
+          "format": "BOUNDS: X{minX} Y{minY} to X{maxX} Y{maxY}"
+        }
+      },
+      {
+        "type": "operations",
+        "title": "Operation Count",
+        "icon": "🔢",
+        "enabled": true,
+        "config": {
+          "format": "OPERATIONS: {count}"
+        }
+      },
+      {
+        "type": "scaling",
+        "title": "Scaling Commands",
+        "icon": "⚖️",
+        "enabled": true,
+        "config": {
+          "commands": ":P2027=25.4/P674\nG75 X=P2027 Y=P2027",
+          "comment": ""
+        }
+      },
+      {
+        "type": "setup-commands",
+        "title": "Setup Commands",
+        "icon": "⚙️",
+        "enabled": true,
+        "config": {
+          "commands": "G90\nG60 X0"
+        }
+      },
+      {
+        "type": "home-command",
+        "title": "Home Command",
+        "icon": "🏠",
+        "enabled": true,
+        "config": {
+          "command": "G0 X0 Y0"
+        }
+      }
+    ],
+    "footer": [
+      {
+        "type": "end-commands",
+        "title": "End Commands",
+        "icon": "🏁",
+        "enabled": true,
+        "config": {
+          "commands": "G99"
+        }
+      }
+    ]
+  }
+}

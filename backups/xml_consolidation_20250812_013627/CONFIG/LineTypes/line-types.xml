@@ -1,0 +1,220 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<LineTypesLibrary>
+  <Metadata>
+    <LastModified>2025-08-03T22:42:40.167Z</LastModified>
+    <Version>1.0</Version>
+    <TotalCount>30</TotalCount>
+  </Metadata>
+  <LineTypes>
+    <LineType id="1">
+      <Name>1pt CW</Name>
+      <Description>1 point</Description>
+      <Type>laser</Type>
+      <Width>1</Width>
+      <Color>#FF0000</Color>
+    </LineType>
+    <LineType id="2">
+      <Name>2pt CW</Name>
+      <Description>2 points</Description>
+      <Type>laser</Type>
+      <Width>2</Width>
+      <Color>#FF0000</Color>
+    </LineType>
+    <LineType id="3">
+      <Name>3pt CW</Name>
+      <Description>3 points</Description>
+      <Type>laser</Type>
+      <Width>3</Width>
+      <Color>#FF0000</Color>
+    </LineType>
+    <LineType id="4">
+      <Name>4pt CW</Name>
+      <Description>4 points</Description>
+      <Type>laser</Type>
+      <Width>4</Width>
+      <Color>#FF0000</Color>
+    </LineType>
+    <LineType id="5">
+      <Name>2pt Puls</Name>
+      <Description>2 points</Description>
+      <Type>laser</Type>
+      <Width>2</Width>
+      <Color>#FF0000</Color>
+    </LineType>
+    <LineType id="6">
+      <Name>3pt Puls</Name>
+      <Description>3 points</Description>
+      <Type>laser</Type>
+      <Width>3</Width>
+      <Color>#FF0000</Color>
+    </LineType>
+    <LineType id="7">
+      <Name>4pt Puls</Name>
+      <Description>4 points</Description>
+      <Type>laser</Type>
+      <Width>4</Width>
+      <Color>#FF0000</Color>
+    </LineType>
+    <LineType id="8">
+      <Name>1.5pt CW</Name>
+      <Description>1.5 points</Description>
+      <Type>laser</Type>
+      <Width>1.5</Width>
+      <Color>#FF0000</Color>
+    </LineType>
+    <LineType id="9">
+      <Name>1pt Puls</Name>
+      <Description>1 point</Description>
+      <Type>laser</Type>
+      <Width>1</Width>
+      <Color>#FF0000</Color>
+    </LineType>
+    <LineType id="10">
+      <Name>1.5pt Puls</Name>
+      <Description>1.5 points</Description>
+      <Type>laser</Type>
+      <Width>1.5</Width>
+      <Color>#FF0000</Color>
+    </LineType>
+    <LineType id="11">
+      <Name>Fast Engrave</Name>
+      <Description>Fast Engrave</Description>
+      <Type>engraving</Type>
+      <Width>0.5</Width>
+      <Color>#00FF00</Color>
+    </LineType>
+    <LineType id="12">
+      <Name>Fine Cut Pulse</Name>
+      <Description>Fine cut pulse</Description>
+      <Type>laser</Type>
+      <Width>0.1</Width>
+      <Color>#FF4444</Color>
+    </LineType>
+    <LineType id="13">
+      <Name>Fine Cut CW</Name>
+      <Description>Fine cut CW</Description>
+      <Type>laser</Type>
+      <Width>0.1</Width>
+      <Color>#FF4444</Color>
+    </LineType>
+    <LineType id="14">
+      <Name>2pt Bridge</Name>
+      <Description>2 points bridge</Description>
+      <Type>laser</Type>
+      <Width>2</Width>
+      <Color>#FFAA00</Color>
+    </LineType>
+    <LineType id="15">
+      <Name>3pt Bridge</Name>
+      <Description>3 points bridge</Description>
+      <Type>laser</Type>
+      <Width>3</Width>
+      <Color>#FFAA00</Color>
+    </LineType>
+    <LineType id="16">
+      <Name>4pt Bridge</Name>
+      <Description>4 points bridge</Description>
+      <Type>laser</Type>
+      <Width>4</Width>
+      <Color>#FFAA00</Color>
+    </LineType>
+    <LineType id="17">
+      <Name>Nozzle Engrave</Name>
+      <Description>Nozzle Engrave</Description>
+      <Type>engraving</Type>
+      <Width>1</Width>
+      <Color>#00AAFF</Color>
+    </LineType>
+    <LineType id="18">
+      <Name>Groove</Name>
+      <Description>Groove</Description>
+      <Type>laser</Type>
+      <Width>2</Width>
+      <Color>#AA00FF</Color>
+    </LineType>
+    <LineType id="19">
+      <Name>Cut CW</Name>
+      <Description>Cut CW</Description>
+      <Type>laser</Type>
+      <Width>1</Width>
+      <Color>#FF0044</Color>
+    </LineType>
+    <LineType id="20">
+      <Name>Pulse_1</Name>
+      <Description>Pulse_1</Description>
+      <Type>laser</Type>
+      <Width>1</Width>
+      <Color>#FF00AA</Color>
+    </LineType>
+    <LineType id="21">
+      <Name>Pulse_2</Name>
+      <Description>Pulse_2</Description>
+      <Type>laser</Type>
+      <Width>2</Width>
+      <Color>#FF00AA</Color>
+    </LineType>
+    <LineType id="22">
+      <Name>Engrave</Name>
+      <Description>Engrave</Description>
+      <Type>engraving</Type>
+      <Width>0.5</Width>
+      <Color>#00FF88</Color>
+    </LineType>
+    <LineType id="23">
+      <Name>Milling 1</Name>
+      <Description>Milling 1</Description>
+      <Type>milling</Type>
+      <Width>0.5</Width>
+      <Color>#666666</Color>
+    </LineType>
+    <LineType id="24">
+      <Name>Milling 2</Name>
+      <Description>Milling 2</Description>
+      <Type>milling</Type>
+      <Width>1</Width>
+      <Color>#777777</Color>
+    </LineType>
+    <LineType id="25">
+      <Name>Milling 3</Name>
+      <Description>Milling 3</Description>
+      <Type>milling</Type>
+      <Width>1.5</Width>
+      <Color>#888888</Color>
+    </LineType>
+    <LineType id="26">
+      <Name>Milling 4</Name>
+      <Description>Milling 4</Description>
+      <Type>milling</Type>
+      <Width>2</Width>
+      <Color>#999999</Color>
+    </LineType>
+    <LineType id="27">
+      <Name>Milling 5</Name>
+      <Description>Milling 5</Description>
+      <Type>milling</Type>
+      <Width>2.5</Width>
+      <Color>#AAAAAA</Color>
+    </LineType>
+    <LineType id="28">
+      <Name>Milling 6</Name>
+      <Description>Milling 6</Description>
+      <Type>milling</Type>
+      <Width>3</Width>
+      <Color>#BBBBBB</Color>
+    </LineType>
+    <LineType id="29">
+      <Name>Milling 7</Name>
+      <Description>Milling 7</Description>
+      <Type>milling</Type>
+      <Width>4</Width>
+      <Color>#CCCCCC</Color>
+    </LineType>
+    <LineType id="30">
+      <Name>Milling 8</Name>
+      <Description>Milling 8</Description>
+      <Type>milling</Type>
+      <Width>5</Width>
+      <Color>#DDDDDD</Color>
+    </LineType>
+  </LineTypes>
+</LineTypesLibrary>

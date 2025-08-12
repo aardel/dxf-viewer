@@ -23,153 +23,30 @@
             </Units>
             <FeedInchMachine>false
             </FeedInchMachine>
-            <ScalingHeader>
-                <Enabled>true
-                </Enabled>
-                <Parameter>:P2027=25.4/P674
-                </Parameter>
-                <ScaleCommand>G75 X=P2027 Y=P2027
-                </ScaleCommand>
-                <Comment>Metric scaling for inch machine
-                </Comment>
-            </ScalingHeader>
         </MachineSettings>
         
         
         <Tools>
+            <Tool ID="T22" Name="Fine Cut" Description="Cutting" Width="1" HCode="H22"/>
+            <Tool ID="T2" Name="2pt CW" Description="Cutting" Width="1" HCode="H2"/>
+            <Tool ID="T3" Name="3pt CW" Description="Cutting" Width="1" HCode="H3"/>
+            <Tool ID="T4" Name="4pt CW" Description="Cutting" Width="1" HCode="H4"/>
+            <Tool ID="T20" Name="Fast Engrave" Description="Cutting" Width="1" HCode="H20"/>
+            <Tool ID="T12" Name="2pt Puls" Description="Cutting" Width="1" HCode="H12"/>
+            <Tool ID="T13" Name="3pt Puls" Description="Cutting" Width="1" HCode="H13"/>
+            <Tool ID="T14" Name="4pt Puls" Description="Cutting" Width="1" HCode="H14"/>
+            <Tool ID="T100" Name="Milling 1" Description="Cutting" Width="1" HCode="H100"/>
+            <Tool ID="T101" Name="Milling 2" Description="Cutting" Width="1" HCode="H101"/>
+            <Tool ID="T102" Name="Milling 3" Description="Cutting" Width="1" HCode="H102"/>
+            <Tool ID="T103" Name="Milling 4" Description="Cutting" Width="1" HCode="H103"/>
+            <Tool ID="T104" Name="Milling 5" Description="Cutting" Width="1" HCode="H104"/>
             
-            <Tool ID="T22">
-                <Name>null</Name>
-                <Description>null</Description>
-                <Width>0</Width>
-                <HCode>null</HCode>
-            </Tool>
-            
-            <Tool ID="T2">
-                <Name>null</Name>
-                <Description>null</Description>
-                <Width>0</Width>
-                <HCode>null</HCode>
-            </Tool>
-            
-            <Tool ID="T3">
-                <Name>null</Name>
-                <Description>null</Description>
-                <Width>0</Width>
-                <HCode>null</HCode>
-            </Tool>
-            
-            <Tool ID="T4">
-                <Name>null</Name>
-                <Description>null</Description>
-                <Width>0</Width>
-                <HCode>null</HCode>
-            </Tool>
-            
-            <Tool ID="T20">
-                <Name>null</Name>
-                <Description>null</Description>
-                <Width>0</Width>
-                <HCode>null</HCode>
-            </Tool>
-            
-            <Tool ID="T12">
-                <Name>null</Name>
-                <Description>null</Description>
-                <Width>0</Width>
-                <HCode>null</HCode>
-            </Tool>
-            
-            <Tool ID="T13">
-                <Name>null</Name>
-                <Description>null</Description>
-                <Width>0</Width>
-                <HCode>null</HCode>
-            </Tool>
-            
-            <Tool ID="T14">
-                <Name>null</Name>
-                <Description>null</Description>
-                <Width>0</Width>
-                <HCode>null</HCode>
-            </Tool>
-            
-            <Tool ID="T100">
-                <Name>null</Name>
-                <Description>null</Description>
-                <Width>0</Width>
-                <HCode>null</HCode>
-            </Tool>
-            
-            <Tool ID="T101">
-                <Name>null</Name>
-                <Description>null</Description>
-                <Width>0</Width>
-                <HCode>null</HCode>
-            </Tool>
-            
-            <Tool ID="T102">
-                <Name>null</Name>
-                <Description>null</Description>
-                <Width>0</Width>
-                <HCode>null</HCode>
-            </Tool>
-            
-            <Tool ID="T103">
-                <Name>null</Name>
-                <Description>null</Description>
-                <Width>0</Width>
-                <HCode>null</HCode>
-            </Tool>
-            
-            <Tool ID="T104">
-                <Name>null</Name>
-                <Description>null</Description>
-                <Width>0</Width>
-                <HCode>null</HCode>
-            </Tool>
-            
-            <Tool ID="T105">
-                <Name>null</Name>
-                <Description>null</Description>
-                <Width>0</Width>
-                <HCode>null</HCode>
-            </Tool>
-            
-            <Tool ID="T106">
-                <Name>null</Name>
-                <Description>null</Description>
-                <Width>0</Width>
-                <HCode>null</HCode>
-            </Tool>
-            
-            <Tool ID="T107">
-                <Name>null</Name>
-                <Description>null</Description>
-                <Width>0</Width>
-                <HCode>null</HCode>
-            </Tool>
-            
-            <Tool ID="T33">
-                <Name>null</Name>
-                <Description>null</Description>
-                <Width>0</Width>
-                <HCode>null</HCode>
-            </Tool>
-            
-            <Tool ID="T35">
-                <Name>null</Name>
-                <Description>null</Description>
-                <Width>0</Width>
-                <HCode>null</HCode>
-            </Tool>
-            
-            <Tool ID="T108">
-                <Name>null</Name>
-                <Description>null</Description>
-                <Width>0</Width>
-                <HCode>null</HCode>
-            </Tool>
+            <Tool ID="T105" Name="Milling 6" Description="Cutting" Width="1" HCode="H105"/>
+            <Tool ID="T106" Name="Milling 7" Description="Cutting" Width="1" HCode="H106"/>
+            <Tool ID="T107" Name="Milling 8" Description="Cutting" Width="1" HCode="H107"/>
+            <Tool ID="T33" Name="Nozzle Engrave" Description="Cutting" Width="1" HCode="H33"/>
+            <Tool ID="T35" Name="Piercing" Description="Cutting" Width="1" HCode="H40"/>
+            <Tool ID="T108" Name="Milling 8 (Copy)" Description="Cutting" Width="1" HCode="H108"/>
         </Tools>
         <Header>
             <Template>{filename} / - size: {width} x {height} / {timestamp}
@@ -192,7 +69,92 @@
                 <Command>G0 X0 Y0
                 </Command>
             </SetupCommands>
+            <CustomFields>
+                <Company>Lasercomb GmbH
+                </Company>
+                <Operator>{user}
+                </Operator>
+                <Material>{material}
+                </Material>
+                <Thickness>{thickness}
+                </Thickness>
+            </CustomFields>
         </Header>
+        
+        <!-- DIN File Structure Configuration -->
+        <DinFileStructure>
+            <Header>
+                <Element type="file-info" enabled="true">
+                    <Title>File Information</Title>
+                    <Icon>📄</Icon>
+                    <Config>
+                        <Template>{filename} / - size: {width} x {height} / {timestamp}</Template>
+                    </Config>
+                </Element>
+                <Element type="program-start" enabled="true">
+                    <Title>Program Start Marker</Title>
+                    <Icon>🚀</Icon>
+                    <Config>
+                        <Marker>%1</Marker>
+                    </Config>
+                </Element>
+                <Element type="bounds" enabled="true">
+                    <Title>Drawing Bounds</Title>
+                    <Icon>📐</Icon>
+                    <Config>
+                        <Format>BOUNDS: X{minX} Y{minY} to X{maxX} Y{maxY}</Format>
+                    </Config>
+                </Element>
+                <Element type="operations" enabled="true">
+                    <Title>Operation Count</Title>
+                    <Icon>🔢</Icon>
+                    <Config>
+                        <Format>OPERATIONS: {count}</Format>
+                    </Config>
+                </Element>
+                <Element type="scaling" enabled="true">
+                    <Title>Scaling Commands</Title>
+                    <Icon>⚖️</Icon>
+                    <Config>
+                        <Commands>:P2027=25.4/P674
+G75 X=P2027 Y=P2027</Commands>
+                        <Comment/>
+                    </Config>
+                </Element>
+                <Element type="setup-commands" enabled="true">
+                    <Title>Setup Commands</Title>
+                    <Icon>⚙️</Icon>
+                    <Config>
+                        <Commands>G90
+G60 X0</Commands>
+                    </Config>
+                </Element>
+                <Element type="home-command" enabled="true">
+                    <Title>Home Command</Title>
+                    <Icon>🏠</Icon>
+                    <Config>
+                        <Command>G0 X0 Y0</Command>
+                    </Config>
+                </Element>
+            </Header>
+            <Footer>
+                <Element type="end-commands" enabled="true">
+                    <Title>End Commands</Title>
+                    <Icon>🏁</Icon>
+                    <Config>
+                        <Commands>G99</Commands>
+                    </Config>
+                </Element>
+            </Footer>
+        </DinFileStructure>
+        
+        <!-- Bridges Configuration -->
+        <Bridges>
+            <Enabled>true
+            </Enabled>
+            <LaserOffAcrossGaps>true
+            </LaserOffAcrossGaps>
+        </Bridges>
         <Optimization>
             <PrimaryStrategy>tool_grouped
             </PrimaryStrategy>
@@ -256,7 +218,7 @@
         <LineNumbers>
             <Enabled>true
             </Enabled>
-            <StartNumber>10
+            <StartNumber>1
             </StartNumber>
             <Increment>1
             </Increment>

@@ -3,7 +3,7 @@
  * Implements various algorithms for optimizing cutting paths and tool sequences
  */
 
-class PathOptimizer {
+export class PathOptimizer {
     constructor(optimizationConfig = null) {
         this.config = optimizationConfig;
         this.debugMode = false;
@@ -736,4 +736,4 @@ class PathOptimizer {
     }
 }
 
-module.exports = PathOptimizer;
+export default PathOptimizer;

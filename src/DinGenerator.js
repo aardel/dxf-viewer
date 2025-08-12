@@ -3,9 +3,9 @@
  * Converts DXF entities to DIN format using optimization algorithms
  */
 
-const PathOptimizer = require('./PathOptimizer.js');
+import { PathOptimizer } from './PathOptimizer.js';
 
-class DinGenerator {
+export class DinGenerator {
     constructor() {
         this.optimizer = new PathOptimizer();
         this.currentTool = null;
@@ -29,16 +29,7 @@ class DinGenerator {
         this.lineNumber = config.lineNumbers?.startNumber || 10;
         this.currentTool = null;
 
-        // Validate all entities can be mapped before processing
-        const validationResult = this.validateEntityMappings(entities);
-        if (!validationResult.valid) {
-            throw new Error(`Cannot process file: ${validationResult.unmappedLayers.length} layers have no mapping rules: ${validationResult.unmappedLayers.join(', ')}`);
-        }
 
-        console.log(`DinGenerator: Processing ${entities.length} entities`);
-        entities.forEach((entity, index) => {
-            console.log(`Entity ${index}: ${entity.type} on layer '${entity.layer || 'unknown'}'`);
-        });
 
         // Load tools with priority information
         const toolsWithPriority = this.loadToolsFromConfig(config);
@@ -49,39 +40,11 @@ class DinGenerator {
             config: config  // Pass full config for priority phase access
         };
         
-        // DEBUG: Log entities before optimization
-        console.log('=== ENTITIES BEFORE OPTIMIZATION ===');
-        entities.forEach((entity, index) => {
-            console.log(`Entity ${index}:`, {
-                type: entity.type,
-                layer: entity.layer,
-                bridgeCount: entity.bridgeCount,
-                bridgeWidth: entity.bridgeWidth,
-                hasBridges: !!entity.bridges,
-                bridgesLength: entity.bridges?.length
-            });
-        });
-        console.log('=== END ENTITIES BEFORE OPTIMIZATION ===');
-        
         const optimizedEntities = this.optimizer.optimizePaths(
             entities, 
             toolsWithPriority,
             optimizationSettings
         );
-        
-        // DEBUG: Log entities after optimization
-        console.log('=== ENTITIES AFTER OPTIMIZATION ===');
-        optimizedEntities.forEach((entity, index) => {
-            console.log(`Optimized Entity ${index}:`, {
-                type: entity.type,
-                layer: entity.layer,
-                bridgeCount: entity.bridgeCount,
-                bridgeWidth: entity.bridgeWidth,
-                hasBridges: !!entity.bridges,
-                bridgesLength: entity.bridges?.length
-            });
-        });
-        console.log('=== END ENTITIES AFTER OPTIMIZATION ===');
 
         // Generate DIN content
         const dinLines = [];
@@ -187,16 +150,20 @@ class DinGenerator {
             }
         }
 
-        // 6. Scaling parameters (if INCH machine selected)
-        if (config.units?.feedInchMachine && config.units?.scalingHeader?.enabled) {
-            if (config.units.scalingHeader.parameter) {
-                lines.push(config.units.scalingHeader.parameter);
-            }
-            if (config.units.scalingHeader.scaleCommand) {
-                lines.push(config.units.scalingHeader.scaleCommand);
-            }
-            if (config.units.scalingHeader.comment) {
-                lines.push(`{ ${config.units.scalingHeader.comment} }`);
+        // 6. Scaling parameters (from DIN file structure)
+        if (config.structure?.header) {
+            const scalingElement = config.structure.header.find(el => el.type === 'scaling');
+            if (scalingElement && scalingElement.enabled && scalingElement.config) {
+                // Add scaling commands
+                if (scalingElement.config.commands) {
+                    const commands = scalingElement.config.commands.split('\n').filter(cmd => cmd.trim());
+                    commands.forEach(command => {
+                        if (command.trim()) {
+                            lines.push(command.trim());
+                        }
+                    });
+                }
+                // Note: Scaling comment is removed as per user request
             }
         }
 
@@ -239,7 +206,7 @@ class DinGenerator {
             configOutputSettings: this.config?.outputSettings
         });
         console.log('=== END BRIDGE CONFIG DEBUG ===');
-
+        
         entities.forEach(entity => {
             // Check if tool change is needed
             const requiredTool = this.getRequiredTool(entity);
@@ -247,12 +214,6 @@ class DinGenerator {
             // If no tool is found, skip this entity completely
             if (!requiredTool) {
                 console.log(`Skipping entity (${entity.type}) - no tool mapping found`);
-                return; // Skip to next entity
-            }
-            
-            // If tool is intentionally set to skip, skip this entity
-            if (requiredTool.skip) {
-                console.log(`Skipping entity (${entity.type}) - tool set to 'none' (construction/non-machined)`);
                 return; // Skip to next entity
             }
             
@@ -280,13 +241,22 @@ class DinGenerator {
             // Generate entity-specific commands (with bridge splitting if enabled)
             if (bridgeCondition) {
                 console.log(`✅ Using generateEntityDinWithBridges for ${entity.type}`);
-                lines.push(...this.generateEntityDinWithBridges(entity));
+                const bridgeLines = this.generateEntityDinWithBridges(entity);
+                console.log(`Generated ${bridgeLines.length} lines for bridged entity`);
+                lines.push(...bridgeLines);
             } else {
                 console.log(`❌ Using generateEntityDin for ${entity.type}`);
-                lines.push(...this.generateEntityDin(entity));
+                const entityLines = this.generateEntityDin(entity);
+                console.log(`Generated ${entityLines.length} lines for normal entity`);
+                lines.push(...entityLines);
             }
         });
 
+        console.log(`=== GENERATE ENTITY COMMANDS COMPLETE ===`);
+        console.log(`Total lines generated: ${lines.length}`);
+        console.log('First few lines:', lines.slice(0, 5));
+        console.log('Last few lines:', lines.slice(-5));
+        
         return lines;
     }
 
@@ -362,6 +332,16 @@ class DinGenerator {
             : this.config.laser.laserOff;
 
         if (entity.type === 'LINE') {
+            console.log('=== LINE ENTITY DEBUG IN generateEntityDinWithBridges ===');
+            console.log('Entity:', entity);
+            console.log('Start:', entity.start);
+            console.log('End:', entity.end);
+            console.log('Bridge data:', {
+                bridgeCount: entity.bridgeCount,
+                bridgeWidth: entity.bridgeWidth,
+                bridges: entity.bridges
+            });
+            
             const start = entity.start;
             const end = entity.end;
             const lineVecX = end.x - start.x;
@@ -377,6 +357,14 @@ class DinGenerator {
             const drawableLen = totalLen - totalBridgeLength;
             if (drawableLen <= 0) return [];
             const segmentLen = drawableLen / (bridgeCount + 1);
+            
+            console.log('=== LINE BRIDGE CALCULATION ===');
+            console.log('totalLen:', totalLen);
+            console.log('bridgeCount:', bridgeCount);
+            console.log('bridgeWidth:', bridgeWidth);
+            console.log('totalBridgeLength:', totalBridgeLength);
+            console.log('drawableLen:', drawableLen);
+            console.log('segmentLen:', segmentLen);
 
             // Move to start
             lines.push(this.formatLine(`${this.config.gcode.rapidMove} X${start.x.toFixed(3)} Y${start.y.toFixed(3)}`));
@@ -384,7 +372,17 @@ class DinGenerator {
 
             for (let i = 0; i <= bridgeCount; i++) {
                 const segStart = cursor;
-                const segEnd = (i < bridgeCount) ? (segStart + segmentLen) : drawableLen;
+                let segEnd;
+                
+                if (i < bridgeCount) {
+                    // Regular segment
+                    segEnd = segStart + segmentLen;
+                } else {
+                    // Last segment - go to the end of the line
+                    segEnd = totalLen;
+                }
+                
+                console.log(`LINE Segment ${i}: start=${segStart.toFixed(3)}, end=${segEnd.toFixed(3)}, totalLen=${totalLen.toFixed(3)}`);
                 const p1x = start.x + ux * segStart;
                 const p1y = start.y + uy * segStart;
                 const p2x = start.x + ux * segEnd;
@@ -408,31 +406,78 @@ class DinGenerator {
                 }
             }
 
+            console.log('✅ LINE Bridge processing completed. Generated', lines.length, 'lines');
             return lines;
         }
 
         if (entity.type === 'ARC') {
+            // DEBUG: Log the arc entity structure
+            console.log('=== ARC ENTITY DEBUG IN generateEntityDinWithBridges ===');
+            console.log('Entity:', entity);
+            console.log('Center:', entity.center);
+            console.log('Radius:', entity.radius);
+            console.log('Start:', entity.start);
+            console.log('End:', entity.end);
+            console.log('Clockwise:', entity.clockwise);
+            console.log('Bridge data:', {
+                bridgeCount: entity.bridgeCount,
+                bridgeWidth: entity.bridgeWidth,
+                bridges: entity.bridges
+            });
+            
             // Approximate splitting along arc length using entity.center, radius, start/end angles
             const cx = entity.center?.x;
             const cy = entity.center?.y;
-            if (cx === undefined || cy === undefined || entity.radius === undefined) return [];
+            if (cx === undefined || cy === undefined || entity.radius === undefined) {
+                console.log('❌ ARC ENTITY MISSING REQUIRED DATA - returning empty');
+                return [];
+            }
 
             // Derive start/end angles from given start/end points
             const a0 = Math.atan2(entity.start.y - cy, entity.start.x - cx);
             const a1 = Math.atan2(entity.end.y - cy, entity.end.x - cx);
             const ccw = entity.clockwise === false; // clockwise true means CW; ccw if false
             let sweep = a1 - a0;
-            if (ccw && sweep < 0) sweep += Math.PI * 2;
-            if (!ccw && sweep > 0) sweep -= Math.PI * 2;
+            
+            // Handle full circle case (start and end points are the same)
+            if (Math.abs(sweep) < 0.001 && Math.abs(entity.start.x - entity.end.x) < 0.001 && Math.abs(entity.start.y - entity.end.y) < 0.001) {
+                sweep = ccw ? Math.PI * 2 : -Math.PI * 2;
+                console.log('🔄 Full circle detected, setting sweep to:', sweep);
+            } else {
+                if (ccw && sweep < 0) sweep += Math.PI * 2;
+                if (!ccw && sweep > 0) sweep -= Math.PI * 2;
+            }
+            
             const totalArcLen = Math.abs(entity.radius) * Math.abs(sweep);
-            if (!isFinite(totalArcLen) || totalArcLen === 0) return [];
+            if (!isFinite(totalArcLen) || totalArcLen === 0) {
+                console.log('❌ totalArcLen invalid:', totalArcLen, 'sweep:', sweep);
+                return [];
+            }
 
             const bridgeCount = entity.bridgeCount || 0;
             const bridgeWidth = entity.bridgeWidth || 0;
             const totalBridgeLength = bridgeCount * bridgeWidth;
             const drawableLen = totalArcLen - totalBridgeLength;
-            if (drawableLen <= 0) return [];
+            
+            console.log('=== ARC BRIDGE CALCULATION ===');
+            console.log('totalArcLen:', totalArcLen);
+            console.log('bridgeCount:', bridgeCount);
+            console.log('bridgeWidth:', bridgeWidth);
+            console.log('totalBridgeLength:', totalBridgeLength);
+            console.log('drawableLen:', drawableLen);
+            console.log('segmentLen will be:', drawableLen / (bridgeCount + 1));
+            
+            if (drawableLen <= 0) {
+                console.log('❌ drawableLen <= 0, returning empty');
+                return [];
+            }
             const segmentLen = drawableLen / (bridgeCount + 1);
+            
+            // For full circles, we need to ensure we complete the full arc
+            const isFullCircle = Math.abs(sweep) >= Math.PI * 1.9; // Allow for small numerical errors
+            console.log('Is full circle:', isFullCircle, 'sweep:', sweep);
+            
+            console.log('✅ Bridge processing will generate segments. segmentLen:', segmentLen);
 
             // Helper to get point at arc length L from start
             const pointAtLen = (len) => {
@@ -444,9 +489,26 @@ class DinGenerator {
             // Move to start
             lines.push(this.formatLine(`${this.config.gcode.rapidMove} X${entity.start.x.toFixed(3)} Y${entity.start.y.toFixed(3)}`));
             let cursor = 0;
+            console.log('🔄 Starting bridge processing loop for', bridgeCount + 1, 'segments');
             for (let i = 0; i <= bridgeCount; i++) {
                 const segStart = cursor;
-                const segEnd = (i < bridgeCount) ? (segStart + segmentLen) : drawableLen;
+                let segEnd;
+                
+                if (i < bridgeCount) {
+                    // Regular segment
+                    segEnd = segStart + segmentLen;
+                } else {
+                    // Last segment - go to the end of the arc
+                    if (isFullCircle) {
+                        // For full circles, go back to the start point
+                        segEnd = totalArcLen;
+                    } else {
+                        // For partial arcs, go to the calculated end
+                        segEnd = drawableLen;
+                    }
+                }
+                
+                console.log(`Segment ${i}: start=${segStart.toFixed(3)}, end=${segEnd.toFixed(3)}`);
                 const p2 = pointAtLen(segEnd);
 
                 // Draw arc segment from current position to p2 using I/J from center
@@ -468,6 +530,71 @@ class DinGenerator {
                 }
             }
 
+            console.log('✅ Bridge processing completed. Generated', lines.length, 'lines');
+            return lines;
+        }
+
+        if (entity.type === 'POLYLINE' || entity.type === 'LWPOLYLINE') {
+            console.log('=== POLYLINE ENTITY DEBUG IN generateEntityDinWithBridges ===');
+            console.log('Entity:', entity);
+            console.log('Vertices:', entity.vertices);
+            console.log('Closed:', entity.closed);
+            console.log('Bridge data:', {
+                bridgeCount: entity.bridgeCount,
+                bridgeWidth: entity.bridgeWidth,
+                bridges: entity.bridges
+            });
+            
+            if (!entity.vertices || entity.vertices.length < 2) {
+                console.log('❌ POLYLINE has insufficient vertices');
+                return [];
+            }
+
+            // For now, we'll process each segment of the polyline individually
+            // This is a simplified approach - in a more sophisticated implementation,
+            // we would need to handle bridges across the entire polyline path
+            
+            const firstVertex = entity.vertices[0];
+            lines.push(this.formatLine(`${this.config.gcode.rapidMove} X${firstVertex.x.toFixed(3)} Y${firstVertex.y.toFixed(3)}`));
+            
+            // Process each segment
+            for (let i = 1; i < entity.vertices.length; i++) {
+                const prevVertex = entity.vertices[i - 1];
+                const vertex = entity.vertices[i];
+                
+                // Check if previous vertex has a bulge value (indicating an arc segment)
+                if (prevVertex.bulge && Math.abs(prevVertex.bulge) > 0.001) {
+                    // For arc segments, we'll use the regular arc processing
+                    // This is a simplified approach - ideally we'd handle bridges on arc segments too
+                    const arcData = this.calculateArcFromBulge(prevVertex, vertex, prevVertex.bulge);
+                    if (arcData) {
+                        lines.push(this.formatLine(laserOnCmd));
+                        const arcCommand = arcData.clockwise ? this.config.gcode.cwArc : this.config.gcode.ccwArc;
+                        lines.push(this.formatLine(`${arcCommand} X${vertex.x.toFixed(3)} Y${vertex.y.toFixed(3)} I${arcData.i.toFixed(3)} J${arcData.j.toFixed(3)}`));
+                        lines.push(this.formatLine(laserOffCmd));
+                    } else {
+                        // Fallback to linear move
+                        lines.push(this.formatLine(laserOnCmd));
+                        lines.push(this.formatLine(`${this.config.gcode.linearMove} X${vertex.x.toFixed(3)} Y${vertex.y.toFixed(3)}`));
+                        lines.push(this.formatLine(laserOffCmd));
+                    }
+                } else {
+                    // For line segments, we'll use the regular line processing
+                    // This is a simplified approach - ideally we'd handle bridges on line segments too
+                    lines.push(this.formatLine(laserOnCmd));
+                    lines.push(this.formatLine(`${this.config.gcode.linearMove} X${vertex.x.toFixed(3)} Y${vertex.y.toFixed(3)}`));
+                    lines.push(this.formatLine(laserOffCmd));
+                }
+            }
+            
+            // Close polyline if specified
+            if (entity.closed && entity.vertices.length > 2) {
+                lines.push(this.formatLine(laserOnCmd));
+                lines.push(this.formatLine(`${this.config.gcode.linearMove} X${firstVertex.x.toFixed(3)} Y${firstVertex.y.toFixed(3)}`));
+                lines.push(this.formatLine(laserOffCmd));
+            }
+            
+            console.log('✅ POLYLINE Bridge processing completed. Generated', lines.length, 'lines');
             return lines;
         }
 
@@ -480,14 +607,6 @@ class DinGenerator {
      */
     generateLineDin(entity) {
         const lines = [];
-        
-        // Validate that start and end points exist
-        if (!entity.start || !entity.end || 
-            entity.start.x === undefined || entity.start.y === undefined ||
-            entity.end.x === undefined || entity.end.y === undefined) {
-            console.warn('LINE entity missing start or end coordinates:', entity);
-            return [];
-        }
         
         // Move to start position
         lines.push(this.formatLine(`${this.config.gcode.rapidMove} X${entity.start.x.toFixed(3)} Y${entity.start.y.toFixed(3)}`));
@@ -517,13 +636,6 @@ class DinGenerator {
      */
     generateArcDin(entity) {
         const lines = [];
-        
-        // Validate that center point and radius exist
-        if (!entity.center || entity.center.x === undefined || entity.center.y === undefined || 
-            entity.radius === undefined) {
-            console.warn('ARC entity missing center coordinates or radius:', entity);
-            return [];
-        }
         
         // Calculate start and end points
         const startAngle = entity.startAngle || 0;
@@ -579,13 +691,6 @@ class DinGenerator {
     generateCircleDin(entity) {
         const lines = [];
         
-        // Validate that center point and radius exist
-        if (!entity.center || entity.center.x === undefined || entity.center.y === undefined || 
-            entity.radius === undefined) {
-            console.warn('CIRCLE entity missing center coordinates or radius:', entity);
-            return [];
-        }
-        
         // Start at rightmost point of circle
         const startX = entity.center.x + entity.radius;
         const startY = entity.center.y;
@@ -623,18 +728,11 @@ class DinGenerator {
         const lines = [];
         
         if (!entity.vertices || entity.vertices.length < 2) {
-            console.warn('POLYLINE entity has insufficient vertices:', entity);
-            return lines;
-        }
-
-        // Validate first vertex coordinates
-        const firstVertex = entity.vertices[0];
-        if (!firstVertex || firstVertex.x === undefined || firstVertex.y === undefined) {
-            console.warn('POLYLINE entity has invalid first vertex coordinates:', entity);
             return lines;
         }
 
         // Move to first vertex
+        const firstVertex = entity.vertices[0];
         lines.push(this.formatLine(`${this.config.gcode.rapidMove} X${firstVertex.x.toFixed(3)} Y${firstVertex.y.toFixed(3)}`));
         
         // Laser on
@@ -648,12 +746,6 @@ class DinGenerator {
         for (let i = 1; i < entity.vertices.length; i++) {
             const prevVertex = entity.vertices[i - 1];
             const vertex = entity.vertices[i];
-            
-            // Validate vertex coordinates
-            if (!vertex || vertex.x === undefined || vertex.y === undefined) {
-                console.warn(`POLYLINE vertex ${i} has invalid coordinates:`, vertex);
-                continue;
-            }
             
             // Check if previous vertex has a bulge value (indicating an arc segment)
             if (prevVertex.bulge && Math.abs(prevVertex.bulge) > 0.001) {
@@ -760,32 +852,27 @@ class DinGenerator {
         // Step 2: Line Type → Tool
         const toolId = this.getToolFromLineType(lineType);
 
-        // Check if no tool mapping was found at all
-        if (!toolId) {
-            console.warn(`No tool mapping found for line type: ${lineType}, skipping entity`);
-            return null; // Skip this entity
+        
+        if (toolId && toolId !== 'none') {
+            const toolName = this.getToolName(toolId);
+            const toolHCode = this.getToolHCode(toolId);
+            
+
+            
+            if (toolHCode) {
+                return {
+                    id: toolId,
+                    name: toolName,
+                    hCode: toolHCode
+                };
+            } else {
+                console.warn(`No H-code found for tool ${toolId}, skipping entity`);
+                return null;
+            }
         }
         
-        // Check if tool is 'none' - this means skip the entity (valid mapping)
-        if (toolId === 'none') {
-            console.log(`Tool mapping is 'none' for line type: ${lineType}, skipping entity as intended`);
-            return { skip: true }; // Special object to indicate intentional skip
-        }
-        
-        // Normal tool mapping
-        const toolName = this.getToolName(toolId);
-        const toolHCode = this.getToolHCode(toolId);
-        
-        if (toolHCode) {
-            return {
-                id: toolId,
-                name: toolName,
-                hCode: toolHCode
-            };
-        } else {
-            console.warn(`No H-code found for tool ${toolId}, skipping entity`);
-            return null;
-        }
+        console.warn(`No tool mapping found for line type: ${lineType}, skipping entity`);
+        return null; // Skip this entity
     }
 
     /**
@@ -795,39 +882,17 @@ class DinGenerator {
         console.log(`Determining line type for entity:`, {
             type: entity.type,
             layer: entity.layer,
-            color: entity.color,
             lineType: entity.lineType,
             lineTypeId: entity.lineTypeId
         });
         
-        // Priority 1: Check global import filter for layer mapping
-        if (entity.layer && this.config.globalImportFilter && this.config.globalImportFilter.rules) {
-            const rules = this.config.globalImportFilter.rules;
-            
-            // Find matching rule by layer name
-            const layerRule = rules.find(rule => 
-                rule.layerName && rule.layerName.toUpperCase() === entity.layer.toUpperCase()
-            );
-            
-            if (layerRule && layerRule.lineTypeId) {
-                // Convert lineTypeId to line type name
-                const lineTypeName = this.getLineTypeNameFromId(layerRule.lineTypeId);
-                if (lineTypeName) {
-                    console.log(`Found global import filter mapping: ${entity.layer} -> lineTypeId: ${layerRule.lineTypeId} -> ${lineTypeName}`);
-                    return lineTypeName;
-                } else {
-                    console.warn(`LineTypeId ${layerRule.lineTypeId} not found in line types library`);
-                }
-            }
-        }
-        
-        // Priority 2: Use actual line type from DXF if available
+        // Priority 1: Use actual line type from DXF if available
         if (entity.lineType && entity.lineType !== 'BYLAYER' && entity.lineType !== 'CONTINUOUS') {
             console.log(`Using DXF line type: ${entity.lineType}`);
             return entity.lineType;
         }
         
-        // Priority 3: Convert line type ID to name if available
+        // Priority 2: Convert line type ID to name if available
         if (entity.lineTypeId) {
             const lineTypeName = this.getLineTypeNameFromId(entity.lineTypeId);
             if (lineTypeName) {
@@ -836,7 +901,7 @@ class DinGenerator {
             }
         }
         
-        // Priority 4: Entity type override for special cases
+        // Priority 3: Entity type override for special cases
         if (entity.type === 'TEXT' || entity.type === 'MTEXT') {
             return 'engraving';
         }
@@ -844,49 +909,38 @@ class DinGenerator {
             return 'construction';
         }
 
-        // Priority 5: Fallback to legacy layer mapping (for backward compatibility)
-        if (entity.layer && this.config.mappingWorkflow && this.config.mappingWorkflow.layerToLineType) {
+        // Priority 2: Layer to line type mapping
+        if (entity.layer && this.config.mappingWorkflow?.layerToLineType) {
             const layerMappings = this.config.mappingWorkflow.layerToLineType;
             
-            // Direct lookup for simple key-value mapping
-            if (layerMappings[entity.layer]) {
-                console.log(`Found legacy layer mapping: ${entity.layer} -> ${layerMappings[entity.layer]}`);
-                return layerMappings[entity.layer];
-            }
-            
-            // Check for exact layer name match in array format (legacy)
+            // Check for exact layer name match first
             const mappings = Array.isArray(layerMappings) ? layerMappings : Object.values(layerMappings || {});
             for (const mapping of mappings) {
                 if (mapping.layer && mapping.layer.toUpperCase() === entity.layer.toUpperCase()) {
-                    console.log(`Found array layer mapping: ${entity.layer} -> ${mapping.lineType}`);
                     return mapping.lineType;
                 }
             }
+            
+            // No fallback mapping - rely only on configured mappings
         }
 
-        // Priority 6: Color to line type mapping (fallback)
-        if (entity.color !== undefined && this.config.mappingWorkflow && this.config.mappingWorkflow.colorToLineType) {
+        // Priority 3: Color to line type mapping
+        if (entity.color !== undefined && this.config.mappingWorkflow?.colorToLineType) {
             const colorMappings = this.config.mappingWorkflow.colorToLineType;
             
-            // Direct lookup for simple key-value mapping
-            if (colorMappings[entity.color]) {
-                console.log(`Found color mapping: ${entity.color} -> ${colorMappings[entity.color]}`);
-                return colorMappings[entity.color];
-            }
-            
-            // Check configured color mappings in array format (legacy)
+            // Check configured color mappings
             const mappings = Array.isArray(colorMappings) ? colorMappings : Object.values(colorMappings || {});
             for (const mapping of mappings) {
                 if (mapping.color && parseInt(mapping.color) === entity.color) {
-                    console.log(`Found array color mapping: ${entity.color} -> ${mapping.lineType}`);
                     return mapping.lineType;
                 }
             }
+            
+            // No fallback color mappings - rely only on configured mappings
         }
 
-        // No mapping found - this is intentional, no automatic fallbacks
+        // No mapping found - this will trigger a user notification
         console.warn(`No line type mapping found for entity on layer: ${entity.layer}`);
-        console.warn(`Please create an import filter rule for this layer.`);
         return null;
     }
 
@@ -894,79 +948,22 @@ class DinGenerator {
      * Get tool from line type (Step 2 of workflow)
      */
     getToolFromLineType(lineType) {
-        // Handle Global Import Filter workflow - map line type names to tools
-        const lineTypeToToolMap = {
-            // Engraving tools
-            'Fast Engrave': 'T20',
-            'Nozzle Engrave': 'T33', 
-            'Engrave': 'T20',
-            
-            // Cutting tools
-            '1pt CW': 'T1',
-            '2pt CW': 'T2', 
-            '3pt CW': 'T3',
-            '4pt CW': 'T4',
-            'Fine Cut CW': 'T22',
-            'Fine Cut Pulse': 'T22',
-            'Cut CW': 'T2',
-            
-            // Pulsing tools  
-            '1pt Puls': 'T12',
-            '2pt Puls': 'T12',
-            '3pt Puls': 'T13', 
-            '4pt Puls': 'T14',
-            '1.5pt Puls': 'T12',
-            
-            // Bridge tools
-            '2pt Bridge': 'T2',
-            '3pt Bridge': 'T3',
-            '4pt Bridge': 'T4',
-            
-            // Milling tools
-            'Milling 1': 'T100',
-            'Milling 2': 'T101',
-            'Milling 3': 'T102',
-            'Milling 4': 'T103',
-            'Milling 5': 'T104',
-            'Milling 6': 'T105',
-            'Milling 7': 'T106', 
-            'Milling 8': 'T107',
-            
-            // Special tools
-            'Groove': 'T3',
-            'Pulse_1': 'T12',
-            'Pulse_2': 'T13',
-            'Piercing': 'T35'
-        };
-        
-        console.log(`Looking for tool mapping for line type: "${lineType}"`);
-        
-        // Direct lookup in the line type to tool map
-        if (lineTypeToToolMap[lineType]) {
-            console.log(`Found direct line type mapping: ${lineType} -> ${lineTypeToToolMap[lineType]}`);
-            return lineTypeToToolMap[lineType];
+        if (!this.config.mappingWorkflow?.lineTypeToTool) {
+            console.warn('No mappingWorkflow.lineTypeToTool found in config');
+            return null;
         }
+
+        const lineTypeMappings = this.config.mappingWorkflow.lineTypeToTool;
+        const mappings = Array.isArray(lineTypeMappings) ? lineTypeMappings : Object.values(lineTypeMappings || {});
         
-        // Fallback to legacy mapping workflow if available
-        if (this.config.mappingWorkflow?.lineTypeToTool) {
-            const lineTypeMappings = this.config.mappingWorkflow.lineTypeToTool;
-            
-            console.log(`Trying legacy mappings for: "${lineType}"`);
-            console.log(`Available legacy mappings:`, lineTypeMappings);
-            
-            // Direct lookup for simple key-value mapping
-            if (lineTypeMappings[lineType]) {
-                console.log(`Found legacy direct mapping: ${lineType} -> ${lineTypeMappings[lineType].tool}`);
-                return lineTypeMappings[lineType].tool;
-            }
-            
-            // Legacy support: check array format
-            const mappings = Array.isArray(lineTypeMappings) ? lineTypeMappings : Object.values(lineTypeMappings || {});
-            for (const mapping of mappings) {
-                if (mapping.lineType && mapping.lineType === lineType) {
-                    console.log(`Found legacy array match! Tool: ${mapping.tool}`);
-                    return mapping.tool;
-                }
+        console.log(`Looking for line type: "${lineType}"`);
+        console.log(`Available mappings:`, mappings);
+        
+        for (const mapping of mappings) {
+            console.log(`Checking mapping: "${mapping.lineType}" === "${lineType}"`);
+            if (mapping.lineType && mapping.lineType === lineType) {
+                console.log(`Found match! Tool: ${mapping.tool}`);
+                return mapping.tool;
             }
         }
         
@@ -979,10 +976,9 @@ class DinGenerator {
      */
     getLineTypeNameFromId(lineTypeId) {
         // Use line types from config if available (CSV data)
-        if (this.config.lineTypesLibrary && Array.isArray(this.config.lineTypesLibrary)) {
-            const lineType = this.config.lineTypesLibrary.find(lt => lt.id === lineTypeId || lt.id === String(lineTypeId));
+        if (this.config.lineTypes && Array.isArray(this.config.lineTypes)) {
+            const lineType = this.config.lineTypes.find(lt => lt.id === lineTypeId);
             if (lineType) {
-                console.log(`Found line type for ID ${lineTypeId}: ${lineType.name}`);
                 return lineType.name;
             }
         }
@@ -1189,32 +1185,6 @@ class DinGenerator {
             }
         };
     }
-
-    /**
-     * Validate that all entities in the file can be mapped to tools
-     * Returns validation result with unmapped layers
-     */
-    validateEntityMappings(entities) {
-        const unmappedLayers = new Set();
-        
-        for (const entity of entities) {
-            const lineType = this.determineLineType(entity);
-            if (!lineType) {
-                unmappedLayers.add(entity.layer || 'unknown');
-                continue;
-            }
-            
-            const tool = this.getToolFromLineType(lineType);
-            if (!tool) {
-                unmappedLayers.add(entity.layer || 'unknown');
-            }
-        }
-        
-        return {
-            valid: unmappedLayers.size === 0,
-            unmappedLayers: Array.from(unmappedLayers)
-        };
-    }
 }
 
-module.exports = DinGenerator;
+export default DinGenerator;

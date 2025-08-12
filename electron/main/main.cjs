@@ -517,7 +517,7 @@ ipcMain.handle('clear-cache', async () => {
 ipcMain.handle('parse-unified', async (event, content, filename) => {
     try {
         const parsers = require('../../src/parsers');
-        const geometries = parsers.UnifiedImporter.import(content, filename);
+        const geometries = await parsers.UnifiedImporter.import(content, filename);
         return { success: true, data: geometries };
     } catch (error) {
         console.error('Error in parse-unified:', error);
@@ -970,63 +970,7 @@ ipcMain.handle('open-line-type-mapping', async () => {
     });
 });
 
-// Load postprocessor configuration file
-ipcMain.handle('load-postprocessor-config', async (event, profileName) => {
-    try {
-        // Clean the profile name to remove any whitespace or newlines
-        const cleanProfileName = profileName ? profileName.trim().replace(/[\r\n]/g, '') : '';
-        
-        if (!cleanProfileName) {
-            console.log('No profile name provided, returning default config');
-            return {
-                units: 'mm',
-                includeLineNumbers: true,
-                scaleCommand: '',
-                initialCommands: 'G90\nG60 X0',
-                headerTemplate: '',
-                footerTemplate: '',
-                enableLineNumbers: true,
-                enableComments: true,
-                validateWidths: true
-            };
-        }
-        
-        const configPath = getConfigPath(`postprocessors/${cleanProfileName}.json`);
-        
-        if (fs.existsSync(configPath)) {
-            const configData = fs.readFileSync(configPath, 'utf8');
-            return JSON.parse(configData);
-        } else {
-            console.log(`Postprocessor config file not found: ${configPath}, returning default config`);
-            // Return default configuration instead of throwing error
-            return {
-                units: 'mm',
-                includeLineNumbers: true,
-                scaleCommand: '',
-                initialCommands: 'G90\nG60 X0',
-                headerTemplate: '',
-                footerTemplate: '',
-                enableLineNumbers: true,
-                enableComments: true,
-                validateWidths: true
-            };
-        }
-    } catch (error) {
-        console.error('Error loading postprocessor config:', error);
-        // Return default configuration instead of throwing error
-        return {
-            units: 'mm',
-            includeLineNumbers: true,
-            scaleCommand: '',
-            initialCommands: 'G90\nG60 X0',
-            headerTemplate: '',
-            footerTemplate: '',
-            enableLineNumbers: true,
-            enableComments: true,
-            validateWidths: true
-        };
-    }
-});
+// JSON postprocessor config handlers removed - now using XML profiles only
 
 // Load tool library configuration file
 ipcMain.handle('load-tool-library', async (event, libraryName) => {
@@ -1069,31 +1013,7 @@ ipcMain.handle('load-optimization-config', async () => {
     }
 });
 
-// Save postprocessor configuration file
-ipcMain.handle('save-postprocessor-config', async (event, profileName, configData) => {
-    try {
-        // Clean the profile name to remove any whitespace or newlines
-        const cleanProfileName = profileName ? profileName.trim().replace(/[\r\n]/g, '') : '';
-        
-        if (!cleanProfileName) {
-            throw new Error('No profile name provided');
-        }
-        
-        const configPath = getConfigPath(`postprocessors/${cleanProfileName}.json`);
-        const configDir = path.dirname(configPath);
-        
-        // Ensure directory exists
-        if (!fs.existsSync(configDir)) {
-            fs.mkdirSync(configDir, { recursive: true });
-        }
-        
-        fs.writeFileSync(configPath, JSON.stringify(configData, null, 2), 'utf8');
-        return { success: true };
-    } catch (error) {
-        console.error('Error saving postprocessor config:', error);
-        throw new Error(`Failed to save postprocessor config: ${error.message}`);
-    }
-});
+// JSON postprocessor config save handler removed - now using XML profiles only
 
 // XML Profile Management
 // Load available XML profiles
@@ -1360,15 +1280,8 @@ function parseXMLProfile(xmlContent) {
     // Parse MachineSettings
     const machineSettings = root.getElementsByTagName('MachineSettings')[0];
     if (machineSettings) {
-        const scalingHeader = machineSettings.getElementsByTagName('ScalingHeader')[0];
         config.units = {
-            feedInchMachine: getTextContent(machineSettings, 'FeedInchMachine') === 'true',
-            scalingHeader: scalingHeader ? {
-                enabled: getTextContent(scalingHeader, 'Enabled') === 'true',
-                parameter: getTextContent(scalingHeader, 'Parameter'),
-                scaleCommand: getTextContent(scalingHeader, 'ScaleCommand'),
-                comment: getTextContent(scalingHeader, 'Comment')
-            } : null
+            feedInchMachine: getTextContent(machineSettings, 'FeedInchMachine') === 'true'
         };
     }
     
@@ -1525,6 +1438,17 @@ function parseXMLProfile(xmlContent) {
                 config.header.setupCommands.push(commands[i].textContent);
             }
         }
+        
+        // Custom fields
+        const customFields = header.getElementsByTagName('CustomFields')[0];
+        if (customFields) {
+            config.header.customFields = {
+                company: getTextContent(customFields, 'Company'),
+                operator: getTextContent(customFields, 'Operator'),
+                material: getTextContent(customFields, 'Material'),
+                thickness: getTextContent(customFields, 'Thickness')
+            };
+        }
     }
     
     // Parse Optimization
@@ -1641,6 +1565,106 @@ function parseXMLProfile(xmlContent) {
         };
     }
     
+    // Parse DinFileStructure
+    const dinFileStructure = root.getElementsByTagName('DinFileStructure')[0];
+    if (dinFileStructure) {
+        config.structure = {
+            header: [],
+            footer: []
+        };
+        
+        // Parse Header Elements
+        const headerElements = dinFileStructure.getElementsByTagName('Header')[0];
+        if (headerElements) {
+            const elements = headerElements.getElementsByTagName('Element');
+            for (let i = 0; i < elements.length; i++) {
+                const element = elements[i];
+                const elementType = element.getAttribute('type');
+                const enabled = element.getAttribute('enabled') === 'true';
+                
+                const elementConfig = {
+                    type: elementType,
+                    enabled: enabled,
+                    title: getTextContent(element, 'Title'),
+                    icon: getTextContent(element, 'Icon')
+                };
+                
+                // Parse Config
+                const configElement = element.getElementsByTagName('Config')[0];
+                if (configElement) {
+                    elementConfig.config = {};
+                    
+                    // Parse different config types based on element type
+                    switch (elementType) {
+                        case 'file-info':
+                            elementConfig.config.template = getTextContent(configElement, 'Template');
+                            break;
+                        case 'program-start':
+                            elementConfig.config.marker = getTextContent(configElement, 'Marker');
+                            break;
+                        case 'bounds':
+                            elementConfig.config.format = getTextContent(configElement, 'Format');
+                            break;
+                        case 'operations':
+                            elementConfig.config.format = getTextContent(configElement, 'Format');
+                            break;
+                        case 'scaling':
+                            elementConfig.config.commands = getTextContent(configElement, 'Commands');
+                            elementConfig.config.comment = getTextContent(configElement, 'Comment');
+                            break;
+                        case 'setup-commands':
+                            elementConfig.config.commands = getTextContent(configElement, 'Commands');
+                            break;
+                        case 'home-command':
+                            elementConfig.config.command = getTextContent(configElement, 'Command');
+                            break;
+                    }
+                }
+                
+                config.structure.header.push(elementConfig);
+            }
+        }
+        
+        // Parse Footer Elements
+        const footerElements = dinFileStructure.getElementsByTagName('Footer')[0];
+        if (footerElements) {
+            const elements = footerElements.getElementsByTagName('Element');
+            for (let i = 0; i < elements.length; i++) {
+                const element = elements[i];
+                const elementType = element.getAttribute('type');
+                const enabled = element.getAttribute('enabled') === 'true';
+                
+                const elementConfig = {
+                    type: elementType,
+                    enabled: enabled,
+                    title: getTextContent(element, 'Title'),
+                    icon: getTextContent(element, 'Icon')
+                };
+                
+                // Parse Config
+                const configElement = element.getElementsByTagName('Config')[0];
+                if (configElement) {
+                    elementConfig.config = {};
+                    
+                    if (elementType === 'end-commands') {
+                        elementConfig.config.commands = getTextContent(configElement, 'Commands');
+                    }
+                }
+                
+                config.structure.footer.push(elementConfig);
+            }
+        }
+    }
+    
+    // Parse Bridges
+    const bridges = root.getElementsByTagName('Bridges')[0];
+    if (bridges) {
+        config.bridges = {
+            enabled: getTextContent(bridges, 'Enabled') === 'true',
+            laserOffAcrossGaps: getTextContent(bridges, 'LaserOffAcrossGaps') === 'true'
+        };
+    }
+    
     return config;
 }
 
@@ -1675,15 +1699,6 @@ function generateXMLProfile(config) {
         addTextElement(xmlDoc, machineSettings, 'Type', config.units.feedInchMachine ? 'inch_with_scaling' : 'metric');
         addTextElement(xmlDoc, machineSettings, 'Units', config.units.feedInchMachine ? 'inch' : 'mm');
         addTextElement(xmlDoc, machineSettings, 'FeedInchMachine', config.units.feedInchMachine ? 'true' : 'false');
-        
-        if (config.units.scalingHeader) {
-            const scalingHeader = xmlDoc.createElement('ScalingHeader');
-            addTextElement(xmlDoc, scalingHeader, 'Enabled', config.units.scalingHeader.enabled ? 'true' : 'false');
-            addTextElement(xmlDoc, scalingHeader, 'Parameter', config.units.scalingHeader.parameter);
-            addTextElement(xmlDoc, scalingHeader, 'ScaleCommand', config.units.scalingHeader.scaleCommand);
-            addTextElement(xmlDoc, scalingHeader, 'Comment', config.units.scalingHeader.comment);
-            machineSettings.appendChild(scalingHeader);
-        }
         root.appendChild(machineSettings);
     }
     
@@ -1813,6 +1828,16 @@ function generateXMLProfile(config) {
             header.appendChild(setupCommands);
         }
         
+        // Add CustomFields
+        if (config.header.customFields) {
+            const customFields = xmlDoc.createElement('CustomFields');
+            addTextElement(xmlDoc, customFields, 'Company', config.header.customFields.company);
+            addTextElement(xmlDoc, customFields, 'Operator', config.header.customFields.operator);
+            addTextElement(xmlDoc, customFields, 'Material', config.header.customFields.material);
+            addTextElement(xmlDoc, customFields, 'Thickness', config.header.customFields.thickness);
+            header.appendChild(customFields);
+        }
+        
         root.appendChild(header);
     }
     
@@ -1926,6 +1951,99 @@ function generateXMLProfile(config) {
         root.appendChild(mappingWorkflow);
     }
     
+    // Add DinFileStructure
+    if (config.structure) {
+        const dinFileStructure = xmlDoc.createElement('DinFileStructure');
+        
+        // Add Header Elements
+        if (config.structure.header && config.structure.header.length > 0) {
+            const header = xmlDoc.createElement('Header');
+            
+            config.structure.header.forEach(element => {
+                const elementEl = xmlDoc.createElement('Element');
+                elementEl.setAttribute('type', element.type);
+                elementEl.setAttribute('enabled', element.enabled ? 'true' : 'false');
+                
+                addTextElement(xmlDoc, elementEl, 'Title', element.title);
+                addTextElement(xmlDoc, elementEl, 'Icon', element.icon);
+                
+                if (element.config) {
+                    const configEl = xmlDoc.createElement('Config');
+                    
+                    // Add config based on element type
+                    switch (element.type) {
+                        case 'file-info':
+                            addTextElement(xmlDoc, configEl, 'Template', element.config.template);
+                            break;
+                        case 'program-start':
+                            addTextElement(xmlDoc, configEl, 'Marker', element.config.marker);
+                            break;
+                        case 'bounds':
+                            addTextElement(xmlDoc, configEl, 'Format', element.config.format);
+                            break;
+                        case 'operations':
+                            addTextElement(xmlDoc, configEl, 'Format', element.config.format);
+                            break;
+                        case 'scaling':
+                            addTextElement(xmlDoc, configEl, 'Commands', element.config.commands);
+                            addTextElement(xmlDoc, configEl, 'Comment', element.config.comment);
+                            break;
+                        case 'setup-commands':
+                            addTextElement(xmlDoc, configEl, 'Commands', element.config.commands);
+                            break;
+                        case 'home-command':
+                            addTextElement(xmlDoc, configEl, 'Command', element.config.command);
+                            break;
+                    }
+                    
+                    elementEl.appendChild(configEl);
+                }
+                
+                header.appendChild(elementEl);
+            });
+            
+            dinFileStructure.appendChild(header);
+        }
+        
+        // Add Footer Elements
+        if (config.structure.footer && config.structure.footer.length > 0) {
+            const footer = xmlDoc.createElement('Footer');
+            
+            config.structure.footer.forEach(element => {
+                const elementEl = xmlDoc.createElement('Element');
+                elementEl.setAttribute('type', element.type);
+                elementEl.setAttribute('enabled', element.enabled ? 'true' : 'false');
+                
+                addTextElement(xmlDoc, elementEl, 'Title', element.title);
+                addTextElement(xmlDoc, elementEl, 'Icon', element.icon);
+                
+                if (element.config) {
+                    const configEl = xmlDoc.createElement('Config');
+                    
+                    if (element.type === 'end-commands') {
+                        addTextElement(xmlDoc, configEl, 'Commands', element.config.commands);
+                    }
+                    
+                    elementEl.appendChild(configEl);
+                }
+                
+                footer.appendChild(elementEl);
+            });
+            
+            dinFileStructure.appendChild(footer);
+        }
+        
+        root.appendChild(dinFileStructure);
+    }
+    
+    // Add Bridges
+    if (config.bridges) {
+        const bridges = xmlDoc.createElement('Bridges');
+        addTextElement(xmlDoc, bridges, 'Enabled', config.bridges.enabled ? 'true' : 'false');
+        addTextElement(xmlDoc, bridges, 'LaserOffAcrossGaps', config.bridges.laserOffAcrossGaps ? 'true' : 'false');
+        root.appendChild(bridges);
+    }
+    
 
     
     // Generate formatted XML with proper indentation
@@ -1940,8 +2058,14 @@ function getTextContent(parent, tagName) {
     const element = parent.getElementsByTagName(tagName)[0];
     if (!element) return '';
     
-    // Clean up text content - remove newlines and extra whitespace
     const textContent = element.textContent || '';
+    
+    // For Commands fields, preserve newlines but clean up extra whitespace
+    if (tagName === 'Commands') {
+        return textContent.trim().replace(/[ \t]+/g, ' ').replace(/\n[ \t]*/g, '\n');
+    }
+    
+    // For other fields, clean up text content - remove newlines and extra whitespace
     return textContent.trim().replace(/\s+/g, ' ');
 }
 
@@ -3117,12 +3241,22 @@ ipcMain.handle('add-rule-to-global-import-filter', async (event, rule) => {
     }
 });
 
-// Optional: sync the mapping rule to active postprocessor profile (mtl.xml)
+// Optional: sync the mapping rule to active XML profile
 ipcMain.handle('sync-rule-to-active-profile', async (event, payload) => {
     try {
         // Load current active profile name from settings or default
-        const profileName = currentPostprocessorProfileName || 'default_metric';
-        const config = await loadPostprocessorConfig(profileName);
+        const profileName = currentPostprocessorProfileName || 'pts.xml';
+        const profilesDir = getProfilesDirectory();
+        const profilePath = path.join(profilesDir, profileName);
+        
+        if (!fs.existsSync(profilePath)) {
+            console.error('Active profile not found:', profilePath);
+            return { success: false, error: 'Active profile not found' };
+        }
+        
+        const xmlContent = fs.readFileSync(profilePath, 'utf8');
+        const config = parseXMLProfile(xmlContent);
+        
         if (!config.mappingWorkflow) config.mappingWorkflow = { layerToLineType: [], ddsExact: [], cff2Exact: [] };
         if (!config.mappingWorkflow.ddsExact) config.mappingWorkflow.ddsExact = [];
         if (!config.mappingWorkflow.cff2Exact) config.mappingWorkflow.cff2Exact = [];
@@ -3147,7 +3281,10 @@ ipcMain.handle('sync-rule-to-active-profile', async (event, payload) => {
             config.mappingWorkflow.cff2Exact.push({ key, lineType: payload.lineTypeId });
         }
 
-        await savePostprocessorConfig(profileName, config);
+        // Save back to XML profile
+        const updatedXmlContent = generateXMLProfile(config);
+        fs.writeFileSync(profilePath, updatedXmlContent, 'utf8');
+        
         return { success: true };
     } catch (err) {
         console.error('sync-rule-to-active-profile failed', err);
@@ -4314,9 +4451,38 @@ ipcMain.handle('process-dxf-file', async (event, { inputPath, outputFolder }) =>
         console.log('DEBUG: Entity types:', dxf.entities.map(e => e.type).join(', '));
         console.log('DEBUG: First entity sample:', JSON.stringify(dxf.entities[0], null, 2));
 
-        // Load postprocessor config (use default for now, or enhance to select per job)
-        const configPath = path.join(process.cwd(), 'CONFIG', 'postprocessors', 'default_metric.json');
-        const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+        // Load current active profile configuration
+        let config = {};
+        
+        // First, try to load the current active profile
+        const activeProfilePath = path.join(process.cwd(), 'CONFIG', 'profiles', 'active_profile.txt');
+        if (fs.existsSync(activeProfilePath)) {
+            const activeProfileName = fs.readFileSync(activeProfilePath, 'utf8').trim();
+            console.log('DEBUG: Loading configuration for active profile:', activeProfileName);
+            
+            // Load XML profile (primary configuration)
+            const xmlProfilePath = path.join(process.cwd(), 'CONFIG', 'profiles', activeProfileName);
+            if (fs.existsSync(xmlProfilePath)) {
+                const xmlContent = fs.readFileSync(xmlProfilePath, 'utf8');
+                config = parseXMLProfile(xmlContent);
+                console.log('DEBUG: Loaded XML profile configuration');
+            }
+            
+            // XML profile now contains all configuration - no JSON postprocessor config needed
+            console.log('DEBUG: Using XML profile configuration only (JSON postprocessor configs deprecated)');
+        } else {
+            // Fallback to default XML profile if no active profile
+            console.log('DEBUG: No active profile found, using default XML profile');
+            const defaultProfilePath = path.join(process.cwd(), 'CONFIG', 'profiles', 'pts.xml');
+            if (fs.existsSync(defaultProfilePath)) {
+                const xmlContent = fs.readFileSync(defaultProfilePath, 'utf8');
+                config = parseXMLProfile(xmlContent);
+                console.log('DEBUG: Loaded default XML profile configuration');
+            } else {
+                console.error('DEBUG: No default XML profile found, cannot proceed');
+                throw new Error('No active profile and no default XML profile available');
+            }
+        }
 
         // Load global import filter configuration (PRIMARY)
         const globalImportFilterPath = path.join(process.cwd(), 'CONFIG', 'import-filters', 'global_import_filter.json');

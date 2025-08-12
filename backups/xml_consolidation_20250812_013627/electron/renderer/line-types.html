@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Internal Line Types Editor</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="line-types.css">
+</head>
+<body>
+    <div class="header">
+        <div class="header-left">
+            <h2>Internal Line Types Editor <span style="color: #4a90e2; font-size: 0.8em;">v3.0</span></h2>
+            <p class="subtitle">Create and manage internal line types for cutting operations</p>
+        </div>
+        <div class="header-right">
+            <button class="btn btn-primary" id="saveLineTypesBtn">
+                <span>💾</span> Save Line Types
+            </button>
+            <button class="btn btn-secondary" id="reloadBtn">
+                <span>🔄</span> Reload
+            </button>
+            <button class="btn btn-success" id="addLineTypeBtn">
+                <span>➕</span> Add Line Type
+            </button>
+        </div>
+    </div>
+
+    <div class="main-content">
+        <div class="table-container">
+            <table class="line-type-editor-table">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Name</th>
+                        <th>Description</th>
+                        <th>Type</th>
+                        <th>Width (mm)</th>
+                        <th>Color</th>
+                        <th style="width: 120px;">Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="lineTypeEditorTableBody">
+                    <!-- Table rows will be dynamically generated here -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Status Bar -->
+    <div id="statusBar" class="status-bar">
+        <span id="statusText">Ready</span>
+    </div>
+
+    <script src="line-types-editor.js"></script>
+</body>
+</html>

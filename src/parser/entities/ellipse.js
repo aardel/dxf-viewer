@@ -1,7 +1,7 @@
 
-const helpers = require("../ParseHelpers.js");
+import * as helpers from "../ParseHelpers.js"
 
-function EntityParser() {}
+export default function EntityParser() {}
 
 EntityParser.ForEntityName = 'ELLIPSE';
 
@@ -46,5 +46,3 @@ EntityParser.prototype.parseEntity = function(scanner, curr) {
 
     return entity;
 };
-
-module.exports = EntityParser;

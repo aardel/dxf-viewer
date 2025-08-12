@@ -64,6 +64,9 @@ async function initializeOutputManager() {
         // Load all configuration data
         await loadAllConfiguration();
         
+        // Load output settings from current profile
+        await loadOutputSettings();
+        
         // Update window title with current profile name
         if (currentProfile && currentProfile.name) {
             await window.electronAPI.updateOutputManagerTitle(currentProfile.name);
@@ -104,6 +107,9 @@ async function loadAllConfiguration() {
         
         // Load output settings
         await loadOutputSettings();
+        
+        // Initialize DIN file structure configuration
+        initializeDinFileStructure();
         
     } catch (error) {
         console.error('Error loading configuration:', error);
@@ -265,10 +271,18 @@ async function saveOutputUnitsToProfile(units) {
         
         // Use the correct profile filename
         const profileName = currentProfile.filename || currentProfile.id || currentProfile.name;
-        // Save the units setting to the profile
-        await window.electronAPI.savePostprocessorConfig(profileName, {
-            units: units
-        });
+        
+        // Load current XML profile
+        const config = await window.electronAPI.loadXmlProfile(profileName) || {};
+        
+        // Update units setting
+        if (!config.units) {
+            config.units = {};
+        }
+        config.units.system = units;
+        
+        // Save back to XML profile
+        await window.electronAPI.saveXmlProfile(profileName, config);
         
         showSuccess(`Output units set to ${units}`);
         
@@ -278,17 +292,55 @@ async function saveOutputUnitsToProfile(units) {
     }
 }
 
+async function saveOutputSettingsToProfile() {
+    try {
+        if (!currentProfile) return;
+        
+        // Use the correct profile filename
+        const profileName = currentProfile.filename || currentProfile.id || currentProfile.name;
+        
+        // Load current XML profile
+        const config = await window.electronAPI.loadXmlProfile(profileName) || {};
+        
+        // Get current values from UI
+        const defaultSavePath = document.getElementById('defaultSavePath')?.value;
+        const filenameTemplate = document.getElementById('filenameTemplate')?.value;
+        
+        // Update output settings
+        if (!config.outputSettings) {
+            config.outputSettings = {};
+        }
+        
+        if (defaultSavePath) {
+            config.outputSettings.defaultSavePath = defaultSavePath;
+        }
+        
+        if (filenameTemplate) {
+            config.outputSettings.filenameFormat = filenameTemplate;
+        }
+        
+        // Save back to XML profile
+        await window.electronAPI.saveXmlProfile(profileName, config);
+        
+        showSuccess('Output settings saved to profile');
+        
+    } catch (error) {
+        console.error('Error saving output settings:', error);
+        showError('Failed to save output settings');
+    }
+}
+
 async function loadProfileConfiguration(profile) {
     try {
-        const config = await window.electronAPI.loadPostprocessorConfig(profile.id || profile.name);
+        const config = await window.electronAPI.loadXmlProfile(profile.id || profile.name);
         
         if (config) {
             populateConfigurationFields(config);
         } else {
             // Use default values if no config exists
             populateConfigurationFields({
-                units: 'mm',
-                includeLineNumbers: true
+                units: { system: 'mm' },
+                lineNumbers: { enabled: true }
             });
         }
         
@@ -297,17 +349,19 @@ async function loadProfileConfiguration(profile) {
         // Use default values if config file doesn't exist
         console.log('Using default configuration values');
         populateConfigurationFields({
-            units: 'mm',
-            includeLineNumbers: true
+            units: { system: 'mm' },
+            lineNumbers: { enabled: true }
         });
     }
 }
 
 function populateConfigurationFields(config) {
-    // Profile settings
+    // Profile settings - load units from the correct path
     const unitsSelect = document.getElementById('outputUnits');
-    if (unitsSelect && config.units) {
-        unitsSelect.value = config.units;
+    if (unitsSelect) {
+        // Check multiple possible paths for units configuration
+        const units = config.units?.system || config.units || config.Units || 'mm';
+        unitsSelect.value = units;
     }
     
     // Scale command is now in header/footer tab
@@ -319,7 +373,7 @@ function populateConfigurationFields(config) {
     // Line numbers are now in output settings tab
     const lineNumbersCheckbox = document.getElementById('enableLineNumbers');
     if (lineNumbersCheckbox) {
-        lineNumbersCheckbox.checked = config.includeLineNumbers !== false;
+        lineNumbersCheckbox.checked = config.lineNumbers?.enabled !== false;
     }
     
     // Load optimization settings
@@ -361,7 +415,7 @@ async function saveOptimizationSettings() {
     
     try {
         const profileName = currentProfile.filename || currentProfile.id || currentProfile.name;
-        const config = await window.electronAPI.loadPostprocessorConfig(profileName);
+        const config = await window.electronAPI.loadXmlProfile(profileName);
         
         if (!config) {
             console.warn('No existing config found for profile:', profileName);
@@ -398,9 +452,9 @@ async function saveOptimizationSettings() {
             config.optimization.rotaryOutput = rotaryOutput.checked;
         }
         
-        // Save the updated config
-        await window.electronAPI.savePostprocessorConfig(profileName, config);
-        console.log('Optimization settings saved for profile:', profileName);
+        // Save the updated config to XML
+        await window.electronAPI.saveXmlProfile(profileName, config);
+        console.log('Optimization settings saved to XML profile:', profileName);
         
     } catch (error) {
         console.error('Error saving optimization settings:', error);
@@ -1400,19 +1454,21 @@ async function loadHeaderFooterConfig() {
         
         // Use the correct profile filename
         const profileName = currentProfile.filename || currentProfile.id || currentProfile.name;
-        const config = await window.electronAPI.loadPostprocessorConfig(profileName);
+        const config = await window.electronAPI.loadXmlProfile(profileName);
         
         if (config) {
             // Populate header settings
             
             const headerTemplate = document.getElementById('headerTemplate');
-            if (headerTemplate && config.headerTemplate) {
-                headerTemplate.value = config.headerTemplate;
+            if (headerTemplate && config.header?.template) {
+                headerTemplate.value = config.header.template;
             }
             
             const initialCommands = document.getElementById('initialCommands');
-            if (initialCommands && config.initialCommands) {
-                initialCommands.value = config.initialCommands;
+            if (initialCommands && config.header?.setupCommands) {
+                initialCommands.value = Array.isArray(config.header.setupCommands) 
+                    ? config.header.setupCommands.join('\n') 
+                    : config.header.setupCommands;
             }
             
             // Update preview
@@ -1448,43 +1504,84 @@ G60 X0`;
 
 async function loadOutputSettings() {
     try {
-        // Load file output settings
-        const defaultSavePath = document.getElementById('defaultSavePath');
-        if (defaultSavePath) {
-            // This would come from user preferences
-            defaultSavePath.value = '/Volumes/Public/Lasercomb';
-        }
-        
-        const filenameTemplate = document.getElementById('filenameTemplate');
-        if (filenameTemplate) {
-            filenameTemplate.value = '{original_name}.din';
-        }
-        
-        // Load line numbers settings
-        const startNumber = document.getElementById('startNumber');
-        if (startNumber) {
-            startNumber.value = '10';
-        }
-        
-        const increment = document.getElementById('increment');
-        if (increment) {
-            increment.value = '1';
-        }
-        
-        const formatTemplate = document.getElementById('formatTemplate');
-        if (formatTemplate) {
-            formatTemplate.value = 'N{number}';
-        }
-        
-        // Load G-code commands
-        const homeCommand = document.getElementById('homeCommand');
-        if (homeCommand) {
-            homeCommand.value = 'G0 X0 Y0';
-        }
-        
-        const programEndCommand = document.getElementById('programEndCommand');
-        if (programEndCommand) {
-            programEndCommand.value = 'G99';
+        // Load settings from current profile if available
+        if (currentProfile) {
+            const profileName = currentProfile.filename || currentProfile.id || currentProfile.name;
+            const config = await window.electronAPI.loadXmlProfile(profileName) || {};
+            
+            // Load file output settings from profile
+            const defaultSavePath = document.getElementById('defaultSavePath');
+            if (defaultSavePath) {
+                defaultSavePath.value = config.outputSettings?.defaultSavePath || '/Volumes/Public/Lasercomb';
+            }
+            
+            const filenameTemplate = document.getElementById('filenameTemplate');
+            if (filenameTemplate) {
+                filenameTemplate.value = config.outputSettings?.filenameFormat || '{original_name}.din';
+            }
+            
+            // Load line numbers settings from profile
+            const startNumber = document.getElementById('startNumber');
+            if (startNumber) {
+                startNumber.value = config.lineNumbers?.startNumber || '1';
+            }
+            
+            const increment = document.getElementById('increment');
+            if (increment) {
+                increment.value = config.lineNumbers?.increment || '1';
+            }
+            
+            const formatTemplate = document.getElementById('formatTemplate');
+            if (formatTemplate) {
+                formatTemplate.value = config.lineNumbers?.format || 'N{number}';
+            }
+            
+            // Load G-code commands from profile
+            const homeCommand = document.getElementById('homeCommand');
+            if (homeCommand) {
+                homeCommand.value = config.gcode?.homeCommand || 'G0 X0 Y0';
+            }
+            
+            const programEndCommand = document.getElementById('programEndCommand');
+            if (programEndCommand) {
+                programEndCommand.value = config.gcode?.programEnd?.[0] || 'G99';
+            }
+        } else {
+            // Use default values if no profile is loaded
+            const defaultSavePath = document.getElementById('defaultSavePath');
+            if (defaultSavePath) {
+                defaultSavePath.value = '/Volumes/Public/Lasercomb';
+            }
+            
+            const filenameTemplate = document.getElementById('filenameTemplate');
+            if (filenameTemplate) {
+                filenameTemplate.value = '{original_name}.din';
+            }
+            
+            const startNumber = document.getElementById('startNumber');
+            if (startNumber) {
+                startNumber.value = '1';
+            }
+            
+            const increment = document.getElementById('increment');
+            if (increment) {
+                increment.value = '1';
+            }
+            
+            const formatTemplate = document.getElementById('formatTemplate');
+            if (formatTemplate) {
+                formatTemplate.value = 'N{number}';
+            }
+            
+            const homeCommand = document.getElementById('homeCommand');
+            if (homeCommand) {
+                homeCommand.value = 'G0 X0 Y0';
+            }
+            
+            const programEndCommand = document.getElementById('programEndCommand');
+            if (programEndCommand) {
+                programEndCommand.value = 'G99';
+            }
         }
         
     } catch (error) {
@@ -1506,19 +1603,21 @@ function setupEventListeners() {
                     p.name === selectedProfileId ||
                     p.id === selectedProfileId
                 );
-                if (profile) {
-                    currentProfile = profile;
-                    await loadProfileConfiguration(profile);
-                    // Reload all configuration data for the new profile
-                    await loadAllConfiguration();
-                    console.log('Switched to profile:', profile.name);
-                    
-                    // Update window title with profile name
-                    await window.electronAPI.updateOutputManagerTitle(profile.name);
-                    
-                    // Save the active profile for persistence
-                    await saveActiveProfile(profile);
-                } else {
+                                    if (profile) {
+                        currentProfile = profile;
+                        await loadProfileConfiguration(profile);
+                        // Reload all configuration data for the new profile
+                        await loadAllConfiguration();
+                        // Load output settings from the profile
+                        await loadOutputSettings();
+                        console.log('Switched to profile:', profile.name);
+                        
+                        // Update window title with profile name
+                        await window.electronAPI.updateOutputManagerTitle(profile.name);
+                        
+                        // Save the active profile for persistence
+                        await saveActiveProfile(profile);
+                    } else {
                     console.warn('Selected profile not found:', selectedProfileId);
                     // Update window title to show no profile
                     await window.electronAPI.updateOutputManagerTitle('No Profile Selected');
@@ -1534,6 +1633,25 @@ function setupEventListeners() {
             // Save the units selection to the current profile
             if (currentProfile) {
                 saveOutputUnitsToProfile(e.target.value);
+            }
+        });
+    }
+    
+    // Output settings changes
+    const defaultSavePath = document.getElementById('defaultSavePath');
+    if (defaultSavePath) {
+        defaultSavePath.addEventListener('change', (e) => {
+            if (currentProfile) {
+                saveOutputSettingsToProfile();
+            }
+        });
+    }
+    
+    const filenameTemplate = document.getElementById('filenameTemplate');
+    if (filenameTemplate) {
+        filenameTemplate.addEventListener('change', (e) => {
+            if (currentProfile) {
+                saveOutputSettingsToProfile();
             }
         });
     }
@@ -2249,10 +2367,10 @@ const defaultElements = {
         type: 'scaling',
         title: 'Scaling Commands',
         icon: '⚖️',
-        enabled: false,
+        enabled: true,
         config: {
             commands: ':P2027=25.4/P674\nG75 X=P2027 Y=P2027',
-            comment: 'Imperial scaling applied'
+            comment: ''
         }
     },
     'setup-commands': {
@@ -2398,20 +2516,86 @@ async function loadStructureConfiguration() {
         }
         
         const profileName = currentProfile.filename || currentProfile.id || currentProfile.name;
-        const config = await window.electronAPI.loadPostprocessorConfig(profileName);
         
-        if (config && config.structure && config.structure.header && config.structure.footer) {
-            headerElements = config.structure.header;
-            footerElements = config.structure.footer;
-            console.log('Loaded saved structure configuration:', { 
+        // Load configuration from XML profile
+        const xmlConfig = await window.electronAPI.loadXmlProfile(profileName);
+        
+        if (xmlConfig && xmlConfig.structure && xmlConfig.structure.header && xmlConfig.structure.footer) {
+            headerElements = xmlConfig.structure.header;
+            footerElements = xmlConfig.structure.footer;
+            console.log('Loaded saved structure configuration from XML:', { 
                 headerElements: headerElements.length, 
                 footerElements: footerElements.length 
             });
         } else {
-            console.log('No saved structure found, initializing default structure');
+            console.log('No saved structure found in XML, initializing default structure');
             initializeDefaultStructure();
             // Save the default structure for future use
             await saveStructureConfiguration();
+        }
+        if (xmlConfig && xmlConfig.lineNumbers) {
+            const enableLineNumbers = document.getElementById('enableLineNumbers');
+            const startNumber = document.getElementById('startNumber');
+            const increment = document.getElementById('increment');
+            const formatTemplate = document.getElementById('formatTemplate');
+            
+            if (enableLineNumbers) {
+                enableLineNumbers.checked = xmlConfig.lineNumbers.enabled !== false;
+            }
+            if (startNumber) {
+                startNumber.value = xmlConfig.lineNumbers.startNumber || 1;
+            }
+            if (increment) {
+                increment.value = xmlConfig.lineNumbers.increment || 1;
+            }
+            if (formatTemplate) {
+                formatTemplate.value = xmlConfig.lineNumbers.format || 'N{number}';
+            }
+        }
+        
+        // Update scaling element based on XML configuration
+        if (xmlConfig && xmlConfig.units && xmlConfig.units.scalingHeader) {
+            const scalingElement = headerElements.find(el => el.type === 'scaling');
+            if (scalingElement) {
+                // Enable scaling element if either feedInchMachine is true OR scalingHeader is explicitly enabled
+                scalingElement.enabled = xmlConfig.units.feedInchMachine || xmlConfig.units.scalingHeader.enabled;
+                if (xmlConfig.units.scalingHeader.parameter && xmlConfig.units.scalingHeader.scaleCommand) {
+                    scalingElement.config.commands = `${xmlConfig.units.scalingHeader.parameter}\n${xmlConfig.units.scalingHeader.scaleCommand}`;
+                }
+                // Note: Scaling comments are disabled - no longer loading from old XML structure
+            }
+        }
+        
+        // Update header elements based on XML configuration
+        if (xmlConfig && xmlConfig.header) {
+            const fileInfoElement = headerElements.find(el => el.type === 'file-info');
+            if (fileInfoElement && xmlConfig.header.includeFileInfo !== undefined) {
+                fileInfoElement.enabled = xmlConfig.header.includeFileInfo;
+            }
+            if (fileInfoElement && xmlConfig.header.template) {
+                fileInfoElement.config.template = xmlConfig.header.template;
+            }
+            
+            const boundsElement = headerElements.find(el => el.type === 'bounds');
+            if (boundsElement && xmlConfig.header.includeBounds !== undefined) {
+                boundsElement.enabled = xmlConfig.header.includeBounds;
+            }
+            
+            const operationsElement = headerElements.find(el => el.type === 'operations');
+            if (operationsElement && xmlConfig.header.includeSetCount !== undefined) {
+                operationsElement.enabled = xmlConfig.header.includeSetCount;
+            }
+            
+            const programStartElement = headerElements.find(el => el.type === 'program-start');
+            if (programStartElement && xmlConfig.header.includeProgramStart !== undefined) {
+                programStartElement.enabled = xmlConfig.header.includeProgramStart;
+            }
+            
+            const setupCommandsElement = headerElements.find(el => el.type === 'setup-commands');
+            if (setupCommandsElement && xmlConfig.header.setupCommands) {
+                setupCommandsElement.enabled = true;
+                setupCommandsElement.config.commands = xmlConfig.header.setupCommands.join('\n');
+            }
         }
         
     } catch (error) {
@@ -2428,6 +2612,7 @@ function initializeDefaultStructure() {
         { ...defaultElements['file-info'] },
         { ...defaultElements['bounds'] },
         { ...defaultElements['operations'] },
+        { ...defaultElements['scaling'] },
         { ...defaultElements['setup-commands'] },
         { ...defaultElements['home-command'] }
     ];
@@ -2447,15 +2632,86 @@ async function saveStructureConfiguration() {
         if (!currentProfile) return;
         
         const profileName = currentProfile.filename || currentProfile.id || currentProfile.name;
-        const config = await window.electronAPI.loadPostprocessorConfig(profileName) || {};
         
-        config.structure = {
-            header: headerElements,
-            footer: footerElements
-        };
+        // Load the current XML profile configuration
+        const config = await window.electronAPI.loadXmlProfile(profileName) || {};
         
-        await window.electronAPI.savePostprocessorConfig(profileName, config);
-        console.log('Structure configuration saved');
+        // Save line number settings to XML configuration
+        const enableLineNumbers = document.getElementById('enableLineNumbers')?.checked || false;
+        const startNumber = parseInt(document.getElementById('startNumber')?.value) || 1;
+        const increment = parseInt(document.getElementById('increment')?.value) || 1;
+        const formatTemplate = document.getElementById('formatTemplate')?.value || 'N{number}';
+        
+        // Update XML configuration with line number settings
+        if (!config.lineNumbers) {
+            config.lineNumbers = {};
+        }
+        config.lineNumbers.enabled = enableLineNumbers;
+        config.lineNumbers.startNumber = startNumber;
+        config.lineNumbers.increment = increment;
+        config.lineNumbers.format = formatTemplate;
+        
+        // Save scaling settings if scaling element is enabled
+        const scalingElement = headerElements.find(el => el.type === 'scaling');
+        if (!config.units) {
+            config.units = {};
+        }
+        if (scalingElement && scalingElement.enabled) {
+            config.units.feedInchMachine = true;
+            config.units.scalingHeader = {
+                enabled: true,
+                parameter: scalingElement.config.commands.split('\n')[0] || ':P2027=25.4/P674',
+                scaleCommand: scalingElement.config.commands.split('\n')[1] || 'G75 X=P2027 Y=P2027',
+                comment: scalingElement.config.comment || ''
+            };
+        } else {
+            // If scaling element is disabled, ensure feedInchMachine is false
+            config.units.feedInchMachine = false;
+            if (config.units.scalingHeader) {
+                config.units.scalingHeader.enabled = false;
+            }
+        }
+        
+        // Save DIN file structure elements to XML
+        if (!config.structure) {
+            config.structure = {};
+        }
+        config.structure.header = headerElements;
+        config.structure.footer = footerElements;
+        
+        // Save header settings based on structure elements
+        if (!config.header) {
+            config.header = {};
+        }
+        
+        // Check if file-info element is enabled
+        const fileInfoElement = headerElements.find(el => el.type === 'file-info');
+        config.header.includeFileInfo = fileInfoElement ? fileInfoElement.enabled : true;
+        if (fileInfoElement && fileInfoElement.config.template) {
+            config.header.template = fileInfoElement.config.template;
+        }
+        
+        // Check if bounds element is enabled
+        const boundsElement = headerElements.find(el => el.type === 'bounds');
+        config.header.includeBounds = boundsElement ? boundsElement.enabled : true;
+        
+        // Check if operations element is enabled
+        const operationsElement = headerElements.find(el => el.type === 'operations');
+        config.header.includeSetCount = operationsElement ? operationsElement.enabled : true;
+        
+        // Check if program-start element is enabled
+        const programStartElement = headerElements.find(el => el.type === 'program-start');
+        config.header.includeProgramStart = programStartElement ? programStartElement.enabled : true;
+        
+        // Check if setup-commands element is enabled
+        const setupCommandsElement = headerElements.find(el => el.type === 'setup-commands');
+        if (setupCommandsElement && setupCommandsElement.enabled && setupCommandsElement.config.commands) {
+            config.header.setupCommands = setupCommandsElement.config.commands.split('\n').filter(cmd => cmd.trim());
+        }
+        
+        // Save the updated XML profile
+        await window.electronAPI.saveXmlProfile(profileName, config);
+        console.log('Structure configuration saved to XML profile');
         
     } catch (error) {
         console.error('Error saving structure configuration:', error);
@@ -2604,7 +2860,7 @@ function generateElementConfig(element, container, index) {
                 </div>
                 <div class="element-config">
                     <label>Scaling Comment:</label>
-                    <input type="text" value="${config.comment || 'Imperial scaling applied'}" 
+                    <input type="text" value="${config.comment || ''}" 
                            onchange="updateElementConfig('${container}', ${index}, 'comment', this.value)">
                     <small>Comment to display after scaling commands</small>
                 </div>
@@ -2700,10 +2956,7 @@ function generateElementPreview(element) {
                 const scalingCommands = config.commands.split('\n').filter(cmd => cmd.trim());
                 scalingPreview += scalingCommands.map(cmd => `<span class="command">${cmd.trim()}</span>`).join('<br>');
             }
-            if (config.comment) {
-                if (config.commands) scalingPreview += '<br>';
-                scalingPreview += `<span class="comment">{ ${config.comment} }</span>`;
-            }
+            // Note: Scaling comments are disabled - no longer showing in preview
             return scalingPreview;
             
         case 'setup-commands':
@@ -3264,4 +3517,54 @@ function copyPlaceholder(placeholder) {
         console.error('Failed to copy placeholder:', err);
         showError('Failed to copy placeholder');
     });
+}
+
+// Initialize DIN file structure configuration
+function initializeDinFileStructure() {
+    console.log('Initializing DIN file structure configuration...');
+    
+    // Load structure configuration
+    loadStructureConfiguration();
+    
+    // Add event listeners for line number settings
+    const enableLineNumbers = document.getElementById('enableLineNumbers');
+    const startNumber = document.getElementById('startNumber');
+    const increment = document.getElementById('increment');
+    const formatTemplate = document.getElementById('formatTemplate');
+    
+    if (enableLineNumbers) {
+        enableLineNumbers.addEventListener('change', () => {
+            updateDinFileStructurePreview();
+            saveStructureConfiguration();
+        });
+    }
+    
+    if (startNumber) {
+        startNumber.addEventListener('change', () => {
+            updateDinFileStructurePreview();
+            saveStructureConfiguration();
+        });
+    }
+    
+    if (increment) {
+        increment.addEventListener('change', () => {
+            updateDinFileStructurePreview();
+            saveStructureConfiguration();
+        });
+    }
+    
+    if (formatTemplate) {
+        formatTemplate.addEventListener('input', () => {
+            updateDinFileStructurePreview();
+            saveStructureConfiguration();
+        });
+    }
+    
+    // Populate elements containers
+    populateElementsContainers();
+    
+    // Update preview
+    updateDinFileStructurePreview();
+    
+    console.log('DIN file structure configuration initialized');
 }
