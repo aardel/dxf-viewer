@@ -4409,47 +4409,46 @@ ipcMain.handle('scan-folder', async (event, folderPath) => {
     }
 });
 
-// Handle DXF file processing
-ipcMain.handle('process-dxf-file', async (event, { inputPath, outputFolder }) => {
+// Handle unified file processing (DXF, DDS, CF2)
+ipcMain.handle('process-unified-file', async (event, { inputPath, outputFolder }) => {
     try {
-        // Dynamically import parser and generator (for main process, ES module compatible)
-        const pathToDxfParser = path.join(process.cwd(), 'src', 'parser', 'DxfParser.js');
+        // Dynamically import unified importer and generator
+        const pathToUnifiedImporter = path.join(process.cwd(), 'src', 'parsers', 'UnifiedImporter.js');
         const pathToDinGenerator = path.join(process.cwd(), 'src', 'DinGenerator.js');
-        console.log('DEBUG: Resolved pathToDxfParser:', pathToDxfParser);
+        console.log('DEBUG: Resolved pathToUnifiedImporter:', pathToUnifiedImporter);
         console.log('DEBUG: Resolved pathToDinGenerator:', pathToDinGenerator);
-        const fsExists = fs.existsSync(pathToDxfParser);
+        const fsExists = fs.existsSync(pathToUnifiedImporter);
         const fsExists2 = fs.existsSync(pathToDinGenerator);
-        console.log('DEBUG: DxfParser.js exists:', fsExists);
+        console.log('DEBUG: UnifiedImporter.js exists:', fsExists);
         console.log('DEBUG: DinGenerator.js exists:', fsExists2);
-        if (!fsExists) throw new Error('DxfParser.js not found at ' + pathToDxfParser);
+        if (!fsExists) throw new Error('UnifiedImporter.js not found at ' + pathToUnifiedImporter);
         if (!fsExists2) throw new Error('DinGenerator.js not found at ' + pathToDinGenerator);
 
-    // Clear require cache to ensure fresh modules
-    delete require.cache[pathToDxfParser];
-    delete require.cache[pathToDinGenerator];
+        // Clear require cache to ensure fresh modules
+        delete require.cache[pathToUnifiedImporter];
+        delete require.cache[pathToDinGenerator];
 
-    // Use require for CommonJS modules
-    const DxfParser = require(pathToDxfParser);
-    const DinGenerator = require(pathToDinGenerator);
-    
-    console.log('DEBUG: DxfParser type:', typeof DxfParser);
-    console.log('DEBUG: DinGenerator type:', typeof DinGenerator);
-    console.log('DEBUG: DinGenerator value:', DinGenerator);
+        // Use require for CommonJS modules
+        const UnifiedImporter = require(pathToUnifiedImporter);
+        const DinGenerator = require(pathToDinGenerator);
+        
+        console.log('DEBUG: UnifiedImporter type:', typeof UnifiedImporter);
+        console.log('DEBUG: DinGenerator type:', typeof DinGenerator);
 
-        const fileName = path.basename(inputPath, '.dxf');
+        const fileName = path.basename(inputPath, path.extname(inputPath));
         const outputPath = path.join(outputFolder, `${fileName}.din`);
 
-        // Read the DXF file
-        const dxfContent = fs.readFileSync(inputPath, 'utf8');
+        // Read the file content
+        const fileContent = fs.readFileSync(inputPath, 'utf8');
+        const filename = path.basename(inputPath);
 
-        // Parse DXF
-        const parser = new DxfParser();
-        const dxf = parser.parseSync(dxfContent);
-        if (!dxf || !dxf.entities) throw new Error('Failed to parse DXF entities');
+        // Parse using unified importer (supports DXF, DDS, CF2)
+        const entities = await UnifiedImporter.import(fileContent, filename);
+        if (!entities || entities.length === 0) throw new Error('Failed to parse file entities');
 
-        console.log(`DEBUG: Parsed ${dxf.entities.length} entities from DXF file`);
-        console.log('DEBUG: Entity types:', dxf.entities.map(e => e.type).join(', '));
-        console.log('DEBUG: First entity sample:', JSON.stringify(dxf.entities[0], null, 2));
+        console.log(`DEBUG: Parsed ${entities.length} entities from ${filename}`);
+        console.log('DEBUG: Entity types:', entities.map(e => e.type).join(', '));
+        console.log('DEBUG: First entity sample:', JSON.stringify(entities[0], null, 2));
 
         // Load current active profile configuration
         let config = {};
@@ -4549,17 +4548,17 @@ ipcMain.handle('process-dxf-file', async (event, { inputPath, outputFolder }) =>
 
         // Generate DIN
         const generator = new DinGenerator();
-        const dinContent = generator.generateDin(dxf.entities, config, metadata);
+        const dinContent = generator.generateDin(entities, config, metadata);
 
         // Write the DIN file
         fs.writeFileSync(outputPath, dinContent);
 
-        console.log(`Processed DXF file: ${inputPath} -> ${outputPath}`);
+        console.log(`Processed ${path.extname(inputPath).toUpperCase()} file: ${inputPath} -> ${outputPath}`);
 
         return {
             success: true,
             outputPath: outputPath,
-            message: 'DXF file processed successfully'
+            message: `${path.extname(inputPath).toUpperCase()} file processed successfully`
         };
     } catch (error) {
         // Check if it's a mapping validation error
@@ -4573,12 +4572,19 @@ ipcMain.handle('process-dxf-file', async (event, { inputPath, outputFolder }) =>
             };
         }
         
-        console.error('Error processing DXF file:', error);
+        console.error('Error processing file:', error);
         return {
             success: false,
             error: error.message
         };
     }
+});
+
+// Handle DXF file processing (legacy - now redirects to unified processing)
+ipcMain.handle('process-dxf-file', async (event, { inputPath, outputFolder }) => {
+    // Redirect to unified processing for backward compatibility
+    console.log('DEBUG: Legacy DXF processing redirected to unified processing');
+    return await ipcMain.handlers['process-unified-file'](event, { inputPath, outputFolder });
 });
 
 // Handle settings save/load for batch monitor

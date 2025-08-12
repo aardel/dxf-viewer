@@ -53,6 +53,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
     // DXF Viewer API
     parseUnified: (content, filename) => ipcRenderer.invoke('parse-unified', content, filename),
     clearCache: () => ipcRenderer.invoke('clear-cache'),
+    
+    // Unified File Processing API
+    processUnifiedFile: (inputPath, outputFolder) => ipcRenderer.invoke('process-unified-file', { inputPath, outputFolder }),
+    processDxfFile: (inputPath, outputFolder) => ipcRenderer.invoke('process-dxf-file', { inputPath, outputFolder }),
 
     // Unified Mapping Window API
     openUnifiedMappingWindow: () => ipcRenderer.invoke('open-unified-mapping-window'),

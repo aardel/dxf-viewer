@@ -267,25 +267,26 @@ class DXFBatchMonitor {
             this.addLogEntry('Performing manual scan...', 'info');
             const files = await ipcRenderer.invoke('scan-folder', this.inputFolder);
             
-            // Filter for DXF files
-            const dxfFiles = files.filter(file => 
-                file.toLowerCase().endsWith('.dxf')
-            );
+            // Filter for supported files (DXF, DDS, CF2)
+            const supportedFiles = files.filter(file => {
+                const ext = file.toLowerCase();
+                return ext.endsWith('.dxf') || ext.endsWith('.dds') || ext.endsWith('.cf2');
+            });
             
-            if (dxfFiles.length === 0) {
-                this.addLogEntry('No DXF files found in input folder', 'info');
+            if (supportedFiles.length === 0) {
+                this.addLogEntry('No supported files (DXF, DDS, CF2) found in input folder', 'info');
                 return;
             }
             
             // Add files to queue
-            for (const file of dxfFiles) {
+            for (const file of supportedFiles) {
                 const fullPath = path.join(this.inputFolder, file);
                 if (!this.isFileInQueue(fullPath)) {
                     this.addFileToQueue(fullPath);
                 }
             }
             
-            this.addLogEntry(`Manual scan complete: ${dxfFiles.length} DXF files found`, 'success');
+            this.addLogEntry(`Manual scan complete: ${supportedFiles.length} supported files found`, 'success');
             
         } catch (error) {
             this.addLogEntry(`Manual scan failed: ${error.message}`, 'error');
@@ -296,8 +297,9 @@ class DXFBatchMonitor {
      * Handle file detected by watcher
      */
     handleFileDetected(filePath) {
-        // Check if it's a DXF file
-        if (!filePath.toLowerCase().endsWith('.dxf')) {
+        // Check if it's a supported file (DXF, DDS, CF2)
+        const ext = filePath.toLowerCase();
+        if (!ext.endsWith('.dxf') && !ext.endsWith('.dds') && !ext.endsWith('.cf2')) {
             return;
         }
         
@@ -430,8 +432,8 @@ class DXFBatchMonitor {
             const fileName = fileItem.name.replace(/\.[^/.]+$/, ''); // Remove extension
             const outputPath = path.join(this.outputFolder, `${fileName}.din`);
             
-            // Use IPC to call the silent processing function in the main app
-            const result = await ipcRenderer.invoke('process-dxf-file-silently', fileItem.path, outputPath);
+            // Use IPC to call the unified processing function in the main app
+            const result = await ipcRenderer.invoke('process-unified-file', { inputPath: fileItem.path, outputFolder: this.outputFolder });
 
             if (result.success) {
                 fileItem.status = 'completed';
