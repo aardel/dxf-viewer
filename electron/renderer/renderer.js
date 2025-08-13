@@ -5552,8 +5552,8 @@ async function generateDinCore(options = {}) {
             metadata: metadata
         });
 
-        // For unified formats, use the renderer-based approach
-        if (hasUnifiedViewer && window.unifiedGeometries) {
+        // For unified formats, temporarily disable renderer-based DIN generation and always use original path
+        if (false && hasUnifiedViewer && window.unifiedGeometries) {
             console.log('🔥 Using renderer-based DIN generation for unified formats');
             
             // Use the unified geometries directly (these are the same ones the renderer successfully draws)

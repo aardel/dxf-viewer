@@ -278,15 +278,27 @@ export class DinGenerator {
         const lines = [];
         const config = this.config;
 
-        // Find tool mapping for this line type
+        // Resolve tool for line type
+        let toolId = null;
         if (config.mappingWorkflow?.lineTypeToTool) {
             const mapping = config.mappingWorkflow.lineTypeToTool.find(m => m.lineType === lineType);
-            if (mapping && mapping.tool) {
-                const toolId = mapping.tool;
-                lines.push(this.formatLine(`T${toolId}`));
-            }
+            if (mapping && mapping.tool) toolId = mapping.tool;
         }
+        if (!toolId) return lines;
 
+        // Read H-code and name from configured tools
+        const tool = config.tools?.[toolId] || null;
+        const rawH = tool?.hCode;
+        const cleanH = rawH ? String(rawH).trim().replace(/\s+/g, ' ') : null;
+        const cleanName = tool?.name ? String(tool.name).trim().replace(/\s+/g, ' ') : null;
+
+        if (cleanH) {
+            const comment = cleanName ? `{${cleanName}}` : '';
+            lines.push(this.formatLine(`${cleanH} M6 ${comment}`));
+        } else {
+            // Fallback to just M6 with optional comment
+            lines.push(this.formatLine(`M6${cleanName ? ` {${cleanName}}` : ''}`));
+        }
         return lines;
     }
 
