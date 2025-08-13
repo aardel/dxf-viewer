@@ -17,13 +17,14 @@ class UnifiedImporter {
             const parser = new DdsParser();
             return parser.parse(content);
         } else if (ext === 'cf2') {
-            const parser = new Cf2Parser();
+            // CF2 files: Disable Y-axis inversion since the rendering system 
+            // already handles coordinate transformation with proper Y-axis flipping
+            const parser = new Cf2Parser({ invertY: false });
             return parser.parse(content);
         } else if (ext === 'dxf') {
-            const parser = new DxfUnifiedParser();
-            return await parser.parse(content);
+            throw new Error('DXF support is temporarily disabled. Please use DDS or CF2 files.');
         } else {
-            throw new Error('Unsupported file type: ' + ext);
+            throw new Error('Unsupported file type: ' + ext + '. Only DDS and CF2 files are supported.');
         }
     }
 }

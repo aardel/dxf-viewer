@@ -465,7 +465,7 @@ ipcMain.handle('show-open-dialog', async () => {
     const result = await dialog.showOpenDialog(mainWindow, {
         properties: ['openFile'],
         filters: [
-            { name: 'Supported CAD Files', extensions: ['dxf', 'dds', 'cf2', 'cff2'] },
+            { name: 'Supported CAD Files', extensions: ['dds', 'cf2', 'cff2'] },
             { name: 'All Files', extensions: ['*'] }
         ]
     });
@@ -660,77 +660,118 @@ ipcMain.handle('save-din-file', async (event, content, filename, savePath) => {
 ipcMain.handle('load-line-types', async () => {
     try {
         // Use getConfigPath for proper dev/production path resolution
-        const configPath = getConfigPath('LineTypes/line-types.csv');
+        const configPath = getConfigPath('LineTypes/line-types.xml');
         
         if (!fs.existsSync(configPath)) {
-            return { success: false, error: `Line types file not found at: ${configPath}` };
+            return { 
+                success: false, 
+                error: `CRITICAL: Line types configuration file not found at: ${configPath}`,
+                requiresDialog: true
+            };
         }
         
-        const csvContent = fs.readFileSync(configPath, 'utf8');
-        const lines = csvContent.trim().split('\n');
-        const headers = lines[0].split(',');
+        const xmlContent = fs.readFileSync(configPath, 'utf8');
+        const parser = new DOMParser();
+        const xmlDoc = parser.parseFromString(xmlContent, 'text/xml');
+        
+        // Check for XML parsing errors
+        const parserError = xmlDoc.getElementsByTagName('parsererror')[0];
+        if (parserError) {
+            return { 
+                success: false, 
+                error: `CRITICAL: Line types XML file is corrupted or invalid: ${parserError.textContent}`,
+                requiresDialog: true
+            };
+        }
+        
+        const lineTypesElement = xmlDoc.getElementsByTagName('LineTypes')[0];
+        if (!lineTypesElement) {
+            return { 
+                success: false, 
+                error: `CRITICAL: Invalid line types XML structure - missing <LineTypes> element`,
+                requiresDialog: true
+            };
+        }
+        
+        const lineTypeElements = lineTypesElement.getElementsByTagName('LineType');
+        if (lineTypeElements.length === 0) {
+            return { 
+                success: false, 
+                error: `CRITICAL: No line types found in XML configuration`,
+                requiresDialog: true
+            };
+        }
         
         const lineTypes = [];
-        for (let i = 1; i < lines.length; i++) {
-            const values = lines[i].split(',');
-            const lineType = {};
+        for (let i = 0; i < lineTypeElements.length; i++) {
+            const lineTypeElement = lineTypeElements[i];
+            const id = lineTypeElement.getAttribute('id');
             
-            headers.forEach((header, index) => {
-                const value = values[index]?.trim();
-                if (header === 'id') {
-                    lineType[header] = parseInt(value);
-                } else if (header === 'width') {
-                    lineType[header] = parseFloat(value);
-                } else {
-                    lineType[header] = value;
-                }
-            });
+            if (!id) {
+                console.warn(`Skipping line type without ID at index ${i}`);
+                continue;
+            }
+            
+            const lineType = {
+                id: parseInt(id),
+                name: getTextContent(lineTypeElement, 'Name'),
+                description: getTextContent(lineTypeElement, 'Description'),
+                type: getTextContent(lineTypeElement, 'Type'),
+                width: parseFloat(getTextContent(lineTypeElement, 'Width')) || 1,
+                color: getTextContent(lineTypeElement, 'Color') || '#FF0000'
+            };
+            
+            // Validate required fields
+            if (!lineType.name) {
+                console.warn(`Skipping line type with ID ${id} - missing name`);
+                continue;
+            }
             
             lineTypes.push(lineType);
         }
         
+        if (lineTypes.length === 0) {
+            return { 
+                success: false, 
+                error: `CRITICAL: No valid line types found in XML configuration`,
+                requiresDialog: true
+            };
+        }
+        
+        console.log(`✅ Loaded ${lineTypes.length} line types from XML configuration`);
         return { success: true, data: lineTypes };
+        
     } catch (error) {
-        return { success: false, error: error.message };
+        return { 
+            success: false, 
+            error: `CRITICAL: Failed to load line types configuration: ${error.message}`,
+            requiresDialog: true
+        };
     }
 });
 
 ipcMain.handle('save-line-types', async (event, lineTypes) => {
     try {
-        const userDataPath = app.getPath('userData');
-        const configDir = path.join(userDataPath, 'CONFIG', 'LineTypes');
-        const configPath = path.join(configDir, 'line-types.csv');
+        // Use getConfigPath for proper dev/production path resolution (same as load-line-types)
+        const configPath = getConfigPath('LineTypes/line-types.xml');
+        const configDir = path.dirname(configPath);
+        
+        console.log(`Saving ${lineTypes.length} line types to: ${configPath}`);
+        console.log('Line types to save:', lineTypes.map(lt => ({ id: lt.id, name: lt.name })));
         
         // Create directory if it doesn't exist
         if (!fs.existsSync(configDir)) {
             fs.mkdirSync(configDir, { recursive: true });
         }
         
-        // Generate CSV content
-        const headers = ['id', 'name', 'description', 'lineType', 'processMethod', 'width', 'color'];
-        let csvContent = headers.join(',') + '\n';
-        
-        lineTypes.forEach(lineType => {
-            const row = headers.map(header => {
-                const value = lineType[header];
-                // Escape commas in values if needed
-                if (typeof value === 'string' && value.includes(',')) {
-                    return `"${value}"`;
-                }
-                return value;
-            });
-            csvContent += row.join(',') + '\n';
-        });
-        
-        fs.writeFileSync(configPath, csvContent, 'utf8');
-        
-        // Also save as XML for better structure and backup
-        const xmlPath = path.join(configDir, 'line-types.xml');
+        // Generate XML content
         const xmlContent = generateLineTypesXML(lineTypes);
-        fs.writeFileSync(xmlPath, xmlContent, 'utf8');
+        fs.writeFileSync(configPath, xmlContent, 'utf8');
         
-        return { success: true, message: `Saved ${lineTypes.length} line types to CSV and XML` };
+        console.log(`✅ Saved ${lineTypes.length} line types to: ${configPath}`);
+        return { success: true, message: `Saved ${lineTypes.length} line types to XML` };
     } catch (error) {
+        console.error('Error saving line types:', error);
         return { success: false, error: error.message };
     }
 });
@@ -756,7 +797,7 @@ function generateLineTypesXML(lineTypes) {
         xml += `    <LineType id="${escapeXml(lineType.id || '')}">\n`;
         xml += `      <Name>${escapeXml(lineType.name || '')}</Name>\n`;
         xml += `      <Description>${escapeXml(lineType.description || '')}</Description>\n`;
-        xml += `      <Type>${escapeXml(lineType.lineType || 'laser')}</Type>\n`;
+        xml += `      <Type>${escapeXml(lineType.type || 'laser')}</Type>\n`;
         xml += `      <Width>${escapeXml((lineType.width || '1.0').toString())}</Width>\n`;
         xml += `      <Color>${escapeXml(lineType.color || '#FF0000')}</Color>\n`;
         xml += '    </LineType>\n';
@@ -1189,25 +1230,31 @@ ipcMain.handle('get-current-profile', async () => {
                 const description = profileInfo.getElementsByTagName('Description')[0]?.textContent || '';
                 
                 return {
-                    id: currentProfileName,
-                    name: name,
-                    description: description,
-                    filename: currentProfileName
+                    success: true,
+                    data: {
+                        id: currentProfileName,
+                        name: name,
+                        description: description,
+                        filename: currentProfileName
+                    }
                 };
             }
         }
         
         // Return default profile info if file doesn't exist or can't be parsed
         return {
-            id: currentProfileName,
-            name: 'MTL Profile',
-            description: 'Default MTL profile',
-            filename: currentProfileName
+            success: true,
+            data: {
+                id: currentProfileName,
+                name: 'MTL Profile',
+                description: 'Default MTL profile',
+                filename: currentProfileName
+            }
         };
         
     } catch (error) {
         console.error('Error getting current profile:', error);
-        throw new Error(`Failed to get current profile: ${error.message}`);
+        return { success: false, error: `Failed to get current profile: ${error.message}` };
     }
 });
 
@@ -4234,7 +4281,7 @@ function validateConfigurationConsistency() {
         // Get current configuration
         const profilesDir = getProfilesDirectory();
         const xmlPath = path.join(profilesDir, 'mtl.xml');
-        const csvPath = path.join(profilesDir, 'line-types.csv');
+        const lineTypesPath = getConfigPath('LineTypes/line-types.xml');
         const globalFilterPath = path.join(profilesDir, 'global-import-filter.json');
         
         if (!fs.existsSync(xmlPath)) {
@@ -4246,11 +4293,38 @@ function validateConfigurationConsistency() {
         const profileContent = fs.readFileSync(xmlPath, 'utf8');
         const config = parseXMLProfile(profileContent);
         
-        // Parse CSV line types
-        let csvLineTypes = [];
-        if (fs.existsSync(csvPath)) {
-            const csvContent = fs.readFileSync(csvPath, 'utf8');
-            csvLineTypes = parseCSV(csvContent);
+        // Parse XML line types
+        let xmlLineTypes = [];
+        if (fs.existsSync(lineTypesPath)) {
+            try {
+                const xmlContent = fs.readFileSync(lineTypesPath, 'utf8');
+                const parser = new DOMParser();
+                const xmlDoc = parser.parseFromString(xmlContent, 'text/xml');
+                
+                const lineTypesElement = xmlDoc.getElementsByTagName('LineTypes')[0];
+                if (lineTypesElement) {
+                    const lineTypeElements = lineTypesElement.getElementsByTagName('LineType');
+                    
+                    for (let i = 0; i < lineTypeElements.length; i++) {
+                        const lineTypeElement = lineTypeElements[i];
+                        const id = lineTypeElement.getAttribute('id');
+                        
+                        if (id) {
+                            const lineType = {
+                                id: id,
+                                name: getTextContent(lineTypeElement, 'Name'),
+                                description: getTextContent(lineTypeElement, 'Description'),
+                                type: getTextContent(lineTypeElement, 'Type'),
+                                width: parseFloat(getTextContent(lineTypeElement, 'Width')) || 1,
+                                color: getTextContent(lineTypeElement, 'Color') || '#FF0000'
+                            };
+                            xmlLineTypes.push(lineType);
+                        }
+                    }
+                }
+            } catch (error) {
+                console.warn('Error parsing line types XML file:', error.message);
+            }
         }
         
         // Parse Global Import Filter
@@ -4291,7 +4365,7 @@ function validateConfigurationConsistency() {
         // 3. CRITICAL: Check for orphaned global filter rules (rules referencing non-existent line types)
         if (globalFilter.rules) {
             globalFilter.rules.forEach(rule => {
-                const lineTypeExists = csvLineTypes.some(lt => lt.id === rule.lineTypeId);
+                const lineTypeExists = xmlLineTypes.some(lt => lt.id === rule.lineTypeId);
                 if (!lineTypeExists) {
                     issues.push({
                         type: 'error',
@@ -4375,7 +4449,7 @@ ipcMain.handle('fix-configuration-issue', async (event, issue) => {
     try {
         const profilesDir = getProfilesDirectory();
         const xmlPath = path.join(profilesDir, 'mtl.xml');
-        const csvPath = path.join(profilesDir, 'line-types.csv');
+        const lineTypesPath = getConfigPath('LineTypes/line-types.xml');
         const globalFilterPath = path.join(profilesDir, 'global-import-filter.json');
         
         switch (issue.action) {
@@ -4561,7 +4635,7 @@ ipcMain.handle('scan-folder', async (event, folderPath) => {
     }
 });
 
-// Handle unified file processing (DXF, DDS, CF2)
+// Handle unified file processing (DDS, CF2 only - DXF disabled)
 ipcMain.handle('process-unified-file', async (event, { inputPath, outputFolder }) => {
     try {
         // Dynamically import unified importer and generator
@@ -4646,32 +4720,55 @@ ipcMain.handle('process-unified-file', async (event, { inputPath, outputFolder }
         }
 
         // Load line types library
-        const lineTypesPath = path.join(process.cwd(), 'CONFIG', 'LineTypes', 'line-types.csv');
+        const lineTypesPath = path.join(process.cwd(), 'CONFIG', 'LineTypes', 'line-types.xml');
         if (fs.existsSync(lineTypesPath)) {
-            const lineTypesContent = fs.readFileSync(lineTypesPath, 'utf8');
-            const lineTypes = [];
-            const lines = lineTypesContent.split('\n');
-            
-            // Parse CSV header
-            const headers = lines[0].split(',');
-            
-            // Parse data rows
-            for (let i = 1; i < lines.length; i++) {
-                const line = lines[i].trim();
-                if (line) {
-                    const values = line.split(',');
-                    const lineType = {};
-                    headers.forEach((header, index) => {
-                        lineType[header.trim()] = values[index]?.trim() || '';
-                    });
-                    lineTypes.push(lineType);
+            try {
+                const xmlContent = fs.readFileSync(lineTypesPath, 'utf8');
+                const parser = new DOMParser();
+                const xmlDoc = parser.parseFromString(xmlContent, 'text/xml');
+                
+                // Check for XML parsing errors
+                const parserError = xmlDoc.getElementsByTagName('parsererror')[0];
+                if (parserError) {
+                    console.warn('XML parsing error in line types file:', parserError.textContent);
+                    config.lineTypesLibrary = [];
+                } else {
+                    const lineTypesElement = xmlDoc.getElementsByTagName('LineTypes')[0];
+                    if (lineTypesElement) {
+                        const lineTypeElements = lineTypesElement.getElementsByTagName('LineType');
+                        const lineTypes = [];
+                        
+                        for (let i = 0; i < lineTypeElements.length; i++) {
+                            const lineTypeElement = lineTypeElements[i];
+                            const id = lineTypeElement.getAttribute('id');
+                            
+                            if (id) {
+                                const lineType = {
+                                    id: id,
+                                    name: getTextContent(lineTypeElement, 'Name'),
+                                    description: getTextContent(lineTypeElement, 'Description'),
+                                    type: getTextContent(lineTypeElement, 'Type'),
+                                    width: parseFloat(getTextContent(lineTypeElement, 'Width')) || 1,
+                                    color: getTextContent(lineTypeElement, 'Color') || '#FF0000'
+                                };
+                                lineTypes.push(lineType);
+                            }
+                        }
+                        
+                        config.lineTypesLibrary = lineTypes;
+                        console.log('DEBUG: Loaded', lineTypes.length, 'line types from XML library');
+                    } else {
+                        console.warn('No LineTypes element found in XML file');
+                        config.lineTypesLibrary = [];
+                    }
                 }
+            } catch (error) {
+                console.warn('Error parsing line types XML file:', error.message);
+                config.lineTypesLibrary = [];
             }
-            
-            config.lineTypesLibrary = lineTypes;
-            console.log('DEBUG: Loaded', lineTypes.length, 'line types from library');
         } else {
             console.warn('Line types library not found at:', lineTypesPath);
+            config.lineTypesLibrary = [];
         }
 
         // Load and merge legacy mapping configuration (FALLBACK)

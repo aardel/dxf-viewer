@@ -64,6 +64,25 @@ body {
     min-width: 260px;
 }
 
+/* Primary actions styling (most used buttons) */
+.primary-actions {
+    display: grid;
+    grid-auto-flow: column;
+    grid-auto-columns: max-content;
+    align-items: center;
+    gap: 0.75rem;
+    min-width: 400px;
+}
+
+/* Secondary controls styling */
+.secondary-controls {
+    display: grid;
+    grid-auto-flow: column;
+    grid-auto-columns: max-content;
+    align-items: center;
+    gap: 0.75rem;
+}
+
 .status-section {
     display: grid;
     grid-auto-flow: column;
@@ -227,6 +246,133 @@ body {
     letter-spacing: 0.5px;
 }
 
+/* Dropdown styles for file history */
+.dropdown-container {
+    position: relative;
+    display: inline-block;
+}
+
+.dropdown-btn {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    width: 100%;
+    min-width: 120px;
+}
+
+.dropdown-arrow {
+    font-size: 0.7rem;
+    transition: transform 0.2s ease;
+}
+
+.dropdown-container:hover .dropdown-arrow {
+    transform: rotate(180deg);
+}
+
+.dropdown-menu {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background: #2a2a2a;
+    border: 1px solid #404040;
+    border-radius: 6px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    z-index: 1000;
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(-10px);
+    transition: all 0.2s ease;
+    margin-top: 4px;
+    min-width: 250px;
+}
+
+.dropdown-container:hover .dropdown-menu {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0);
+}
+
+.dropdown-header {
+    padding: 8px 12px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: #888;
+    border-bottom: 1px solid #404040;
+    background: #222;
+}
+
+.dropdown-items {
+    max-height: 200px;
+    overflow-y: auto;
+}
+
+.dropdown-item {
+    padding: 8px 12px;
+    cursor: pointer;
+    font-size: 0.8rem;
+    border-bottom: 1px solid #333;
+    transition: background-color 0.2s ease;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.dropdown-item:hover {
+    background: #3a3a3a;
+}
+
+.dropdown-item:last-child {
+    border-bottom: none;
+}
+
+.dropdown-item .file-name {
+    font-weight: 500;
+    color: #fff;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.dropdown-item .file-path {
+    font-size: 0.7rem;
+    color: #888;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.dropdown-item .file-info {
+    font-size: 0.7rem;
+    color: #666;
+}
+
+.dropdown-item.empty-history {
+    color: #666;
+    font-style: italic;
+    cursor: default;
+}
+
+.dropdown-item.empty-history:hover {
+    background: transparent;
+}
+
+.dropdown-footer {
+    padding: 8px 12px;
+    border-top: 1px solid #404040;
+    background: #222;
+    display: flex;
+    justify-content: center;
+}
+
+.dropdown-footer .btn {
+    width: auto;
+    padding: 4px 8px;
+    font-size: 0.7rem;
+    min-height: auto;
+}
+
 .main-content {
     display: flex;
     flex: 1;
@@ -297,6 +443,13 @@ body {
 
 /* Import controls styling */
 .import-controls {
+    background: linear-gradient(135deg, #3a3a3a 0%, #333 100%);
+    border-bottom: 1px solid #444;
+    box-shadow: inset 0 1px 3px rgba(0,0,0,0.2);
+}
+
+/* Primary actions section styling */
+.primary-actions-section {
     background: linear-gradient(135deg, #3a3a3a 0%, #333 100%);
     border-bottom: 1px solid #444;
     box-shadow: inset 0 1px 3px rgba(0,0,0,0.2);
@@ -559,6 +712,8 @@ label.group-by-pt input[type="checkbox"] {
     overflow: hidden;
     border: 1px solid #404040;
     box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+    width: 100%;
+    box-sizing: border-box;
 }
 
 .settings-section h5 {
@@ -587,6 +742,20 @@ label.group-by-pt input[type="checkbox"] {
     font-weight: 500;
 }
 
+/* Import unit selector */
+.import-unit-selector {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+}
+
+.import-unit-selector label {
+    color: #ffffff;
+    font-size: 13px;
+    font-weight: 500;
+}
+
 .form-select {
     padding: 8px 12px;
     border: 1px solid #555;
@@ -596,7 +765,6 @@ label.group-by-pt input[type="checkbox"] {
     font-size: 13px;
     cursor: pointer;
     width: 100%;
-    max-width: 300px;
     box-sizing: border-box;
 }
 
@@ -613,7 +781,7 @@ label.group-by-pt input[type="checkbox"] {
 
 /* Scaling selector */
 .scaling-selector {
-    margin-top: 20px;
+    margin-top: 0;
 }
 
 .scaling-label {

@@ -297,9 +297,9 @@ class DXFBatchMonitor {
      * Handle file detected by watcher
      */
     handleFileDetected(filePath) {
-        // Check if it's a supported file (DXF, DDS, CF2)
+        // Check if it's a supported file (DDS, CF2 only - DXF disabled for now)
         const ext = filePath.toLowerCase();
-        if (!ext.endsWith('.dxf') && !ext.endsWith('.dds') && !ext.endsWith('.cf2')) {
+        if (!ext.endsWith('.dds') && !ext.endsWith('.cf2') && !ext.endsWith('.cff2')) {
             return;
         }
         

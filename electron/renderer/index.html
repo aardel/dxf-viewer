@@ -24,8 +24,23 @@
         <!-- Row 2: Controls and Status -->
         <div class="header-row header-row-2">
             <div class="controls-section">
-                <button class="btn btn-primary" id="openBtn">Open File</button>
+                <div class="dropdown-container">
+                    <button class="btn btn-primary dropdown-btn" id="openBtn">
+                        <span>Open File</span>
+                        <span class="dropdown-arrow">▼</span>
+                    </button>
+                    <div class="dropdown-menu" id="fileHistoryDropdown">
+                        <div class="dropdown-header">Recent Files</div>
+                        <div class="dropdown-items" id="fileHistoryItems">
+                            <div class="dropdown-item empty-history">No recent files</div>
+                        </div>
+                        <div class="dropdown-footer">
+                            <button class="btn btn-secondary btn-small" id="clearHistoryBtn">Clear History</button>
+                        </div>
+                    </div>
+                </div>
                 <button class="btn btn-secondary" id="clearBtn">Clear</button>
+                <button class="btn btn-secondary" id="clearCacheBtn" title="Clear cache without closing file (Ctrl+Shift+C)">Clear Cache</button>
                 <button class="btn btn-secondary" id="fitBtn">Fit View</button>
             </div>
             <div class="status-section">
@@ -133,6 +148,12 @@
 
                 </div>
                 <div id="outputTab" class="tab-content" style="flex:1 1 auto;">
+                    <!-- Primary Actions Section -->
+                    <div class="primary-actions-section" style="display:flex; align-items:center; gap:10px; padding:12px; border-bottom:1px solid #444; background:rgba(255,255,255,0.02);">
+                        <button class="btn btn-success" id="generateDinBtn">💾 Generate DIN</button>
+                        <button class="btn btn-secondary" id="previewDinBtn">👁️ Preview DIN</button>
+                        <button class="btn btn-primary" id="openOutputManagerBtn">⚙️ Output Manager</button>
+                    </div>
                     <div class="output-content">
                         <h4>DIN Postprocessor</h4>
                         
@@ -145,9 +166,6 @@
                                     <option value="default_inch">Default Inch (with scaling)</option>
                                     <option value="custom">Custom Profile...</option>
                                 </select>
-                                <div class="profile-actions">
-                                    <button class="btn btn-primary btn-small" id="openOutputManagerBtn" title="Open Output Manager (Ctrl+Shift+O)">⚙️ Output Manager</button>
-                                </div>
                             </div>
                         </div>
 
@@ -171,19 +189,11 @@
                             </div>
                         </div>
                         
-                        <!-- Generation Actions -->
+                        <!-- Generation Status -->
                         <div class="generation-section">
                             <div class="generation-status" id="generationStatus">
                                 <div class="status-text">Ready to generate DIN file</div>
                                 <div class="status-details" id="statusDetails">Load a supported file and configure settings above</div>
-                            </div>
-                            <div class="generation-actions">
-                                <button id="previewDinBtn" class="btn btn-secondary btn-large">
-                                    <span>👁️</span> Preview DIN
-                                </button>
-                                <button id="generateDinBtn" class="btn btn-primary btn-large">
-                                    <span>💾</span> Generate DIN File
-                                </button>
                             </div>
                         </div>
                     </div>
@@ -208,51 +218,87 @@
                                 </div>
                             </div>
                             
-                            <div class="scaling-selector">
-                                <label class="scaling-label">Scaling factor (DXF only):</label>
-                                <p class="scaling-description">Apply scaling when DXF was exported with incorrect scale. CFF2 uses its internal SCALE value automatically.</p>
-                                <select id="scalingDropdown" class="form-select">
-                                    <option value="1">1:1 (No scaling)</option>
-                                    <option value="2">2:1 (×2)</option>
-                                    <option value="5">5:1 (×5)</option>
-                                    <option value="10">10:1 (×10)</option>
-                                    <option value="20">20:1 (×20)</option>
-                                    <option value="50">50:1 (×50)</option>
-                                    <option value="100">100:1 (×100)</option>
-                                    <option value="0.5">1:2 (÷2)</option>
-                                    <option value="0.2">1:5 (÷5)</option>
-                                    <option value="0.1">1:10 (÷10)</option>
-                                    <option value="0.05">1:20 (÷20)</option>
-                                    <option value="0.02">1:50 (÷50)</option>
-                                    <option value="0.01">1:100 (÷100)</option>
-                                    <option value="custom">Custom...</option>
-                                </select>
-                                
-                                <!-- Custom scaling input container -->
-                                <div id="customScalingContainer" class="custom-scaling-container" style="display: none;">
-                                    <div class="custom-scaling-input-group">
-                                        <label for="customScalingInput">Enter custom scaling factor:</label>
-                                        <input type="number" id="customScalingInput" class="form-input" step="0.001" min="0.001" max="1000" placeholder="e.g., 1.5, 25, 0.75">
-                                        <div class="custom-scaling-help">
-                                            Examples: 1.5 (×1.5), 25 (×25), 0.75 (÷1.33)
+                            <div class="settings-section">
+                                <h5>Scaling factor (DXF only)</h5>
+                                <p>Apply scaling when DXF was exported with incorrect scale. CFF2 uses its internal SCALE value automatically.</p>
+                                <div class="scaling-selector">
+                                    <select id="scalingDropdown" class="form-select">
+                                        <option value="1">1:1 (No scaling)</option>
+                                        <option value="2">2:1 (×2)</option>
+                                        <option value="5">5:1 (×5)</option>
+                                        <option value="10">10:1 (×10)</option>
+                                        <option value="20">20:1 (×20)</option>
+                                        <option value="50">50:1 (×50)</option>
+                                        <option value="100">100:1 (×100)</option>
+                                        <option value="0.5">1:2 (÷2)</option>
+                                        <option value="0.2">1:5 (÷5)</option>
+                                        <option value="0.1">1:10 (÷10)</option>
+                                        <option value="0.05">1:20 (÷20)</option>
+                                        <option value="0.02">1:50 (÷50)</option>
+                                        <option value="0.01">1:100 (÷100)</option>
+                                        <option value="custom">Custom...</option>
+                                    </select>
+                                    
+                                    <!-- Custom scaling input container -->
+                                    <div id="customScalingContainer" class="custom-scaling-container" style="display: none;">
+                                        <div class="custom-scaling-input-group">
+                                            <label for="customScalingInput">Enter custom scaling factor:</label>
+                                            <input type="number" id="customScalingInput" class="form-input" step="0.001" min="0.001" max="1000" placeholder="e.g., 1.5, 25, 0.75">
+                                            <div class="custom-scaling-help">
+                                                Examples: 1.5 (×1.5), 25 (×25), 0.75 (÷1.33)
+                                            </div>
+                                        </div>
+                                        
+                                        <div class="custom-scaling-buttons">
+                                            <button id="applyCustomScaling" class="btn btn-small btn-primary">Apply</button>
+                                            <button id="saveCustomScaling" class="btn btn-small btn-secondary">Save to List</button>
+                                            <button id="cancelCustomScaling" class="btn btn-small btn-tertiary">Cancel</button>
+                                        </div>
+                                        
+                                        <div id="customScalingError" class="custom-scaling-error" style="display: none;">
+                                            Please enter a valid number between 0.001 and 1000
                                         </div>
                                     </div>
                                     
-                                    <div class="custom-scaling-buttons">
-                                        <button id="applyCustomScaling" class="btn btn-small btn-primary">Apply</button>
-                                        <button id="saveCustomScaling" class="btn btn-small btn-secondary">Save to List</button>
-                                        <button id="cancelCustomScaling" class="btn btn-small btn-tertiary">Cancel</button>
-                                    </div>
-                                    
-                                    <div id="customScalingError" class="custom-scaling-error" style="display: none;">
-                                        Please enter a valid number between 0.001 and 1000
+                                    <!-- Overall Size Display -->
+                                    <div id="overallSizeInfo" class="overall-size-info" style="display: none;">
+                                        <label class="size-label">Overall Size:</label>
+                                        <div id="overallDimensions" class="size-value">N/A</div>
                                     </div>
                                 </div>
+                            </div>
+                            
+                            <!-- Import Unit Settings -->
+                            <div class="settings-section">
+                                <h5>Import Unit Detection</h5>
+                                <p>Set default import units for files where unit detection is inconclusive. These settings are used as fallbacks when the file format doesn't specify units clearly.</p>
                                 
-                                <!-- Overall Size Display -->
-                                <div id="overallSizeInfo" class="overall-size-info" style="display: none;">
-                                    <label class="size-label">Overall Size:</label>
-                                    <div id="overallDimensions" class="size-value">N/A</div>
+                                <div class="import-unit-selector">
+                                    <label for="dxfImportUnits">DXF files are in:</label>
+                                    <select id="dxfImportUnits" class="form-select">
+                                        <option value="in">Inches (in)</option>
+                                        <option value="mm">Millimeters (mm)</option>
+                                    </select>
+                                </div>
+                                
+                                <div class="import-unit-selector">
+                                    <label for="cf2ImportUnits">CF2/CFF2 files are in:</label>
+                                    <select id="cf2ImportUnits" class="form-select">
+                                        <option value="in">Inches (in)</option>
+                                        <option value="mm">Millimeters (mm)</option>
+                                    </select>
+                                </div>
+                                
+                                <div class="import-unit-selector">
+                                    <label for="ddsImportUnits">DDS files are in:</label>
+                                    <select id="ddsImportUnits" class="form-select">
+                                        <option value="in">Inches (in)</option>
+                                        <option value="mm">Millimeters (mm)</option>
+                                    </select>
+                                </div>
+                                
+                                <div class="unit-note" style="margin-top:8px; font-size: 12px; color:#bfbfbf;">
+                                    These settings are saved automatically and will be used whenever unit detection is unclear.
                                 </div>
                             </div>
                         </div>

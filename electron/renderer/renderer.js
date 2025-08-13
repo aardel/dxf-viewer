@@ -58,38 +58,12 @@ function openMapLinePopup(summary, exactKey) {
             }
             showStatus('Mapping saved', 'success');
             document.getElementById(modalId)?.remove();
-            
-            // Refresh rules cache first
+            // Refresh rules cache and current table to show mapping and glow
             await refreshRulesCache();
-            
-            // Re-apply global import filter to current layers to get updated mapping status
             if (currentFileFormat === 'dxf' && window.currentLayerData) {
-                try {
-                    const updatedLayers = await window.electronAPI.applyGlobalImportFilter(window.currentLayerData);
-                    if (updatedLayers.success) {
-                        const { appliedLayers, unmatchedLayers } = updatedLayers.data;
-                        const allLayers = appliedLayers.concat(unmatchedLayers);
-                        // Update currentLayerData to reflect new mappings
-                        window.currentLayerData = allLayers;
-                        // Re-populate the table with updated data
-                        populateLayerTable(allLayers);
-                    }
-                } catch (error) {
-                    console.error('Error refreshing layer mappings:', error);
-                    // Fallback to simple refresh
-                    populateLayerTable(window.currentLayerData);
-                }
+                populateLayerTable(window.currentLayerData);
             } else {
                 updateImportPanelForUnified();
-            }
-            
-            // Refresh Global Import Filter Manager if it's open
-            if (window.refreshGlobalImportFilter) {
-                try {
-                    await window.refreshGlobalImportFilter();
-                } catch (error) {
-                    console.log('Global Import Filter Manager not open or refresh failed:', error);
-                }
             }
         } catch (e) {
             showStatus('Failed to save mapping', 'error');
@@ -173,7 +147,7 @@ function getDXFUnits() {
         9: { unit: 'mil', name: 'Mils', scaleFactor: 0.0254 },
         10: { unit: 'yd', name: 'Yards', scaleFactor: 914.4 },
         11: { unit: 'Å', name: 'Angstroms', scaleFactor: 0.0000001 },
-        12: { unit: 'nm', name: 'Nanometers', scaleFactor: 0.000001 },
+        12: { unit: 'nm', name: 'Nanometers', scaleFactor: 0.0000001 },
         13: { unit: 'µm', name: 'Microns', scaleFactor: 0.001 },
         14: { unit: 'dm', name: 'Decimeters', scaleFactor: 0.01 },
         15: { unit: 'dam', name: 'Decameters', scaleFactor: 0.0001 },
@@ -1194,9 +1168,9 @@ function hideStatus() {
     }
 }
 function updateFormatIndicator(ext) {
-    const map = { dxf: 'DXF', dwg: 'DXF', dds: 'DDS', cf2: 'CFF2', cff2: 'CFF2' };
+    const map = { dds: 'DDS', cf2: 'CFF2', cff2: 'CFF2' };
     const key = (ext || '').toLowerCase();
-    currentFileFormat = key || 'dxf';
+    currentFileFormat = key || 'dds';
     if (formatIndicatorEl) {
         let label = map[currentFileFormat] || '';
         if (currentFileFormat === 'dds') {
@@ -1219,8 +1193,8 @@ function updateFormatIndicator(ext) {
             }
             label = `CFF2 / ${unit}${inf.confidence ? ` (${Math.round(inf.confidence*100)}%)` : ''}`;
         } else if (currentFileFormat === 'dxf') {
-            const u = getDXFUnits();
-            label = `DXF / ${u.unit}`;
+            // DXF support disabled for now
+            label = 'DXF (disabled)';
         }
         if (label) {
             formatIndicatorEl.textContent = label;
@@ -1396,8 +1370,6 @@ function populateLayerTable(layers) {
                 const actual = layer.parentLayer || lname;
                 toggleLayerVisibility(actual, isVisible);
             }
-            // Refresh layer status to update generation readiness
-            updateLayerStatus();
         });
         const editBtn = row.querySelector('.edit-mapping-btn');
         if (editBtn) {
@@ -1405,21 +1377,14 @@ function populateLayerTable(layers) {
                 e.preventDefault();
                 e.stopPropagation();
                 const lname = e.currentTarget.dataset.layerName;
-                // Extract base layer name and hex color from layer name
-                const colorSuffixMatch = lname.match(/^(.+)_([0-9A-Fa-f]{6})$/);
-                const baseLayerName = colorSuffixMatch ? colorSuffixMatch[1] : lname;
-                const hexColor = colorSuffixMatch ? colorSuffixMatch[2] : '';
-                const aciColor = viewer.parsedDxf?.tables?.layer?.layers?.[lname]?.color ?? '';
-                
                 openMapLinePopup({
                     format: 'dxf',
                     fields: [
-                        { label: 'Layer', value: baseLayerName },
-                        { label: 'Color', value: hexColor ? `#${hexColor}` : '-' }
+                        { label: 'Layer', value: lname },
+                        { label: 'ACI', value: (viewer.parsedDxf?.tables?.layer?.layers?.[lname]?.color ?? '-') }
                     ],
-                    rulePayload: { format: 'dxf', key: `dxf|${baseLayerName}|${hexColor}`, layerName: baseLayerName, aci: aciColor },
-                    displayColor: hexColor ? `#${hexColor}` : '#66d9ef'
-                }, `dxf|${baseLayerName}|${hexColor}`);
+                    rulePayload: { format: 'dxf', key: `dxf|${lname}|${viewer.parsedDxf?.tables?.layer?.layers?.[lname]?.color ?? ''}`, layerName: lname, aci: viewer.parsedDxf?.tables?.layer?.layers?.[lname]?.color ?? '' }
+                }, `dxf|${lname}|${viewer.parsedDxf?.tables?.layer?.layers?.[lname]?.color ?? ''}`);
             });
         }
     });
@@ -2490,8 +2455,7 @@ function updateLayerStatus() {
             visibleMappedLayers++;
         }
         
-        // Only block generation if a VISIBLE layer is unmapped
-        if (isVisible && !isMapped) {
+        if (!isMapped) {
             readyForGeneration = false;
             if (!generationBlockers.includes('unmapped layers')) {
                 generationBlockers.push('unmapped layers');
@@ -2500,7 +2464,7 @@ function updateLayerStatus() {
     });
     
     // Check if we have visible mapped layers
-    if (visibleMappedLayers === 0) {
+    if (visibleMappedLayers === 0 && mappedLayers > 0) {
         readyForGeneration = false;
         generationBlockers.push('no visible layers');
     }
@@ -2581,9 +2545,7 @@ function updateUnifiedMappingStatus() {
         }
 
         // Visibility gating – visible items must have enabled mapping
-        // Check the actual output checkbox state in the DOM
-        const checkbox = document.querySelector(`tr[data-key="${k}"] .output-toggle`);
-        const isVisible = checkbox ? checkbox.checked : (overlayGroups[k]?.visible !== false);
+        const isVisible = !!overlayGroups[k]?.visible;
         if (isVisible) {
             if (hasEnabledMapping) {
                 visibleMappedLayers++;
@@ -2618,7 +2580,7 @@ function updateUnifiedMappingStatus() {
     });
     document.dispatchEvent(evt);
 }
-// Layer validation and warning functions - MODULAR APPROACH
+// Layer validation and warning functions
 function validateLayerMappings() {
     // Handle DXF files (using currentLayerData)
     if (typeof currentLayerData !== 'undefined' && currentLayerData) {
@@ -2634,279 +2596,167 @@ function validateLayerMappings() {
     return { valid: false, warnings: [], unmappedLayers: [], hiddenLayers: [], includedLayers: [] };
 }
 
-// DXF-specific validation
 function validateDxfLayerMappings() {
     if (!currentLayerData) return { valid: true, warnings: [] };
     
-    console.log('=== DXF VALIDATION STARTED ===');
-    console.log('currentLayerData length:', currentLayerData.length);
-    
-    // Group layers by parent layer (base layer name) to handle color variants
-    const layerGroups = new Map();
+    // Aggregate layers by name, prioritize unmapped over hidden
+    const layerMap = new Map();
+    const includedLayers = [];
     
     currentLayerData.forEach((layer, index) => {
-        const baseLayerName = layer.parentLayer || layer.name;
+        const layerName = layer.parentLayer || layer.name;
         const isVisible = document.getElementById(`layer-${index}`)?.checked || false;
         const objectCount = layer.objectCount !== undefined ? layer.objectCount : (layer.objects ? layer.objects.length : 0);
-        const isMapped = layer.importFilterApplied || layer.lineType;
         
-        // Debug logging for DXF validation
-        console.log(`DXF Validation for layer ${index} "${layer.name}" (base: "${baseLayerName}"): isVisible=${isVisible}, isMapped=${isMapped}, objectCount=${objectCount}`);
-        
-        // Initialize group if not exists
-        if (!layerGroups.has(baseLayerName)) {
-            layerGroups.set(baseLayerName, {
-                name: baseLayerName,
-                variants: [],
-                totalObjectCount: 0,
-                visibleVariants: 0,
-                mappedVariants: 0,
-                unmappedVariants: 0
-            });
-        }
-        
-        const group = layerGroups.get(baseLayerName);
-        group.variants.push({
-            name: layer.name,
-            displayName: layer.displayName || layer.name,
-            isVisible,
-            isMapped,
-            objectCount
-        });
-        group.totalObjectCount += objectCount;
-        
-        if (isVisible) {
-            group.visibleVariants++;
-        }
-        if (isMapped) {
-            group.mappedVariants++;
-        } else {
-            group.unmappedVariants++;
-        }
-    });
-    
-    // Process groups to determine layer status (variant-level respecting DXF keys)
-    const unmappedLayers = [];
-    const hiddenLayers = [];
-    const hiddenVariants = [];
-    const includedLayers = [];
-    
-    layerGroups.forEach((group, baseLayerName) => {
-        console.log(`Processing group "${baseLayerName}": visible=${group.visibleVariants}, mapped=${group.mappedVariants}, unmapped=${group.unmappedVariants}`);
-        
-        // A layer is considered unmapped only if ALL visible variants are unmapped
-        const hasVisibleUnmappedVariants = group.visibleVariants > 0 && group.unmappedVariants > 0;
-        const hasVisibleMappedVariants = group.visibleVariants > 0 && group.mappedVariants > 0;
-        const isCompletelyHidden = group.visibleVariants === 0;
-
-        // Helper sums for accurate object counts
-        const visibleUnmappedObjectCount = group.variants
-            .filter(v => v.isVisible && !v.isMapped)
-            .reduce((sum, v) => sum + (v.objectCount || 0), 0);
-        const visibleMappedObjectCount = group.variants
-            .filter(v => v.isVisible && v.isMapped)
-            .reduce((sum, v) => sum + (v.objectCount || 0), 0);
-        const allVariantsObjectCount = group.variants
-            .reduce((sum, v) => sum + (v.objectCount || 0), 0);
-        
-        if (hasVisibleUnmappedVariants && !hasVisibleMappedVariants) {
-            // All visible variants are unmapped (emit one entry per visible unmapped variant)
-            group.variants
-                .filter(v => v.isVisible && !v.isMapped)
-                .forEach(v => {
-                    unmappedLayers.push({
-                        name: v.displayName || v.name,
-                        objectCount: v.objectCount || 0,
-                        type: 'unmapped',
-                        baseLayer: baseLayerName
-                    });
-                });
-        }
-        
-        if (hasVisibleMappedVariants) {
-            // Some visible variants are mapped (emit one entry per visible mapped variant)
-            group.variants
-                .filter(v => v.isVisible && v.isMapped)
-                .forEach(v => {
-                    includedLayers.push({
-                        name: v.displayName || v.name,
-                        objectCount: v.objectCount || 0,
-                        type: 'included',
-                        baseLayer: baseLayerName
-                    });
-                });
-        }
-        
-        if (isCompletelyHidden) {
-            // All variants are hidden (emit one entry per hidden variant)
-            group.variants
-                .filter(v => !v.isVisible)
-                .forEach(v => {
-                    hiddenVariants.push({
-                        name: v.displayName || v.name,
-                        objectCount: v.objectCount || 0,
-                        type: 'hidden',
-                        baseLayer: baseLayerName
-                    });
-                });
-        }
-    });
-    
-    // Calculate visible unmapped layers for validation
-    const visibleUnmappedLayers = unmappedLayers.filter(layer => {
-        // Find the corresponding layer in currentLayerData to check visibility
-        const layerIndex = currentLayerData.findIndex(l => 
-            (l.displayName || l.name) === layer.name || l.name === layer.name
-        );
-        return layerIndex >= 0 && document.getElementById(`layer-${layerIndex}`)?.checked;
-    });
-    
-    // Validation logic: valid if no visible unmapped layers AND at least one included layer
-    const valid = visibleUnmappedLayers.length === 0 && includedLayers.length > 0;
-    
-    console.log('=== DXF VALIDATION COMPLETED ===');
-    console.log('includedLayers:', includedLayers.length);
-    console.log('unmappedLayers:', unmappedLayers.length);
-    console.log('hiddenVariants:', hiddenVariants.length);
-    console.log('visibleUnmappedLayers:', visibleUnmappedLayers.length);
-    console.log('valid:', valid);
-    
-    // Build warnings
-    const warnings = [];
-    if (visibleUnmappedLayers.length > 0) {
-        const unmappedDetails = visibleUnmappedLayers.map(l => `${l.name} (${l.objectCount} objects)`).join(', ');
-        warnings.push(`Unmapped visible layers: ${unmappedDetails}`);
-    }
-    if (hiddenVariants.length > 0) {
-        const hiddenDetails = hiddenVariants.map(l => `${l.name} (${l.objectCount} objects)`).join(', ');
-        warnings.push(`Hidden layers: ${hiddenDetails}`);
-    }
-    
-    return {
-        valid,
-        warnings,
-        unmappedLayers,
-        hiddenLayers: hiddenVariants,
-        includedLayers,
-        visibleUnmappedLayers
-    };
-}
-
-// Unified format validation (DDS/CFF2)
-function validateUnifiedLayerMappings() {
-    if (!overlayGroups || Object.keys(overlayGroups).length === 0) {
-        return { valid: true, warnings: [] };
-    }
-    
-    console.log('=== UNIFIED VALIDATION STARTED ===');
-    console.log('overlayGroups keys:', Object.keys(overlayGroups));
-    
-    const warnings = [];
-    const unmappedLayers = [];
-    const hiddenLayers = [];
-    const includedLayers = [];
-    
-    Object.keys(overlayGroups).forEach(key => {
-        const group = overlayGroups[key];
-        const checkbox = document.querySelector(`.output-toggle[data-key="${key}"]`);
-        const overlayVisible = group.visible !== false;
-        const isVisible = checkbox ? checkbox.checked : (overlayVisible);
-        
-        // Check mapping using the correct format (dds|key or cff2|key)
-        const fmt = currentFileFormat === 'dds' ? 'dds' : 'cff2';
-        const entry = exactRulesCache.get(`${fmt}|${key}`);
-        const isMapped = !!(entry && entry.enabled && entry.lineTypeId);
-        
-        console.log(`Unified validation for key "${key}": checkbox=${!!checkbox}, overlayVisible=${overlayVisible}, isVisible=${isVisible}, isMapped=${isMapped}, format=${fmt}`);
-        
-        if (isVisible && !isMapped) {
-            unmappedLayers.push({
-                name: key,
-                objectCount: group.entities ? group.entities.length : 0,
+        // If unmapped, add or update in map
+        if (!layer.importFilterApplied && !layer.lineType) {
+            layerMap.set(layerName, {
+                name: layerName,
+                color: layer.color,
+                objectCount,
                 type: 'unmapped'
             });
-        } else if (isVisible && isMapped) {
-            includedLayers.push({
-                name: key,
-                objectCount: group.entities ? group.entities.length : 0,
-                type: 'included'
-            });
-        } else if (!isVisible) {
-            hiddenLayers.push({
-                name: key,
-                objectCount: group.entities ? group.entities.length : 0,
+        } else if (!isVisible && !layerMap.has(layerName)) {
+            // Only add hidden if not already unmapped
+            layerMap.set(layerName, {
+                name: layerName,
+                objectCount,
                 type: 'hidden'
             });
+        } else if (isVisible && (layer.importFilterApplied || layer.lineType)) {
+            // Layer is visible and mapped - will be included in output
+            const existingIncluded = includedLayers.find(l => l.name === layerName);
+            if (existingIncluded) {
+                existingIncluded.objectCount += objectCount;
+            } else {
+                includedLayers.push({
+                    name: layerName,
+                    objectCount,
+                    type: 'included'
+                });
+            }
         }
     });
     
-    // Calculate visible unmapped layers for validation
-    const visibleUnmappedLayers = unmappedLayers.filter(layer => {
-        const key = layer.name;
-        const checkbox = document.querySelector(`.output-toggle[data-key="${key}"]`);
-        const isVisible = checkbox ? checkbox.checked : (overlayGroups[key]?.visible !== false);
-        
-        // Only include if it's actually visible AND unmapped
-        if (isVisible) {
-            const fmt = currentFileFormat === 'dds' ? 'dds' : 'cff2';
-            const entry = exactRulesCache.get(`${fmt}|${key}`);
-            const isMapped = !!(entry && entry.enabled && entry.lineTypeId);
-            return !isMapped; // Return true if visible but unmapped
+    // Split back into unmapped and hidden
+    const unmappedLayers = [];
+    const hiddenLayers = [];
+    for (const layer of layerMap.values()) {
+        if (layer.type === 'unmapped') {
+            unmappedLayers.push(layer);
+        } else if (layer.type === 'hidden') {
+            hiddenLayers.push(layer);
         }
-        return false;
-    });
+    }
     
-    // Validation logic: valid if no visible unmapped layers AND at least one included layer
-    const valid = visibleUnmappedLayers.length === 0 && includedLayers.length > 0;
-    
-    console.log('=== UNIFIED VALIDATION COMPLETED ===');
-    console.log('includedLayers:', includedLayers.length);
-    console.log('unmappedLayers:', unmappedLayers.length);
-    console.log('hiddenLayers:', hiddenLayers.length);
-    console.log('visibleUnmappedLayers:', visibleUnmappedLayers.length);
-    console.log('valid:', valid);
-    
-    // Build warnings
-    if (visibleUnmappedLayers.length > 0) {
-        const unmappedDetails = visibleUnmappedLayers.map(l => `${l.name} (${l.objectCount} objects)`).join(', ');
-        warnings.push(`Unmapped visible layers: ${unmappedDetails}`);
+    // Generate warnings
+    const warnings = [];
+    if (unmappedLayers.length > 0) {
+        warnings.push({
+            type: 'unmapped',
+            count: unmappedLayers.length,
+            layers: unmappedLayers,
+            message: `${unmappedLayers.length} layer(s) are unmapped and will be skipped during DIN generation`
+        });
     }
     if (hiddenLayers.length > 0) {
-        const hiddenDetails = hiddenLayers.map(l => `${l.name} (${l.objectCount} objects)`).join(', ');
-        warnings.push(`Hidden layers: ${hiddenDetails}`);
+        warnings.push({
+            type: 'hidden',
+            count: hiddenLayers.length,
+            layers: hiddenLayers,
+            message: `${hiddenLayers.length} layer(s) are hidden and will be excluded from processing`
+        });
     }
     
     return {
-        valid,
+        valid: unmappedLayers.length === 0 && includedLayers.length > 0,  // Valid if all layers are mapped AND at least one layer is visible
         warnings,
         unmappedLayers,
         hiddenLayers,
-        includedLayers,
-        visibleUnmappedLayers
+        includedLayers
     };
 }
 
-// Silent generation validation - uses file-type specific validation
-function validateForSilentGeneration() {
-    // Check for either DXF viewer (with scene) or unified format viewer (with overlayCanvas)
-    const hasDxfViewer = !!(viewer && viewer.scene);
-    const hasUnifiedViewer = !!(overlayCanvas && window.unifiedGeometries && window.unifiedGeometries.length > 0);
-    
-    if (hasDxfViewer) {
-        console.log('Silent validation: Using DXF validation');
-        return validateDxfLayerMappings();
-    } else if (hasUnifiedViewer) {
-        console.log('Silent validation: Using unified format validation');
-        return validateUnifiedLayerMappings();
-    } else {
-        console.log('Silent validation: No valid viewer found');
-        return { valid: false, warnings: ['No file loaded'], unmappedLayers: [], hiddenLayers: [], includedLayers: [], visibleUnmappedLayers: [] };
+function validateUnifiedLayerMappings() {
+    if (!overlayGroups || Object.keys(overlayGroups).length === 0) {
+        return { valid: false, warnings: [], unmappedLayers: [], hiddenLayers: [], includedLayers: [] };
     }
+    
+    const keys = Object.keys(overlayGroups);
+    const fmt = currentFileFormat === 'dds' ? 'dds' : 'cff2';
+    
+    const unmappedLayers = [];
+    const hiddenLayers = [];
+    const includedLayers = [];
+    const warnings = [];
+    
+    for (const key of keys) {
+        const entry = exactRulesCache.get(`${fmt}|${key}`);
+        const isVisible = overlayGroups[key]?.visible !== false;
+        const isMapped = !!(entry && entry.enabled && entry.lineTypeId);
+        
+        // Build a user-friendly name from key
+        let displayName = key;
+        try {
+            if (fmt === 'dds') {
+                const [color, rawKerf, unit] = key.split('|');
+                const pt = (unit==='in' ? Number(rawKerf||0)*72 : unit==='mm' ? Number(rawKerf||0)/25.4*72 : Number(rawKerf||0));
+                displayName = `${pt.toFixed(2)} pt · color ${color}`;
+            } else {
+                const parts = key.split('-');
+                const pen = parts[0] ?? '';
+                const layer = parts.slice(1).join('-');
+                displayName = `${Number(pen||0).toFixed(2)} pt · ${layer}`;
+            }
+        } catch {}
+        
+        if (!isMapped) {
+            unmappedLayers.push({
+                name: displayName,
+                objectCount: 1, // Each key represents one layer/group
+                type: 'unmapped'
+            });
+        } else if (!isVisible) {
+            hiddenLayers.push({
+                name: displayName,
+                objectCount: 1,
+                type: 'hidden'
+            });
+        } else {
+            includedLayers.push({
+                name: displayName,
+                objectCount: 1,
+                type: 'included'
+            });
+        }
+    }
+    
+    // Generate warnings
+    if (unmappedLayers.length > 0) {
+        warnings.push({
+            type: 'unmapped',
+            count: unmappedLayers.length,
+            layers: unmappedLayers,
+            message: `${unmappedLayers.length} layer(s) are unmapped and will be skipped during DIN generation`
+        });
+    }
+    if (hiddenLayers.length > 0) {
+        warnings.push({
+            type: 'hidden',
+            count: hiddenLayers.length,
+            layers: hiddenLayers,
+            message: `${hiddenLayers.length} layer(s) are hidden and will be excluded from processing`
+        });
+    }
+    
+    return {
+        valid: unmappedLayers.length === 0 && includedLayers.length > 0,
+        warnings,
+        unmappedLayers,
+        hiddenLayers,
+        includedLayers
+    };
 }
-
-// REMOVED DUPLICATE FUNCTION - This was the old version that's now replaced by the modular approach above
-
-// REMOVED DUPLICATE UNIFIED VALIDATION FUNCTION - This was the old version that's now replaced by the modular approach above
 function showLayerValidationWarning(validation) {
     if (validation.warnings.length === 0) return;
     
@@ -2915,55 +2765,25 @@ function showLayerValidationWarning(validation) {
     let totalSkipped = 0;
     let totalIncluded = 0;
     
-    // Calculate total skipped objects from validation data
-    if (validation.unmappedLayers) {
-        validation.unmappedLayers.forEach(layer => {
-            totalSkipped += layer.objectCount || 0;
-        });
-    }
-    if (validation.hiddenLayers) {
-        validation.hiddenLayers.forEach(layer => {
-            totalSkipped += layer.objectCount || 0;
-        });
-    }
-    if (validation.hiddenVariants) {
-        validation.hiddenVariants.forEach(layer => {
-            totalSkipped += layer.objectCount || 0;
-        });
-    }
-    
     // Show layers that will be excluded (warnings)
     validation.warnings.forEach(warning => {
-        // Handle both old format (warning object with layers array) and new format (simple string)
-        if (typeof warning === 'string') {
-            // New format: simple string warning
-            warningContent += `
-                <div class="warning-section">
-                    <div class="warning-header">
-                        <span class="warning-icon">⚠️</span>
-                        <span class="warning-title">${warning}</span>
-                    </div>
+        warningContent += `
+            <div class="warning-section">
+                <div class="warning-header">
+                    <span class="warning-icon">⚠️</span>
+                    <span class="warning-title">${warning.message}</span>
                 </div>
-            `;
-        } else if (warning.layers && Array.isArray(warning.layers)) {
-            // Old format: warning object with layers array
-            warningContent += `
-                <div class="warning-section">
-                    <div class="warning-header">
-                        <span class="warning-icon">⚠️</span>
-                        <span class="warning-title">${warning.message}</span>
-                    </div>
-                    <div class="warning-details">
-                        ${warning.layers.map(layer => {
-                            return `<div class="warning-layer">
-                                <span class="layer-name">${layer.name}</span>
-                                <span class="object-count">${layer.objectCount} objects</span>
-                            </div>`;
-                        }).join('')}
-                    </div>
+                <div class="warning-details">
+                    ${warning.layers.map(layer => {
+                        totalSkipped += layer.objectCount;
+                        return `<div class="warning-layer">
+                            <span class="layer-name">${layer.name}</span>
+                            <span class="object-count">${layer.objectCount} objects</span>
+                        </div>`;
+                    }).join('')}
                 </div>
-            `;
-        }
+            </div>
+        `;
     });
     
     // Show layers that will be included (success)
@@ -2979,50 +2799,12 @@ function showLayerValidationWarning(validation) {
                     <span class="success-title">${validation.includedLayers.length} layer(s) will be included in DIN generation</span>
                 </div>
                 <div class="success-details">
-                    ${validation.includedLayers.map(layer => {
-                        // Get friendly mapping name for included layers
-                        let displayName = layer.name;
-                        
-                        // For unified formats, convert technical key to friendly mapping name
-                        if (currentFileFormat === 'dds' || currentFileFormat === 'cf2' || currentFileFormat === 'cff2') {
-                            const fmt = currentFileFormat === 'dds' ? 'dds' : 'cff2';
-                            const entry = exactRulesCache.get(`${fmt}|${layer.name}`);
-                            if (entry && entry.lineTypeId) {
-                                const lineTypeName = getLineTypeName(String(entry.lineTypeId));
-                                if (lineTypeName) {
-                                    displayName = lineTypeName;
-                                }
-                            }
-                        }
-                        
-                        return `
-                            <div class="success-layer">
-                                <span class="layer-name">${displayName}</span>
-                                <span class="object-count">${layer.objectCount} objects</span>
-                            </div>
-                        `;
-                    }).join('')}
-                </div>
-            </div>
-        `;
-    }
-
-    // Additionally, show hidden (unchecked) variants as informational red note
-    if (Array.isArray(validation.hiddenVariants) && validation.hiddenVariants.length > 0) {
-        warningContent += `
-            <div class="warning-section">
-                <div class="warning-header">
-                    <span class="warning-icon">⚠️</span>
-                    <span class="warning-title">${validation.hiddenVariants.length} layer variant(s) are unchecked and will not be processed</span>
-                </div>
-                <div class="warning-details">
-                    ${validation.hiddenVariants.map(layer => {
-                        totalSkipped += layer.objectCount || 0;
-                        return `<div class="warning-layer">
+                    ${validation.includedLayers.map(layer => `
+                        <div class="success-layer">
                             <span class="layer-name">${layer.name}</span>
-                            <span class="object-count">${layer.objectCount || 0} objects</span>
-                        </div>`;
-                    }).join('')}
+                            <span class="object-count">${layer.objectCount} objects</span>
+                        </div>
+                    `).join('')}
                 </div>
             </div>
         `;
@@ -3065,9 +2847,7 @@ function showLayerValidationWarning(validation) {
 
 function showLayerProcessingConfirmation(validation) {
     let successContent = '';
-    let warningContent = '';
     let totalIncluded = 0;
-    let totalExcluded = 0;
     
     // Show layers that will be included
     if (validation.includedLayers && validation.includedLayers.length > 0) {
@@ -3093,34 +2873,6 @@ function showLayerProcessingConfirmation(validation) {
         `;
     }
     
-    // Also show layers that will be excluded (unchecked or unmapped) as a non-blocking red note
-    // Use variant-level lists when available so rows match the left table
-    const excludedLayers = [
-        ...(Array.isArray(validation.hiddenVariants) ? validation.hiddenVariants : (Array.isArray(validation.hiddenLayers) ? validation.hiddenLayers : [])),
-        ...(Array.isArray(validation.visibleUnmappedLayers) ? validation.visibleUnmappedLayers : (Array.isArray(validation.unmappedLayers) ? validation.unmappedLayers : []))
-    ];
-    if (excludedLayers.length > 0) {
-        excludedLayers.forEach(layer => {
-            totalExcluded += layer.objectCount || 0;
-        });
-        warningContent = `
-            <div class="warning-section">
-                <div class="warning-header">
-                    <span class="warning-icon">⚠️</span>
-                    <span class="warning-title">${excludedLayers.length} layer(s) will be excluded from DIN generation</span>
-                </div>
-                <div class="warning-details">
-                    ${excludedLayers.map(layer => `
-                        <div class="warning-layer">
-                            <span class="layer-name">${layer.name}</span>
-                            <span class="object-count">${layer.objectCount || 0} objects</span>
-                        </div>
-                    `).join('')}
-                </div>
-            </div>
-        `;
-    }
-    
     const modalHTML = `
         <div id="layerValidationModal" class="modal" style="display: flex;">
             <div class="modal-content validation-modal">
@@ -3131,9 +2883,7 @@ function showLayerProcessingConfirmation(validation) {
                 <div class="modal-body">
                     <div class="validation-summary">
                         <p><strong>${totalIncluded} objects</strong> will be processed for DIN generation.</p>
-                        ${totalExcluded > 0 ? `<p style="margin-top:6px;color:#ff6b6b"><strong>${totalExcluded} objects</strong> will be excluded.</p>` : ''}
                     </div>
-                    ${warningContent}
                     ${successContent}
                     <div class="validation-actions">
                         <p>Proceed with DIN generation?</p>
@@ -3237,52 +2987,43 @@ function closeDinSuccessModal() {
 
 function getProcessedLayersInfo() {
     const processedLayers = [];
+    const layerMap = new Map();
     
     // Check for either DXF viewer (with scene) or unified format viewer (with overlayCanvas)
     const hasDxfViewer = !!(viewer && viewer.scene);
     const hasUnifiedViewer = !!(overlayCanvas && window.unifiedGeometries && window.unifiedGeometries.length > 0);
     
     if (hasDxfViewer && currentLayerData) {
-        // DXF: return per-variant rows that are visible AND mapped (respect exact rule keys)
+        // Handle DXF files
         currentLayerData.forEach((layer, index) => {
+            const layerName = layer.parentLayer || layer.name;
             const isVisible = document.getElementById(`layer-${index}`)?.checked || false;
             const objectCount = layer.objectCount !== undefined ? layer.objectCount : (layer.objects ? layer.objects.length : 0);
             
-            // Derive base layer name and hex from layer.name when available
-            let baseLayerName = layer.parentLayer || layer.name;
-            let hex = '';
-            const m = (layer.name || '').match(/^(.+)_([0-9A-Fa-f]{6})$/);
-            if (m) {
-                baseLayerName = m[1];
-                hex = m[2].toUpperCase();
-            }
-            const displayName = layer.displayName || (hex ? `${baseLayerName} (#${hex})` : baseLayerName);
-            
-            // Determine mapping using exactRulesCache or layer flags
-            const entry = exactRulesCache.get(`dxf|${baseLayerName}|${hex}`);
-            const hasEnabledMapping = !!(entry && entry.enabled !== false && entry.lineTypeId) || (!!layer.importFilterApplied && !!layer.lineTypeId);
-            
-            if (isVisible && hasEnabledMapping) {
-                processedLayers.push({ name: displayName, objectCount });
+            // Only include layers that are visible and mapped
+            if (isVisible && (layer.importFilterApplied || layer.lineType)) {
+                const existingLayer = layerMap.get(layerName);
+                if (existingLayer) {
+                    existingLayer.objectCount += objectCount;
+                } else {
+                    layerMap.set(layerName, {
+                        name: layerName,
+                        objectCount: objectCount
+                    });
+                }
             }
         });
     } else if (hasUnifiedViewer && overlayGroups) {
-        // Unified formats (CFF2/DDS): return per-group rows that are visible AND mapped
+        // Handle unified formats (CFF2/DDS)
         const fmt = currentFileFormat === 'dds' ? 'dds' : 'cff2';
+        
         Object.keys(overlayGroups).forEach(key => {
             const group = overlayGroups[key];
-            if (!group || group.visible === false) return;
-            const entry = exactRulesCache.get(`${fmt}|${key}`);
-            if (!(entry && entry.lineTypeId && entry.enabled !== false)) return;
-            
-            // Use friendly mapping name instead of technical format
-            let layerName = key;
-            if (entry && entry.lineTypeId) {
-                const lineTypeName = getLineTypeName(String(entry.lineTypeId));
-                if (lineTypeName) {
-                    layerName = lineTypeName;
-                } else {
-                    // Fallback to technical format if no friendly name found
+            if (group && group.visible) {
+                const entry = exactRulesCache.get(`${fmt}|${key}`);
+                if (entry && entry.lineTypeId) {
+                    // Build a user-friendly layer name
+                    let layerName = key;
                     try {
                         if (fmt === 'dds') {
                             const [color, rawKerf, unit] = key.split('|');
@@ -3295,13 +3036,22 @@ function getProcessedLayersInfo() {
                             layerName = `${Number(pen||0).toFixed(2)} pt · ${layer}`;
                         }
                     } catch {}
+                    
+                    const existingLayer = layerMap.get(layerName);
+                    if (existingLayer) {
+                        existingLayer.objectCount += group.count || 1;
+                    } else {
+                        layerMap.set(layerName, {
+                            name: layerName,
+                            objectCount: group.count || 1
+                        });
+                    }
                 }
             }
-            processedLayers.push({ name: layerName, objectCount: group.count || 1 });
         });
     }
     
-    return processedLayers;
+    return Array.from(layerMap.values());
 }
 
 // Make functions globally accessible for HTML onclick attributes
@@ -3561,6 +3311,52 @@ async function loadDxfContent(filename, dxfData, filePath = null) {
     }
 }
 
+/**
+ * Clear all application caches to reset state between files
+ */
+function clearAllCaches() {
+    console.log('🧹 Clearing all application caches...');
+    
+    // Clear file format and geometry state
+    currentFileFormat = null;
+    window.unifiedGeometries = null;
+    
+    // Clear overlay and layer state
+    overlayGroups = {};
+    window.overlayGroups = {};
+    
+    // Clear mapping caches
+    exactRulesCache.clear();
+    
+    // Clear validation state
+    window.lastValidatedLayers = null;
+    window.lastValidationResult = null;
+    
+    // Clear localStorage caches that might persist old file data
+    const keysToRemove = [
+        'layerMappings',
+        'lastFileData', 
+        'lastFileFormat',
+        'lastLayerState',
+        'cachedMappings',
+        'fileValidationCache'
+    ];
+    
+    keysToRemove.forEach(key => {
+        try {
+            localStorage.removeItem(key);
+        } catch (e) {
+            console.warn(`Failed to remove localStorage key: ${key}`, e);
+        }
+    });
+    
+    // Clear any remaining window state variables
+    if (window.currentEntities) window.currentEntities = [];
+    if (window.cachedLayerData) window.cachedLayerData = null;
+    
+    console.log('✅ All caches cleared successfully');
+}
+
 function clearViewer(showDropZoneAfterClear = true) {
     currentFilename = null; // Clear the filename
     currentFilePath = null; // Clear the file path
@@ -3568,6 +3364,10 @@ function clearViewer(showDropZoneAfterClear = true) {
     if (viewer) {
         try { viewer.Clear(); } catch {}
     }
+    
+    // Comprehensive cache clearing
+    clearAllCaches();
+    
     // Remove overlay canvas/state if present
     destroyOverlayCanvas();
     hideFileInfo();
@@ -3586,7 +3386,7 @@ function clearViewer(showDropZoneAfterClear = true) {
         drawingInfoEl.style.display = 'none';
     }
     
-    showStatus('Viewer cleared');
+    showStatus('Viewer cleared - all caches reset');
 }
 
 function fitToView() {
@@ -3756,57 +3556,39 @@ async function handleOpenFile() {
             const fileResult = await window.electronAPI.readFile(filePath);
             
             if (fileResult.success) {
+                // Clear all caches before loading new file to prevent cross-contamination
+                clearAllCaches();
+                
                 const fileName = filePath.split('/').pop() || filePath.split('\\').pop();
                 const ext = (fileName.split('.').pop() || '').toLowerCase();
                 updateFormatIndicator(ext);
-                if (ext === 'dxf' || ext === 'dwg') {
-                await refreshRulesCache();
-                // Switching to DXF: clear any overlay canvas/state first
-                destroyOverlayCanvas();
-                await loadDxfContent(fileName, fileResult.content, filePath);
-                            } else if (ext === 'dds' || ext === 'cf2' || ext === 'cff2') {
-                currentFilename = fileName; // Set the filename for unified formats
-                currentFilePath = filePath; // Set the file path for unified formats
-                await refreshRulesCache();
-                const res = await window.electronAPI.parseUnified(fileResult.content, fileName);
-                if (!res.success) throw new Error(res.error || 'Failed to parse file');
-                window.unifiedGeometries = res.data || [];
                 
-                // Load configuration for unified formats
-                if (!currentPostprocessorConfig) {
-                    try {
-                        // Try to load the active profile first
-                        const activeProfile = await window.electronAPI.getActiveProfile();
-                        if (activeProfile && activeProfile.filename) {
-                            await loadXmlProfileConfiguration(activeProfile.filename);
-                        } else {
-                            // Fallback to default configuration
-                            currentPostprocessorConfig = getDefaultConfiguration();
-                            applyConfigurationToUI(currentPostprocessorConfig);
-                        }
-                    } catch (error) {
-                        console.warn('Failed to load configuration for unified format:', error);
-                        // Fallback to default configuration
-                        currentPostprocessorConfig = getDefaultConfiguration();
-                        applyConfigurationToUI(currentPostprocessorConfig);
-                    }
-                }
-                
-                // Show file name/size for unified formats
-                try { showFileInfo(fileName, new Blob([fileResult.content]).size); } catch {}
-                // Clear any DXF content and previous overlay
-                try { if (viewer && viewer.Clear) viewer.Clear(); } catch {}
-                destroyOverlayCanvas();
-                hideDropZone();
-                ensureOverlayCanvas();
-                // Build groups and UI, then draw so colors are correct on first paint
-                updateImportPanelForUnified();
-                fitOverlayView();
-                updateUnifiedDimensions();
-                showStatus(`Loaded ${fileName} (${window.unifiedGeometries.length} entities)`, 'success');
-                // Layer list is rendered by updateImportPanelForUnified(); do not overwrite it with a placeholder
+                // Only support DDS and CF2 files (DXF disabled for now)
+                if (ext === 'dds' || ext === 'cf2' || ext === 'cff2') {
+                    currentFilename = fileName; // Set the filename for unified formats
+                    currentFilePath = filePath; // Set the file path for unified formats
+                    await refreshRulesCache();
+                    const res = await window.electronAPI.parseUnified(fileResult.content, fileName);
+                    if (!res.success) throw new Error(res.error || 'Failed to parse file');
+                    window.unifiedGeometries = res.data || [];
+                    // Show file name/size for unified formats
+                    try { showFileInfo(fileName, new Blob([fileResult.content]).size); } catch {}
+                    // Clear any DXF content and previous overlay
+                    try { if (viewer && viewer.Clear) viewer.Clear(); } catch {}
+                    destroyOverlayCanvas();
+                    hideDropZone();
+                    ensureOverlayCanvas();
+                    // Build groups and UI, then draw so colors are correct on first paint
+                    updateImportPanelForUnified();
+                    fitOverlayView();
+                    updateUnifiedDimensions();
+                    showStatus(`Loaded ${fileName} (${window.unifiedGeometries.length} entities)`, 'success');
+                    // Layer list is rendered by updateImportPanelForUnified(); do not overwrite it with a placeholder
+                    
+                    // Add to file history
+                    addToFileHistory(filePath, fileName);
                 } else {
-                    throw new Error('Unsupported file type');
+                    throw new Error('Unsupported file type. Only DDS and CF2 files are supported.');
                 }
             } else {
                 showStatus('Error reading file: ' + fileResult.error, 'error');
@@ -3837,11 +3619,11 @@ function initDragAndDrop() {
     async function handleFileDrop(files) {
         console.log('Processing dropped files:', files.map(f => ({ name: f.name, type: f.type, size: f.size })));
         
-        // Accept DXF, DDS, CF2/CFF2
-        const supported = files.filter(file => /\.(dxf|dwg|dds|cf2|cff2)$/i.test(file.name));
+        // Accept only DDS, CF2/CFF2 (DXF disabled for now)
+        const supported = files.filter(file => /\.(dds|cf2|cff2)$/i.test(file.name));
         if (supported.length === 0) {
             const fileNames = files.map(f => f.name).join(', ');
-            showStatus(`Unsupported files. Drop DXF, DDS, or CFF2. Found: ${fileNames}`, 'error');
+            showStatus(`Unsupported files. Drop DDS or CFF2 files only. Found: ${fileNames}`, 'error');
             return;
         }
         const sel = supported[0];
@@ -3850,42 +3632,22 @@ function initDragAndDrop() {
         }
 
         try {
+            // Clear all caches before loading new file to prevent cross-contamination
+            clearAllCaches();
+            
             showStatus(`Loading ${sel.name}... (${(sel.size / 1024).toFixed(1)} KB)`, 'info');
             const content = await sel.text();
             const ext = (sel.name.split('.').pop() || '').toLowerCase();
             updateFormatIndicator(ext);
-            if (ext === 'dxf' || ext === 'dwg') {
-                await refreshRulesCache();
-                destroyOverlayCanvas();
-                await loadDxfContent(sel.name, content);
-            } else if (ext === 'dds' || ext === 'cf2' || ext === 'cff2') {
+            
+            // Only support DDS and CF2 files (DXF disabled for now)
+            if (ext === 'dds' || ext === 'cf2' || ext === 'cff2') {
                 currentFilename = sel.name; // Set the filename for unified formats
                 currentFilePath = null; // No file path for dropped files
                 await refreshRulesCache();
                 const res = await window.electronAPI.parseUnified(content, sel.name);
                 if (!res.success) throw new Error(res.error || 'Failed to parse file');
                 window.unifiedGeometries = res.data || [];
-                
-                // Load configuration for unified formats
-                if (!currentPostprocessorConfig) {
-                    try {
-                        // Try to load the active profile first
-                        const activeProfile = await window.electronAPI.getActiveProfile();
-                        if (activeProfile && activeProfile.filename) {
-                            await loadXmlProfileConfiguration(activeProfile.filename);
-                        } else {
-                            // Fallback to default configuration
-                            currentPostprocessorConfig = getDefaultConfiguration();
-                            applyConfigurationToUI(currentPostprocessorConfig);
-                        }
-                    } catch (error) {
-                        console.warn('Failed to load configuration for unified format:', error);
-                        // Fallback to default configuration
-                        currentPostprocessorConfig = getDefaultConfiguration();
-                        applyConfigurationToUI(currentPostprocessorConfig);
-                    }
-                }
-                
                 showStatus(`Loaded ${sel.name} (${window.unifiedGeometries.length} entities)`, 'success');
                 // Table will be created by updateImportPanelForUnified(); avoid replacing it
                 try { if (viewer && viewer.Clear) viewer.Clear(); } catch {}
@@ -3899,8 +3661,11 @@ function initDragAndDrop() {
                 fitOverlayView();
                 drawOverlay();
                 updateUnifiedDimensions();
+                
+                // Add to file history (for dropped files, we don't have a file path, so we'll use the name)
+                addToFileHistory(sel.name, sel.name);
             } else {
-                throw new Error('Unsupported file type');
+                throw new Error('Unsupported file type. Only DDS and CF2 files are supported.');
             }
         } catch (error) {
             console.error('Error reading dropped file:', error);
@@ -4101,9 +3866,181 @@ async function createImportFilterFromLayers() {
     }
 }
 
+// File history functionality
+const FILE_HISTORY_KEY = 'fileHistory';
+const MAX_HISTORY_ITEMS = 10;
+
+// Load file history from localStorage
+function loadFileHistory() {
+    try {
+        const history = localStorage.getItem(FILE_HISTORY_KEY);
+        return history ? JSON.parse(history) : [];
+    } catch (error) {
+        console.error('Error loading file history:', error);
+        return [];
+    }
+}
+
+// Save file history to localStorage
+function saveFileHistory(history) {
+    try {
+        localStorage.setItem(FILE_HISTORY_KEY, JSON.stringify(history));
+    } catch (error) {
+        console.error('Error saving file history:', error);
+    }
+}
+
+// Add file to history
+function addToFileHistory(filePath, fileName) {
+    const history = loadFileHistory();
+    
+    // Remove if already exists
+    const existingIndex = history.findIndex(item => item.path === filePath);
+    if (existingIndex !== -1) {
+        history.splice(existingIndex, 1);
+    }
+    
+    // Add to beginning
+    history.unshift({
+        path: filePath,
+        name: fileName,
+        timestamp: Date.now()
+    });
+    
+    // Keep only the most recent items
+    if (history.length > MAX_HISTORY_ITEMS) {
+        history.splice(MAX_HISTORY_ITEMS);
+    }
+    
+    saveFileHistory(history);
+    updateFileHistoryDropdown();
+}
+
+// Update the file history dropdown
+function updateFileHistoryDropdown() {
+    const historyItems = document.getElementById('fileHistoryItems');
+    const history = loadFileHistory();
+    
+    if (history.length === 0) {
+        historyItems.innerHTML = '<div class="dropdown-item empty-history">No recent files</div>';
+        return;
+    }
+    
+    historyItems.innerHTML = history.map(item => {
+        const date = new Date(item.timestamp);
+        const timeAgo = getTimeAgo(date);
+        return `
+            <div class="dropdown-item" data-path="${item.path}">
+                <div class="file-name">${item.name}</div>
+                <div class="file-path">${item.path}</div>
+                <div class="file-info">${timeAgo}</div>
+            </div>
+        `;
+    }).join('');
+    
+    // Add click listeners to history items
+    historyItems.querySelectorAll('.dropdown-item:not(.empty-history)').forEach(item => {
+        item.addEventListener('click', () => {
+            const filePath = item.dataset.path;
+            loadFileFromHistory(filePath);
+        });
+    });
+}
+
+// Get time ago string
+function getTimeAgo(date) {
+    const now = new Date();
+    const diffMs = now - date;
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMs / 3600000);
+    const diffDays = Math.floor(diffMs / 86400000);
+    
+    if (diffMins < 1) return 'Just now';
+    if (diffMins < 60) return `${diffMins}m ago`;
+    if (diffHours < 24) return `${diffHours}h ago`;
+    if (diffDays < 7) return `${diffDays}d ago`;
+    return date.toLocaleDateString();
+}
+
+// Load file from history
+async function loadFileFromHistory(filePath) {
+    try {
+        const fileName = filePath.split('/').pop() || filePath.split('\\').pop() || filePath;
+        showStatus(`Loading ${fileName} from history...`, 'info');
+        
+        const fileResult = await window.electronAPI.readFile(filePath);
+        if (fileResult.success) {
+            // Clear all caches before loading new file
+            clearAllCaches();
+            
+            const fileName = path.basename(filePath);
+            const ext = (fileName.split('.').pop() || '').toLowerCase();
+            updateFormatIndicator(ext);
+            
+            // Only support DDS and CF2 files (DXF disabled for now)
+            if (ext === 'dds' || ext === 'cf2' || ext === 'cff2') {
+                currentFilename = fileName;
+                currentFilePath = filePath;
+                await refreshRulesCache();
+                const res = await window.electronAPI.parseUnified(fileResult.content, fileName);
+                if (!res.success) throw new Error(res.error || 'Failed to parse file');
+                window.unifiedGeometries = res.data || [];
+                
+                try { showFileInfo(fileName, new Blob([fileResult.content]).size); } catch {}
+                try { if (viewer && viewer.Clear) viewer.Clear(); } catch {}
+                destroyOverlayCanvas();
+                hideDropZone();
+                ensureOverlayCanvas();
+                updateImportPanelForUnified();
+                fitOverlayView();
+                updateUnifiedDimensions();
+                showStatus(`Loaded ${fileName} from history (${window.unifiedGeometries.length} entities)`, 'success');
+            } else {
+                throw new Error('Unsupported file type. Only DDS and CF2 files are supported.');
+            }
+        } else {
+            throw new Error('Failed to read file from history');
+        }
+    } catch (error) {
+        showStatus(`Error loading from history: ${error.message}`, 'error');
+        // Remove from history if file can't be loaded
+        removeFromFileHistory(filePath);
+    }
+}
+
+// Remove file from history
+function removeFromFileHistory(filePath) {
+    const history = loadFileHistory();
+    const filteredHistory = history.filter(item => item.path !== filePath);
+    saveFileHistory(filteredHistory);
+    updateFileHistoryDropdown();
+}
+
+// Clear all file history
+function clearFileHistory() {
+    saveFileHistory([]);
+    updateFileHistoryDropdown();
+    showStatus('File history cleared', 'success');
+}
+
+// Initialize file history dropdown
+function initFileHistory() {
+    updateFileHistoryDropdown();
+    
+    // Add clear history button listener
+    document.getElementById('clearHistoryBtn').addEventListener('click', (e) => {
+        e.stopPropagation();
+        clearFileHistory();
+    });
+}
+
 // Button event listeners
 document.getElementById('openBtn').addEventListener('click', handleOpenFile);
 document.getElementById('clearBtn').addEventListener('click', () => clearViewer(true)); // Show drop zone when user clicks Clear
+document.getElementById('clearCacheBtn').addEventListener('click', () => {
+    clearAllCaches();
+    showStatus('Cache cleared - layer mappings reset', 'success');
+});
 document.getElementById('fitBtn').addEventListener('click', fitToView);
 lineTypesBtn.addEventListener('click', openLineTypesManager);
 togglePanelBtn.addEventListener('click', toggleSidePanel);
@@ -4115,6 +4052,12 @@ document.getElementById('openOutputManagerBtn').addEventListener('click', () => 
 document.addEventListener('keydown', (e)=>{
     if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'o' && e.shiftKey) {
         try { window.electronAPI.openOutputManager(); } catch {}
+    }
+    // Ctrl+Shift+C or Cmd+Shift+C: Clear cache
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'c' && e.shiftKey) {
+        e.preventDefault();
+        clearAllCaches();
+        showStatus('Cache cleared via keyboard shortcut', 'success');
     }
 });
 
@@ -4324,6 +4267,11 @@ window.addEventListener('load', async () => {
             // Ensure drop zone is visible on startup; it will be hidden after a file loads
             showDropZone();
         }, 200);
+        
+        // Initialize file history dropdown
+        setTimeout(() => {
+            initFileHistory();
+        }, 250);
         
         // Initialize import controls visibility (show by default since import tab is active)
         const importControls = document.querySelector('.import-controls');
@@ -4701,21 +4649,18 @@ function initializeHeaderConfiguration() {
     loadFirstAvailableProfile();
 }
 
-// Load postprocessor configuration from XML profile (legacy function - now uses XML)
+// Load postprocessor configuration from file (legacy JSON)
 async function loadPostprocessorConfiguration(profileName) {
     try {
-        // Convert profile name to XML filename if needed
-        const xmlFilename = profileName.endsWith('.xml') ? profileName : `${profileName}.xml`;
-        currentPostprocessorConfig = await window.electronAPI.loadXmlProfile(xmlFilename);
+        currentPostprocessorConfig = await window.electronAPI.loadPostprocessorConfig(profileName);
         applyConfigurationToUI(currentPostprocessorConfig);
         // Bridges setting is now managed in Output Manager profile
         updateHeaderPreview();
         
-        const profileDisplayName = currentPostprocessorConfig.profileInfo?.name || profileName;
-        showStatus(`Loaded XML profile: ${profileDisplayName}`, 'success');
+        showStatus(`Loaded postprocessor profile: ${currentPostprocessorConfig.name}`, 'success');
     } catch (error) {
-        console.error('Error loading XML profile configuration:', error);
-        showStatus(`Failed to load XML profile: ${error.message}`, 'error');
+        console.error('Error loading postprocessor configuration:', error);
+        showStatus(`Failed to load postprocessor profile: ${error.message}`, 'error');
     }
 }
 
@@ -4723,14 +4668,6 @@ async function loadPostprocessorConfiguration(profileName) {
 async function loadXmlProfileConfiguration(filename) {
     try {
         currentPostprocessorConfig = await window.electronAPI.loadXmlProfile(filename);
-        
-        // Debug configuration loading
-        console.log('=== CONFIGURATION LOADING DEBUG ===');
-        console.log('Loaded configuration:', currentPostprocessorConfig);
-        console.log('Output settings:', currentPostprocessorConfig?.outputSettings);
-        console.log('AutoSaveEnabled from XML:', currentPostprocessorConfig?.outputSettings?.autoSaveEnabled);
-        console.log('=== END CONFIGURATION LOADING DEBUG ===');
-        
         applyConfigurationToUI(currentPostprocessorConfig);
         // Bridges setting is now managed in Output Manager profile
         updateHeaderPreview();
@@ -4993,24 +4930,7 @@ function initializePostprocessorManagement() {
 // Get the currently selected profile filename
 function getCurrentProfileFilename() {
     const select = document.getElementById('postprocessorProfile');
-    const value = select?.value && select.value !== 'custom' ? select.value : null;
-    console.log('getCurrentProfileFilename - select value:', value);
-    
-    if (!value) return null;
-    
-    // Handle case sensitivity and extension issues
-    let filename = value;
-    
-    // Ensure the filename has .xml extension
-    if (!filename.endsWith('.xml')) {
-        filename = filename + '.xml';
-    }
-    
-    // Convert to lowercase to match actual file system
-    filename = filename.toLowerCase();
-    
-    console.log('getCurrentProfileFilename - final filename:', filename);
-    return filename;
+    return select?.value && select.value !== 'custom' ? select.value : null;
 }
 // Load available XML profiles into dropdown
 async function loadAvailableXmlProfiles() {
@@ -5034,7 +4954,6 @@ async function loadAvailableXmlProfiles() {
             option.textContent = profile.name;
             option.title = profile.description;
             select.appendChild(option);
-            console.log('Added profile option:', { filename: profile.filename, name: profile.name });
         });
         
         // Re-add custom option
@@ -5048,21 +4967,11 @@ async function loadAvailableXmlProfiles() {
         } else {
             // Try to restore saved profile preference
             const savedProfileName = localStorage.getItem('lastSelectedProfile');
-            console.log('Saved profile name from localStorage:', savedProfileName);
-            
             if (savedProfileName && select.querySelector(`option[value="${savedProfileName}"]`)) {
                 select.value = savedProfileName;
                 console.log('Restored saved profile preference:', savedProfileName);
-            } else {
-                // Clear invalid saved preference and use first available
-                if (savedProfileName) {
-                    console.log('Clearing invalid saved profile preference:', savedProfileName);
-                    localStorage.removeItem('lastSelectedProfile');
-                }
-                if (profiles.length > 0) {
-                    select.value = profiles[0].filename;
-                    console.log('Using first available profile:', profiles[0].filename);
-                }
+            } else if (profiles.length > 0) {
+                select.value = profiles[0].filename;
             }
         }
         
@@ -5120,7 +5029,6 @@ async function loadFirstAvailableProfile() {
             // Save the loaded profile as the current preference
             localStorage.setItem('lastSelectedProfile', profileToLoad.filename);
             console.log('Set current profile preference:', profileToLoad.filename);
-            console.log('Profile details:', { filename: profileToLoad.filename, name: profileToLoad.name });
             
             // Also save to main process for persistence
             try {
@@ -5277,49 +5185,37 @@ function displayToolPreview(toolConfig) {
 }
 // DIN file generation and preview
 function initializeDinGeneration() {
-    console.log('=== INITIALIZING DIN GENERATION ===');
     const previewDinBtn = document.getElementById('previewDinBtn');
     const generateDinBtn = document.getElementById('generateDinBtn');
     const advancedPreviewBtn = document.getElementById('advancedPreviewBtn');
     
-    console.log('Found buttons:', {
-        previewDinBtn: !!previewDinBtn,
-        generateDinBtn: !!generateDinBtn,
-        advancedPreviewBtn: !!advancedPreviewBtn
-    });
-    
+    // Add event listener for preview button
     previewDinBtn?.addEventListener('click', async () => {
-        console.log('Preview DIN button clicked');
         await previewDinFile();
     });
     
     advancedPreviewBtn?.addEventListener('click', async () => {
-        console.log('Advanced Preview button clicked');
         await showAdvancedVisualization();
     });
     
-    if (generateDinBtn) {
-        console.log('Adding event listener to generateDinBtn');
-        generateDinBtn.addEventListener('click', async () => {
-            console.log('=== OUTPUT TAB BUTTON CLICKED ===');
-            // Validate layer mappings and visibility before generating
-            const validation = validateLayerMappings();
-            console.log('Validation result:', validation);
-            
-            if (validation.warnings.length > 0) {
-                console.log('Showing layer validation warning modal');
-                // Show warning modal and let user decide
-                showLayerValidationWarning(validation);
-            } else {
-                console.log('Showing layer processing confirmation modal');
-                console.log('Included layers:', validation.includedLayers);
-                // No issues, but still show confirmation dialog with layers that will be processed
-                showLayerProcessingConfirmation(validation);
-            }
-        });
-    } else {
-        console.error('generateDinBtn not found!');
-    }
+    // Add event listener for generate button
+    const handleGenerateDin = async () => {
+        console.log('=== GENERATE DIN BUTTON CLICKED ===');
+        // Validate layer mappings and visibility before generating
+        const validation = validateLayerMappings();
+        
+        if (validation.warnings.length > 0) {
+            console.log('Showing layer validation warning modal');
+            // Show warning modal and let user decide
+            showLayerValidationWarning(validation);
+        } else {
+            console.log('Showing layer processing confirmation modal');
+            // No issues, but still show confirmation dialog with layers that will be processed
+            showLayerProcessingConfirmation(validation);
+        }
+    };
+    
+    generateDinBtn?.addEventListener('click', handleGenerateDin);
     
     // Initialize file output settings
     initializeFileOutputSettings();
@@ -5328,46 +5224,20 @@ function initializeDinGeneration() {
 // Preview DIN file content
 async function previewDinFile() {
     try {
-        if (!currentPostprocessorConfig) {
-            showStatus('Load a supported file (DXF/DDS/CFF2) and configure postprocessor first', 'warning');
-            return;
+        // Use the same consolidated approach as the main DIN generation
+        const result = await generateDinCore({ 
+            silent: true, 
+            strictValidation: false,  // Preview is less strict - just show what we can
+            showStatusMessages: true 
+        });
+        
+        if (result && result.dinContent) {
+            // Show preview in modal or new window
+            showDinPreview(result.dinContent);
+            showStatus(`Generated DIN preview for ${result.validation.stats.totalLines} lines`, 'success');
+        } else {
+            showStatus('No DIN content generated for preview', 'warning');
         }
-        
-        // Check for either DXF viewer (with scene) or unified format viewer (with overlayCanvas)
-        const hasDxfViewer = !!(viewer && viewer.scene);
-        const hasUnifiedViewer = !!(overlayCanvas && window.unifiedGeometries && window.unifiedGeometries.length > 0);
-        
-        if (!hasDxfViewer && !hasUnifiedViewer) {
-            showStatus('Load a supported file (DXF/DDS/CFF2) and configure postprocessor first', 'warning');
-            return;
-        }
-
-        showStatus('Generating DIN preview...', 'info');
-
-        // Extract entities based on file type
-        let entities = [];
-        if (hasDxfViewer) {
-            entities = extractEntitiesFromViewer();
-        } else if (hasUnifiedViewer) {
-            entities = extractEntitiesFromUnifiedFormat();
-        }
-        
-        if (entities.length === 0) {
-            showStatus('No entities found to process', 'warning');
-            return;
-        }
-
-        // Get current settings
-        const settings = getCurrentOptimizationSettings();
-        
-        // Generate preview
-        const metadata = getFileMetadata();
-        const previewContent = dinGenerator.generatePreview(entities, currentPostprocessorConfig, metadata);
-        
-        // Show preview in modal or new window
-        showDinPreview(previewContent);
-        
-        showStatus(`Generated DIN preview for ${entities.length} entities`, 'success');
 
     } catch (error) {
         console.error('Error generating DIN preview:', error);
@@ -5421,14 +5291,144 @@ async function showAdvancedVisualization() {
         showStatus(`Failed to show advanced visualization: ${error.message}`, 'error');
     }
 }
-// Generate DIN content silently (same logic as performDinGeneration but without file saving)
-async function generateDinContentSilently() {
-    console.log('=== GENERATE DIN CONTENT SILENTLY CALLED ===');
-    try {
+// Show popup for unmapped line types
+function showUnmappedLineTypesPopup(unmappedLineTypes) {
+    const modalId = 'unmappedLineTypesModal';
+    
+    // Check if popup is already showing to prevent multiple popups
+    const existingModal = document.getElementById(modalId);
+    if (existingModal) {
+        console.log('Unmapped line types popup already showing, not creating duplicate');
+        return;
+    }
+    
+    const lineTypesList = unmappedLineTypes.map(lt => `<li><strong>${lt}</strong></li>`).join('');
+    
+    const modalHTML = `
+        <div id="${modalId}" class="modal" style="display: flex; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.7); z-index: 10000; align-items: center; justify-content: center;">
+            <div class="modal-content" style="background: #2a2a2a; border: 2px solid #4a90e2; border-radius: 10px; padding: 2rem; max-width: 500px; width: 90%; color: white; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);">
+                <div class="modal-header" style="margin-bottom: 1.5rem; text-align: center; position: relative;">
+                    <h3 style="color: #4a90e2; margin: 0; font-size: 1.3rem;">⚠️ Unmapped Line Types Detected</h3>
+                    <button class="modal-close" onclick="document.getElementById('${modalId}').remove()" style="position: absolute; top: 0; right: 0; background: #ff4444; color: white; border: none; width: 30px; height: 30px; border-radius: 50%; cursor: pointer; font-size: 18px; display: flex; align-items: center; justify-content: center; font-weight: bold;">&times;</button>
+                </div>
+                <div class="modal-body" style="margin-bottom: 2rem;">
+                    <p style="color: #ccc; margin-bottom: 1rem; line-height: 1.5;">
+                        The following line types are used in your drawing but are not mapped to machine tools:
+                    </p>
+                    <div style="background: #1a1a1a; border: 1px solid #444; border-radius: 6px; padding: 1rem; margin-bottom: 1.5rem;">
+                        <ul style="margin: 0; padding-left: 1.5rem; color: #ff6b6b;">
+                            ${lineTypesList}
+                        </ul>
+                    </div>
+                    <p style="color: #ccc; font-size: 0.9rem; line-height: 1.4;">
+                        You need to map these line types to machine tools in the Output Manager before generating DIN files.
+                    </p>
+                </div>
+                <div class="modal-footer" style="display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap;">
+                    <button class="btn btn-secondary" onclick="document.getElementById('${modalId}').remove()" style="background: #666; color: white; border: none; padding: 0.75rem 1.5rem; border-radius: 6px; cursor: pointer; font-weight: bold;">
+                        Cancel
+                    </button>
+                    <button class="btn btn-primary" onclick="openOutputManagerLineTypeMapping()" style="background: #4a90e2; color: white; border: none; padding: 0.75rem 1.5rem; border-radius: 6px; cursor: pointer; font-weight: bold;">
+                        🔗 Open Line Type Mapping
+                    </button>
+                    <button class="btn btn-success" onclick="refreshConfigurationAndClose()" style="background: #28a745; color: white; border: none; padding: 0.75rem 1.5rem; border-radius: 6px; cursor: pointer; font-weight: bold;">
+                        🔄 Refresh Configuration
+                    </button>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    document.body.insertAdjacentHTML('beforeend', modalHTML);
+    
+    // Auto-refresh configuration when popup is shown (in case user already made changes)
+    setTimeout(async () => {
+        await reloadPostprocessorConfig();
+    }, 100);
+}
 
+// Function to reload postprocessor configuration
+async function reloadPostprocessorConfig() {
+    try {
+        if (!currentPostprocessorConfig || !currentPostprocessorConfig.profileInfo) {
+            console.log('No current profile to reload');
+            return;
+        }
         
+        const filename = currentPostprocessorConfig.profileInfo.filename || 'pts.xml';
+        console.log('Reloading postprocessor configuration from:', filename);
+        
+        const newConfig = await window.electronAPI.loadXmlProfile(filename);
+        if (newConfig) {
+            currentPostprocessorConfig = newConfig;
+            applyConfigurationToUI(currentPostprocessorConfig);
+            console.log('✅ Postprocessor configuration reloaded successfully');
+            console.log('Updated mappings:', currentPostprocessorConfig.mappingWorkflow?.lineTypeToTool);
+        }
+    } catch (error) {
+        console.error('Error reloading postprocessor configuration:', error);
+    }
+}
+
+// Function to refresh configuration and close popup
+async function refreshConfigurationAndClose() {
+    // Close the popup
+    const modal = document.getElementById('unmappedLineTypesModal');
+    if (modal) {
+        modal.remove();
+    }
+    
+    // Reload the configuration
+    await reloadPostprocessorConfig();
+    
+    // Show success message
+    showStatus('Configuration refreshed successfully', 'success');
+}
+
+// Function to open Output Manager Line Type Mapping tab
+function openOutputManagerLineTypeMapping() {
+    // Close the popup
+    const modal = document.getElementById('unmappedLineTypesModal');
+    if (modal) {
+        modal.remove();
+    }
+    
+    // Open Output Manager
+    try {
+        window.electronAPI.openOutputManager();
+        
+        // Note: The Output Manager will open in a new window, so we can't directly switch tabs
+        // The user will need to manually go to the Line Type Mapping tab
+        // But we can show a helpful message
+        setTimeout(() => {
+            alert('Output Manager opened! Please go to the "Line Type Mapping" tab to configure the missing mappings. After saving, you may need to refresh the main interface.');
+        }, 1000);
+    } catch (error) {
+        console.error('Error opening Output Manager:', error);
+        alert('Please open the Output Manager manually and go to the Line Type Mapping tab to configure the missing mappings.');
+    }
+}
+
+// Core DIN generation function that handles both silent and full generation
+async function generateDinCore(options = {}) {
+    const { 
+        silent = false,           // If true, don't save file, just return content
+        strictValidation = true,  // If true, show popup for unmapped line types
+        showStatusMessages = true // If true, show status messages
+    } = options;
+    
+    const logPrefix = silent ? 'SILENT' : 'FULL';
+    console.log(`=== ${logPrefix} DIN GENERATION STARTED ===`);
+    
+    try {
         if (!currentPostprocessorConfig) {
-            throw new Error('Load a supported file (DXF/DDS/CFF2) and configure postprocessor first');
+            const error = 'Load a supported file (DXF/DDS/CFF2) and configure postprocessor first';
+            if (showStatusMessages) {
+                showStatus(error, 'warning');
+                return;
+            } else {
+                throw new Error(error);
+            }
         }
         
         // Check for either DXF viewer (with scene) or unified format viewer (with overlayCanvas)
@@ -5436,73 +5436,41 @@ async function generateDinContentSilently() {
         const hasUnifiedViewer = !!(overlayCanvas && window.unifiedGeometries && window.unifiedGeometries.length > 0);
         
         if (!hasDxfViewer && !hasUnifiedViewer) {
-            throw new Error('Load a supported file (DXF/DDS/CFF2) and configure postprocessor first');
+            const error = 'Load a supported file (DXF/DDS/CFF2) and configure postprocessor first';
+            if (showStatusMessages) {
+                showStatus(error, 'warning');
+                return;
+            } else {
+                throw new Error(error);
+            }
         }
 
-        // VALIDATION: Use existing readyForGeneration status instead of re-validating
-        // The green "Ready" button already indicates validation has passed
-        let readyForGeneration = false;
-        let generationBlockers = [];
+        // VALIDATION: Check layer mappings BEFORE proceeding
+        const layerValidation = validateLayerMappings();
+        console.log('Layer mapping validation result:', layerValidation);
         
-        if (hasDxfViewer) {
-            // For DXF, check if any visible layers are mapped
-            if (currentLayerData) {
-                let visibleMappedLayers = 0;
-                readyForGeneration = true;
-                
-                currentLayerData.forEach((layer, index) => {
-                    const isVisible = document.getElementById(`layer-${index}`)?.checked || false;
-                    const isMapped = layer.importFilterApplied || layer.lineType;
-                    
-                    if (isVisible && isMapped) {
-                        visibleMappedLayers++;
-                    } else if (isVisible && !isMapped) {
-                        readyForGeneration = false;
-                        generationBlockers.push('unmapped layers');
-                    }
-                });
-                
-                if (visibleMappedLayers === 0) {
-                    readyForGeneration = false;
-                    generationBlockers.push('no visible layers');
-                }
+        if (!layerValidation.valid) {
+            let error;
+            if (layerValidation.unmappedLayers.length > 0) {
+                const unmappedNames = layerValidation.unmappedLayers.map(l => l.name).join(', ');
+                error = `Cannot generate DIN: ${layerValidation.unmappedLayers.length} layer(s) are unmapped: ${unmappedNames}. Please map all layers to line types.`;
+            } else if (layerValidation.includedLayers.length === 0) {
+                error = `Cannot generate DIN: No layers are visible and mapped. Please ensure at least one layer is both visible (checked) and mapped to a line type.`;
+            } else {
+                error = `Cannot generate DIN: Layer validation failed. Please check layer mappings and visibility.`;
             }
-        } else if (hasUnifiedViewer) {
-            // For unified formats, check the existing mapping status
-            if (overlayGroups && Object.keys(overlayGroups).length > 0) {
-                const keys = Object.keys(overlayGroups);
-                const fmt = currentFileFormat === 'dds' ? 'dds' : 'cff2';
-                let visibleMappedLayers = 0;
-                readyForGeneration = true;
-                
-                for (const k of keys) {
-                    const entry = exactRulesCache.get(`${fmt}|${k}`);
-                    const hasEnabledMapping = !!(entry && entry.enabled && entry.lineTypeId);
-                    const checkbox = document.querySelector(`.output-toggle[data-key="${k}"]`);
-                    const isVisible = checkbox ? checkbox.checked : (overlayGroups[k]?.visible !== false);
-                    
-                    if (isVisible) {
-                        if (hasEnabledMapping) {
-                            visibleMappedLayers++;
-                        } else {
-                            readyForGeneration = false;
-                            generationBlockers.push('unmapped layers');
-                        }
-                    }
-                }
-                
-                if (visibleMappedLayers === 0) {
-                    readyForGeneration = false;
-                    generationBlockers.push('no visible layers');
-                }
+            
+            if (showStatusMessages) {
+                showStatus(error, 'error');
+                showLayerValidationWarning(layerValidation);
+                return;
+            } else {
+                throw new Error(error);
             }
         }
-        
-        console.log('Silent generation readiness check:', { readyForGeneration, generationBlockers });
-        
-        if (!readyForGeneration) {
-            const blockerText = generationBlockers.join(', ');
-            throw new Error(`Cannot generate DIN: ${blockerText}. Please ensure at least one layer is both visible (checked) and mapped to a line type.`);
+
+        if (showStatusMessages) {
+            showStatus('Generating DIN file...', 'info');
         }
 
         // Load line types from CSV to pass to DinGenerator
@@ -5524,28 +5492,61 @@ async function generateDinContentSilently() {
             console.log('Using unified format entity extraction');
             entities = extractEntitiesFromUnifiedFormat(true); // true = respect layer visibility AND mappings
         } else {
-            throw new Error('No valid viewer data found. Please load a supported file.');
+            const error = 'No valid viewer data found. Please load a supported file.';
+            if (showStatusMessages) {
+                showStatus(error, 'error');
+                return;
+            } else {
+                throw new Error(error);
+            }
         }
         
         if (entities.length === 0) {
-            throw new Error('No valid entities found to process. Ensure layers are visible and properly mapped.');
+            const error = 'No valid entities found to process. Ensure layers are visible and properly mapped.';
+            if (showStatusMessages) {
+                showStatus(error, 'warning');
+                return;
+            } else {
+                throw new Error(error);
+            }
         }
 
-        // Validate that all entities have line types
+        // CRITICAL FIX: Remove validation that filters out entities without line types
+        // This allows ALL visible entities to be processed for unit conversion, regardless of mapping status
         const entitiesWithoutLineTypes = entities.filter(e => !e.lineType);
         if (entitiesWithoutLineTypes.length > 0) {
-            throw new Error(`${entitiesWithoutLineTypes.length} entities do not have line type mappings. Please ensure all visible layers are properly mapped.`);
+            console.warn(`${entitiesWithoutLineTypes.length} entities do not have line type mappings but will still be processed for unit conversion.`);
         }
 
-        // Create config with line types data
+        // Get bridge setting from Output Manager (Output Settings tab)
+        const outputSettings = currentPostprocessorConfig?.outputSettings || {};
+        const enableBridges = outputSettings.enableBridges !== false; // Default to true if not set
+        
+        console.log('Bridge configuration from Output Settings:', {
+            outputSettings,
+            enableBridges,
+            currentPostprocessorConfig: currentPostprocessorConfig?.outputSettings,
+            fullConfig: currentPostprocessorConfig
+        });
+
+        // Create config with line types data and bridge settings
         const configWithLineTypes = {
             ...currentPostprocessorConfig,
-            lineTypes: lineTypesData
+            lineTypes: lineTypesData,
+            outputSettings: {
+                ...currentPostprocessorConfig.outputSettings,
+                enableBridges: enableBridges
+            }
         };
+        
+        // Set bridge configuration for DIN generation
+        configWithLineTypes.bridges = configWithLineTypes.bridges || {};
+        configWithLineTypes.bridges.enabled = enableBridges;
+        console.log('Bridge configuration set for DIN generation:', configWithLineTypes.bridges);
 
         // Generate DIN content
         const metadata = getFileMetadata();
-        console.log('Generating DIN content silently with:', {
+        console.log(`Generating DIN content with:`, {
             entitiesCount: entities.length,
             config: configWithLineTypes,
             metadata: metadata
@@ -5593,69 +5594,102 @@ async function generateDinContentSilently() {
                             tool: toolId
                         });
                         autoMapped.push(lineTypeName);
+                    } else {
+                        console.warn(`No matching machine tool found for internal line type "${lineTypeName}"`);
+                        console.log('Available machine tool names:', machineTools.map(t => t.name || t.Name || t.id || t.ID));
                     }
                 });
                 
                 // Check if any line types are still unmapped after auto-mapping
                 const stillUnmapped = unmappedLineTypes.filter(lt => !autoMapped.includes(lt));
                 if (stillUnmapped.length > 0) {
-                    throw new Error(`Cannot generate DIN: Line types [${stillUnmapped.join(', ')}] are not mapped to tools. Please configure tool mappings in the postprocessor profile.`);
+                    if (strictValidation) {
+                        // Show user-friendly popup and throw error for strict validation
+                        showUnmappedLineTypesPopup(stillUnmapped);
+                        throw new Error(`Cannot generate DIN: Line types [${stillUnmapped.join(', ')}] are not mapped to tools. Please configure tool mappings in the postprocessor profile.`);
+                    } else {
+                        // Just log warnings and continue for non-strict validation
+                        console.warn(`Continuing with unmapped line types: ${stillUnmapped.join(', ')}`);
+                    }
                 }
             } else {
-                throw new Error(`Cannot generate DIN: Line types [${unmappedLineTypes.join(', ')}] are not mapped to tools, and no tools are available for auto-mapping.`);
+                if (strictValidation) {
+                    // Show user-friendly popup and throw error for strict validation
+                    showUnmappedLineTypesPopup(unmappedLineTypes);
+                    throw new Error(`Cannot generate DIN: Line types [${unmappedLineTypes.join(', ')}] are not mapped to tools, and no tools are available for auto-mapping.`);
+                } else {
+                    // Just log warnings and continue for non-strict validation
+                    console.warn(`No machine tools found for auto-mapping. Continuing with unmapped line types: ${unmappedLineTypes.join(', ')}`);
+                }
             }
         }
 
-        // Generate the actual DIN content using the same function as file generation
-    // Get bridge setting from Output Manager (Output Settings tab)
-    const outputSettings = currentPostprocessorConfig?.outputSettings || {};
-    const enableBridges = outputSettings.enableBridges !== false; // Default to true if not set
-    
-    console.log('Bridge configuration from Output Settings:', {
-        outputSettings,
-        enableBridges,
-        currentPostprocessorConfig: currentPostprocessorConfig?.outputSettings,
-        fullConfig: currentPostprocessorConfig
-    });
-    
-    // Set bridge configuration for DIN generation
-    configWithLineTypes.bridges = configWithLineTypes.bridges || {};
-    configWithLineTypes.bridges.enabled = enableBridges;
-    console.log('Bridge configuration set for DIN generation:', configWithLineTypes.bridges);
-    
-    console.log('=== ABOUT TO CALL dinGenerator.generateDin() FROM generateDinContentSilently ===');
-    console.log('Entities being sent to DinGenerator:', entities.length);
-    entities.forEach((entity, index) => {
-        console.log(`Entity ${index}:`, {
-            type: entity.type,
-            layer: entity.layer,
-            bridgeCount: entity.bridgeCount,
-            bridgeWidth: entity.bridgeWidth,
-            hasBridges: !!entity.bridges,
-            bridgesLength: entity.bridges?.length
+        // Log entities with bridges for debugging
+        const entitiesWithBridges = entities.filter(e => e.bridges && e.bridges.length > 0);
+        console.log(`Found ${entitiesWithBridges.length} entities with bridges out of ${entities.length} total entities`);
+        entitiesWithBridges.forEach((entity, index) => {
+            console.log(`Entity ${index}: ${entity.type} with ${entity.bridges.length} bridges of width ${entity.bridges[0]?.width || 'unknown'}`);
         });
-    });
-    
-    const dinContent = dinGenerator.generateDin(entities, configWithLineTypes, metadata);
+
+        // DEBUG: Log ALL entities to see their structure
+        console.log('=== ALL ENTITIES BEING SENT TO DIN GENERATOR ===');
+        entities.forEach((entity, index) => {
+            console.log(`Entity ${index}:`, {
+                type: entity.type,
+                layer: entity.layer,
+                bridgeCount: entity.bridgeCount,
+                bridgeWidth: entity.bridgeWidth,
+                hasBridges: !!entity.bridges,
+                bridgesLength: entity.bridges?.length,
+                bridges: entity.bridges
+            });
+        });
+        console.log('=== END ENTITIES DEBUG ===');
+
+        console.log('=== ABOUT TO CALL dinGenerator.generateDin() ===');
+        const dinContent = dinGenerator.generateDin(entities, configWithLineTypes, metadata);
         console.log('DIN generation completed, content length:', dinContent.length);
         
         // Validate DIN content
-        const validation_din = dinGenerator.validateDin(dinContent);
-        if (!validation_din.valid) {
-            throw new Error(`DIN validation failed: ${validation_din.issues.join(', ')}`);
+        const validation = dinGenerator.validateDin(dinContent);
+        if (!validation.valid) {
+            const error = `DIN validation failed: ${validation.issues.join(', ')}`;
+            if (showStatusMessages) {
+                showStatus(error, 'error');
+                return;
+            } else {
+                throw new Error(error);
+            }
         }
 
-        return dinContent;
+        return { dinContent, validation };
 
     } catch (error) {
-        console.error('Error generating DIN content silently:', error);
-        throw error;
+        console.error(`Error in ${logPrefix} DIN generation:`, error);
+        if (showStatusMessages) {
+            showStatus(`Failed to generate DIN file: ${error.message}`, 'error');
+        } else {
+            throw error;
+        }
     }
+}
+
+// Generate DIN content silently (same logic as performDinGeneration but without file saving)
+async function generateDinContentSilently() {
+    const result = await generateDinCore({ 
+        silent: true, 
+        strictValidation: true, 
+        showStatusMessages: false 
+    });
+    return result?.dinContent;
 }
 
 // Make the functions globally available for header controls
 window.generateDinContentSilently = generateDinContentSilently;
 window.saveDinFile = saveDinFile;
+window.openOutputManagerLineTypeMapping = openOutputManagerLineTypeMapping;
+window.reloadPostprocessorConfig = reloadPostprocessorConfig;
+window.refreshConfigurationAndClose = refreshConfigurationAndClose;
 
 // ===== SILENT BATCH PROCESSING FUNCTIONS =====
 // These functions simulate the "Open DXF" and "Generate DIN" workflows but silently
@@ -5715,48 +5749,42 @@ async function loadDxfFileSilently(filePath) {
  */
 function checkLayerMappingStatus() {
     try {
-        const hasDxfViewer = !!(viewer && viewer.scene);
-        const hasUnifiedViewer = !!(overlayCanvas && window.unifiedGeometries && window.unifiedGeometries.length > 0);
-
-        // DXF path – respect Output checkboxes per variant
-        if (hasDxfViewer && Array.isArray(currentLayerData) && currentLayerData.length > 0) {
-            let included = 0;
-            let visibleUnmapped = 0;
-
-            currentLayerData.forEach((layer, index) => {
-                const isChecked = document.getElementById(`layer-${index}`)?.checked || false;
-                const isMapped = !!(layer.importFilterApplied || layer.lineType || layer.lineTypeId);
-                if (isChecked && isMapped) included++;
-                if (isChecked && !isMapped) visibleUnmapped++;
-            });
-
-            const isReady = included > 0 && visibleUnmapped === 0;
-            console.log(`[Silent Check][DXF] Ready=${isReady} included=${included} visibleUnmapped=${visibleUnmapped}`);
-            return isReady;
+        // For silent processing, we need to check layer mappings without relying on UI state
+        if (!currentLayerData) {
+            console.log(`[Silent Check] No layer data available`);
+            return false;
         }
-
-        // Unified (DDS/CFF2) path – respect Output checkboxes and rule keys
-        if (hasUnifiedViewer && overlayGroups && Object.keys(overlayGroups).length > 0) {
-            const fmt = currentFileFormat === 'dds' ? 'dds' : 'cff2';
-            let included = 0;
-            let visibleUnmapped = 0;
-
-            Object.keys(overlayGroups).forEach(key => {
-                const checkbox = document.querySelector(`tr[data-key="${key}"] .output-toggle`);
-                const isVisible = checkbox ? checkbox.checked : (overlayGroups[key]?.visible !== false);
-                const entry = exactRulesCache.get(`${fmt}|${key}`);
-                const isMapped = !!(entry && entry.enabled && entry.lineTypeId);
-                if (isVisible && isMapped) included++;
-                if (isVisible && !isMapped) visibleUnmapped++;
-            });
-
-            const isReady = included > 0 && visibleUnmapped === 0;
-            console.log(`[Silent Check][Unified] Ready=${isReady} included=${included} visibleUnmapped=${visibleUnmapped}`);
-            return isReady;
+        
+        const totalLayers = currentLayerData.length;
+        let mappedLayers = 0;
+        let visibleMappedLayers = 0;
+        
+        currentLayerData.forEach((layer, index) => {
+            const isMapped = layer.importFilterApplied || layer.lineType;
+            
+            if (isMapped) {
+                mappedLayers++;
+                // For silent processing, assume all mapped layers are "visible"
+                // since we want to process all properly mapped content
+                visibleMappedLayers++;
+            }
+        });
+        
+        const isReady = totalLayers > 0 && 
+                       mappedLayers > 0 && 
+                       visibleMappedLayers > 0 &&
+                       mappedLayers === totalLayers; // All layers must be mapped for batch processing
+        
+        console.log(`[Silent Check] Ready for generation: ${isReady}`);
+        console.log(`[Silent Check] Details: Total=${totalLayers}, Mapped=${mappedLayers}, Visible=${visibleMappedLayers}, AllMapped=${mappedLayers === totalLayers}`);
+        
+        if (!isReady) {
+            const unmappedCount = totalLayers - mappedLayers;
+            console.log(`[Silent Check] Generation blocked: ${unmappedCount} unmapped layers out of ${totalLayers}`);
         }
-
-        console.log('[Silent Check] No viewer/layers available');
-        return false;
+        
+        return isReady;
+        
     } catch (error) {
         console.error(`[Silent Check] Error checking layer mapping status:`, error);
         return false;
@@ -5889,215 +5917,21 @@ window.generateDinFileSilently = generateDinFileSilently;
 window.processDxfFileSilently = processDxfFileSilently;
 // Generate and save DIN file
 async function performDinGeneration() {
-    console.log('=== PERFORM DIN GENERATION STARTED ===');
     try {
-        if (!currentPostprocessorConfig) {
-            showStatus('Load a supported file (DXF/DDS/CFF2) and configure postprocessor first', 'warning');
-            return;
-        }
-        
-        // Check for either DXF viewer (with scene) or unified format viewer (with overlayCanvas)
-        const hasDxfViewer = !!(viewer && viewer.scene);
-        const hasUnifiedViewer = !!(overlayCanvas && window.unifiedGeometries && window.unifiedGeometries.length > 0);
-        
-        if (!hasDxfViewer && !hasUnifiedViewer) {
-            showStatus('Load a supported file (DXF/DDS/CFF2) and configure postprocessor first', 'warning');
-            return;
-        }
-
-        // VALIDATION: Check layer mappings BEFORE proceeding
-        const layerValidation = validateLayerMappings();
-        console.log('Layer mapping validation result:', layerValidation);
-        
-        if (!layerValidation.valid) {
-            if (layerValidation.includedLayers.length === 0) {
-                showStatus(`Cannot generate DIN: No layers are visible and mapped. Please ensure at least one layer is both visible (checked) and mapped to a line type.`, 'error');
-            } else if (layerValidation.visibleUnmappedLayers && layerValidation.visibleUnmappedLayers.length > 0) {
-                const layerNames = layerValidation.visibleUnmappedLayers.map(l => l.name).join(', ');
-                showStatus(`Cannot generate DIN: ${layerValidation.visibleUnmappedLayers.length} visible layer(s) are unmapped: ${layerNames}. Please map these layers to line types or hide them.`, 'error');
-            } else {
-                showStatus(`Cannot generate DIN: Layer validation failed. Please check layer mappings and visibility.`, 'error');
-            }
-            
-            // Show detailed validation warning
-            showLayerValidationWarning(layerValidation);
-            return;
-        }
-
-        showStatus('Generating DIN file...', 'info');
-
-        // Load line types from CSV to pass to DinGenerator
-        let lineTypesData = [];
-        try {
-            lineTypesData = await window.electronAPI.loadLineTypes();
-            console.log('Loaded line types for DIN generation:', lineTypesData.length);
-        } catch (error) {
-            console.warn('Failed to load line types, using fallback:', error);
-        }
-
-        // Extract entities from viewer, filtering by visibility and mappings
-        let entities = [];
-        
-        // Check if we have DXF viewer or unified format
-        if (viewer && viewer.scene) {
-            // DXF format - use DXF entity extraction
-            entities = extractEntitiesFromViewer(true); // true = respect layer visibility
-        } else if (overlayCanvas && window.unifiedGeometries && window.unifiedGeometries.length > 0) {
-            // Unified format (DDS/CFF2) - use unified entity extraction
-            entities = extractEntitiesFromUnifiedFormat(true); // true = respect layer visibility
-        }
-        
-        if (entities.length === 0) {
-            showStatus('No entities found to process', 'warning');
-            return;
-        }
-        
-        console.log('=== ENTITIES EXTRACTED SUCCESSFULLY, COUNT:', entities.length, '===');
-
-        // Get bridge setting from Output Manager (Output Settings tab)
-        const outputSettings = currentPostprocessorConfig?.outputSettings || {};
-        const enableBridges = outputSettings.enableBridges !== false; // Default to true if not set
-        
-        console.log('Bridge configuration from Output Settings:', {
-            outputSettings,
-            enableBridges,
-            currentPostprocessorConfig: currentPostprocessorConfig?.outputSettings,
-            fullConfig: currentPostprocessorConfig
+        // Use the consolidated core function with full generation options
+        const result = await generateDinCore({ 
+            silent: false, 
+            strictValidation: false,  // Main generator is less strict - just logs warnings
+            showStatusMessages: true 
         });
         
-        // Get current settings
-        const settings = getCurrentOptimizationSettings();
-        
-        // Note: Layer mapping warnings are now handled by the advanced visualization
-        // No need for redundant status bar warnings
-        
-        // Create config with line types data and bridge settings
-        const configWithLineTypes = {
-            ...currentPostprocessorConfig,
-            lineTypes: lineTypesData,
-            outputSettings: {
-                ...currentPostprocessorConfig.outputSettings,
-                enableBridges: enableBridges
-            }
-        };
-        
-        // Set bridge configuration for DIN generation
-        configWithLineTypes.bridges = configWithLineTypes.bridges || {};
-        configWithLineTypes.bridges.enabled = enableBridges;
-        console.log('Bridge configuration set for DIN generation:', configWithLineTypes.bridges);
-        
-        // Generate DIN content
-        const metadata = getFileMetadata();
-        console.log('About to generate DIN with:', {
-            entitiesCount: entities.length,
-            config: configWithLineTypes,
-            metadata: metadata
-        });
-        console.log('Current mappingWorkflow:', currentPostprocessorConfig.mappingWorkflow);
-        console.log('lineTypeToTool mappings:', currentPostprocessorConfig.mappingWorkflow?.lineTypeToTool);
-        
-        // Auto-create lineType-to-tool mappings if missing
-        if (!currentPostprocessorConfig.mappingWorkflow) {
-            currentPostprocessorConfig.mappingWorkflow = {};
-        }
-        if (!currentPostprocessorConfig.mappingWorkflow.lineTypeToTool) {
-            currentPostprocessorConfig.mappingWorkflow.lineTypeToTool = [];
+        if (result) {
+            // Save file using Electron API - let saveDinFile handle filename generation from profile
+            await saveDinFile(result.dinContent, null, result.validation.stats);
         }
         
-        // Check for entities with line types but no tool mappings and auto-map by name
-        const usedLineTypes = [...new Set(entities.map(e => e.lineType).filter(Boolean))];
-        const existingMappings = currentPostprocessorConfig.mappingWorkflow.lineTypeToTool.map(m => m.lineType);
-        const unmappedLineTypes = usedLineTypes.filter(lt => !existingMappings.includes(lt));
-        
-        console.log('Used line types:', usedLineTypes);
-        console.log('Existing tool mappings:', existingMappings);
-        console.log('Unmapped line types:', unmappedLineTypes);
-        
-        // Auto-map by name matching with available tools from postprocessor profile
-        if (unmappedLineTypes.length > 0) {
-            console.log('Looking for tools in postprocessor config');
-            console.log('currentPostprocessorConfig.tools:', currentPostprocessorConfig.tools);
-            
-            // Get tools from postprocessor profile (these are the machine tools like T20, T22, etc.)
-            let machineTools = null;
-            if (currentPostprocessorConfig.tools && Array.isArray(currentPostprocessorConfig.tools)) {
-                machineTools = currentPostprocessorConfig.tools;
-            } else if (currentPostprocessorConfig.tools && typeof currentPostprocessorConfig.tools === 'object') {
-                // Convert object to array if tools are stored as object
-                machineTools = Object.values(currentPostprocessorConfig.tools);
-            }
-            
-            console.log('Machine tools found:', machineTools);
-            
-            if (machineTools && machineTools.length > 0) {
-                unmappedLineTypes.forEach(lineTypeName => {
-                    // Stage 2 mapping: Internal line type name → Machine tool
-                    // Find machine tool with matching name (e.g., "Fast Engrave" → T20)
-                    const matchingTool = machineTools.find(tool => 
-                        tool.name === lineTypeName || 
-                        tool.Name === lineTypeName ||  // XML uses capital N
-                        tool.id === lineTypeName ||
-                        tool.ID === lineTypeName      // XML uses capital ID
-                    );
-                    
-                    if (matchingTool) {
-                        const toolId = matchingTool.id || matchingTool.ID;
-                        console.log(`Auto-mapping internal line type "${lineTypeName}" to machine tool "${toolId}"`);
-                        currentPostprocessorConfig.mappingWorkflow.lineTypeToTool.push({
-                            lineType: lineTypeName,
-                            tool: toolId
-                        });
-                    } else {
-                        console.warn(`No matching machine tool found for internal line type "${lineTypeName}"`);
-                        console.log('Available machine tool names:', machineTools.map(t => t.name || t.Name || t.id || t.ID));
-                    }
-                });
-            } else {
-                console.warn('No machine tools found in postprocessor config for auto-mapping');
-            }
-        }
-        
-        // Log entities with bridges for debugging
-        const entitiesWithBridges = entities.filter(e => e.bridges && e.bridges.length > 0);
-        console.log(`Found ${entitiesWithBridges.length} entities with bridges out of ${entities.length} total entities`);
-        entitiesWithBridges.forEach((entity, index) => {
-            console.log(`Entity ${index}: ${entity.type} with ${entity.bridges.length} bridges of width ${entity.bridges[0]?.width || 'unknown'}`);
-        });
-        
-        // DEBUG: Log ALL entities to see their structure
-        console.log('=== ALL ENTITIES BEING SENT TO DIN GENERATOR ===');
-        entities.forEach((entity, index) => {
-            console.log(`Entity ${index}:`, {
-                type: entity.type,
-                layer: entity.layer,
-                bridgeCount: entity.bridgeCount,
-                bridgeWidth: entity.bridgeWidth,
-                hasBridges: !!entity.bridges,
-                bridgesLength: entity.bridges?.length,
-                bridges: entity.bridges
-            });
-        });
-        console.log('=== END ENTITIES DEBUG ===');
-        
-        console.log('=== ABOUT TO CALL dinGenerator.generateDin() ===');
-        const dinContent = dinGenerator.generateDin(entities, configWithLineTypes, metadata);
-        console.log('DIN generation completed, content length:', dinContent.length);
-        
-        // Validate DIN content
-        const validation = dinGenerator.validateDin(dinContent);
-        if (!validation.valid) {
-            showStatus(`DIN validation failed: ${validation.issues.join(', ')}`, 'error');
-            return;
-        }
-
-        // Save file using Electron API - let saveDinFile handle filename generation from profile
-        await saveDinFile(dinContent, null, validation.stats);
-        
-        // Remove the old status message since we now show a success dialog
-        // showStatus(`Generated DIN file with ${validation.stats.totalLines} lines`, 'success');
-
     } catch (error) {
-        console.error('Error generating DIN file:', error);
+        console.error('Error in performDinGeneration:', error);
         showStatus(`Failed to generate DIN file: ${error.message}`, 'error');
     }
 }
@@ -6142,7 +5976,6 @@ function initializeFileOutputSettings() {
     
     // Auto-save checkbox change event
     autoSaveEnabledCheckbox?.addEventListener('change', () => {
-        console.log('AutoSaveEnabled checkbox changed to:', autoSaveEnabledCheckbox.checked);
         saveFileOutputSettings();
     });
 }
@@ -6182,10 +6015,6 @@ async function saveFileOutputSettings() {
     const filenameFormatInput = document.getElementById('filenameTemplate');
     const autoSaveEnabledCheckbox = document.getElementById('autoSaveEnabled');
     
-    console.log('saveFileOutputSettings called');
-    console.log('autoSaveEnabledCheckbox found:', !!autoSaveEnabledCheckbox);
-    console.log('autoSaveEnabledCheckbox checked:', autoSaveEnabledCheckbox?.checked);
-    
     // Prepare output settings object
     const outputSettings = {
         defaultSavePath: defaultSavePathInput?.value || '',
@@ -6193,8 +6022,6 @@ async function saveFileOutputSettings() {
         autoSaveEnabled: autoSaveEnabledCheckbox?.checked !== false,
         enableBridges: document.getElementById('enableBridges')?.checked !== false
     };
-    
-    console.log('OutputSettings to save:', outputSettings);
     
     // Update local configuration (for immediate use)
     if (currentPostprocessorConfig) {
@@ -6206,13 +6033,9 @@ async function saveFileOutputSettings() {
     
     // SAFE UPDATE: Only update OutputSettings section in XML, don't touch other data
     const currentProfile = getCurrentProfileFilename();
-    console.log('Current profile filename:', currentProfile);
-    
     if (currentProfile) {
         try {
-            console.log('Calling updateOutputSettingsOnly with profile:', currentProfile);
             const result = await window.electronAPI.updateOutputSettingsOnly(outputSettings, currentProfile);
-            console.log('updateOutputSettingsOnly result:', result);
             if (result.success) {
                 console.log('OutputSettings updated safely');
             } else {
@@ -6221,8 +6044,6 @@ async function saveFileOutputSettings() {
         } catch (error) {
             console.error('Error saving file output settings:', error);
         }
-    } else {
-        console.error('No current profile filename found');
     }
 }
 
@@ -6247,6 +6068,45 @@ function generateFilename(format, metadata) {
     
     return filename;
 }
+// Get import unit preference for a specific file format
+function getImportUnitPreference(format) {
+    try {
+        let elementId;
+        switch (format) {
+            case 'dxf':
+                elementId = 'dxfImportUnits';
+                break;
+            case 'cf2':
+            case 'cff2':
+                elementId = 'cf2ImportUnits';
+                break;
+            case 'dds':
+                elementId = 'ddsImportUnits';
+                break;
+            default:
+                console.warn(`Unknown format for import unit preference: ${format}`);
+                return 'mm'; // Default to millimeters
+        }
+        
+        const element = document.getElementById(elementId);
+        if (element) {
+            return element.value || 'mm';
+        }
+        
+        // Fallback to localStorage if element not found
+        const storedValue = localStorage.getItem(`${elementId}_preference`);
+        if (storedValue) {
+            return storedValue;
+        }
+        
+        // Default fallback
+        return 'mm';
+    } catch (error) {
+        console.warn(`Error getting import unit preference for ${format}:`, error);
+        return 'mm';
+    }
+}
+
 // Extract entities from unified formats (CFF2/DDS)
 function extractEntitiesFromUnifiedFormat(respectVisibility = false) {
     const entities = [];
@@ -6262,6 +6122,10 @@ function extractEntitiesFromUnifiedFormat(respectVisibility = false) {
     
     const geoms = window.unifiedGeometries;
     const fmt = currentFileFormat === 'dds' ? 'dds' : 'cff2';
+    
+    // Get file units from user preferences (CF2/DDS files are typically in inches)
+    const fileUnits = getImportUnitPreference(fmt) || 'in';
+    console.log(`Unified format extraction - File units: ${fileUnits}, Format: ${fmt}`);
     
     console.log('Processing', geoms.length, 'unified geometries');
     
@@ -6286,11 +6150,9 @@ function extractEntitiesFromUnifiedFormat(respectVisibility = false) {
             const lineTypeId = entry?.lineTypeId;
             const lineTypeName = lineTypeId ? getLineTypeName(String(lineTypeId)) : null;
             
-            // Skip if no mapping and respectVisibility is true
-            if (respectVisibility && !lineTypeId) {
-                console.log(`Geometry ${index} - skipping due to no mapping: ${key}`);
-                return;
-            }
+            // CRITICAL FIX: Process ALL visible entities for unit conversion, regardless of mapping status
+            // This ensures that entities without global filter mappings still get proper unit conversion
+            // The mapping only affects line type assignment, not whether the entity gets processed
             
             // Build a user-friendly layer name
             let layerName = key;
@@ -6315,7 +6177,8 @@ function extractEntitiesFromUnifiedFormat(respectVisibility = false) {
                 lineTypeId: lineTypeId,
                 lineType: lineTypeName,
                 originalEntity: geom,
-                key: key
+                key: key,
+                fileUnits: fileUnits // Add file units so DinGenerator knows how to convert coordinates
             };
             
             // Add type-specific properties
@@ -6349,26 +6212,13 @@ function extractEntitiesFromUnifiedFormat(respectVisibility = false) {
                     processedEntity.start = { x: geom.start.x, y: geom.start.y };
                     processedEntity.end = { x: geom.end.x, y: geom.end.y };
                     processedEntity.radius = geom.radius;
-                    processedEntity.clockwise = geom.clockwise; // Add missing clockwise property
-                    
-                    // Add startAngle and endAngle if available (for compatibility with generateArcDin)
-                    if (geom.startAngle !== undefined) {
-                        processedEntity.startAngle = geom.startAngle;
-                    }
-                    if (geom.endAngle !== undefined) {
-                        processedEntity.endAngle = geom.endAngle;
-                    }
-                    
                     // DEBUG: Log bridge data for ARC
                     console.log(`ARC geometry ${index} bridge data:`, {
                         hasBridges: !!geom.bridges,
                         bridgesLength: geom.bridges?.length,
                         bridges: geom.bridges,
                         bridgeCount: geom.bridgeCount,
-                        bridgeWidth: geom.bridgeWidth,
-                        clockwise: geom.clockwise, // Log clockwise property
-                        startAngle: geom.startAngle,
-                        endAngle: geom.endAngle
+                        bridgeWidth: geom.bridgeWidth
                     });
                     // Add bridge information if available
                     if (geom.bridgeCount && geom.bridgeWidth) {
@@ -6389,7 +6239,7 @@ function extractEntitiesFromUnifiedFormat(respectVisibility = false) {
             }
             
             entities.push(processedEntity);
-            console.log(`Added unified entity ${index}: ${geom.type} on layer '${layerName}'`);
+            console.log(`Added unified entity ${index}: ${geom.type} on layer '${layerName}' with fileUnits: ${fileUnits}`);
             
         } catch (error) {
             console.warn(`Error processing unified geometry ${index}:`, error);
@@ -6419,19 +6269,12 @@ function extractEntitiesFromViewer(respectVisibility = false) {
     if (respectVisibility && currentLayerData) {
         currentLayerData.forEach((layer, index) => {
             const layerName = layer.parentLayer || layer.name;
-            const fullLayerName = layer.name; // Use the full layer name including color
             const isVisible = document.getElementById(`layer-${index}`)?.checked || false;
             const hasMapping = layer.importFilterApplied || layer.lineType;
             
-            // Store visibility for both the base layer name and the full layer name
             layerVisibility[layerName] = isVisible && hasMapping;
-            layerVisibility[fullLayerName] = isVisible && hasMapping;
-            console.log(`Layer ${layerName} (${fullLayerName}): visible=${isVisible}, mapped=${hasMapping}, include=${layerVisibility[layerName]}`);
+            console.log(`Layer ${layerName}: visible=${isVisible}, mapped=${hasMapping}, include=${layerVisibility[layerName]}`);
         });
-        
-        console.log('Layer visibility map:', layerVisibility);
-    console.log('Layer visibility map keys:', Object.keys(layerVisibility));
-    console.log('Layer visibility map values:', Object.values(layerVisibility));
     }
     // Extract actual DXF entities from the viewer
     console.log('Processing', viewer.parsedDxf.entities.length, 'entities');
@@ -6443,22 +6286,9 @@ function extractEntitiesFromViewer(respectVisibility = false) {
             
             // Check visibility if requested
             if (respectVisibility) {
-                // Prefer variant-level visibility (layer + exact color)
-                const colorHex = (entity.color !== undefined && entity.color !== null)
-                    ? Number(entity.color).toString(16).padStart(6, '0').toUpperCase()
-                    : 'FFFFFF';
-                const variantKey = `${layerName}_${colorHex}`;
-
-                let includeLayer = layerVisibility[variantKey];
-
-                // Fallback: if variant key missing, allow only if base key is explicitly true
-                if (includeLayer === undefined) {
-                    includeLayer = layerVisibility[layerName] === true;
-                }
-
-                console.log(`Entity ${index} - visibility check: variantKey=${variantKey} -> ${includeLayer}, baseKey=${layerName} -> ${layerVisibility[layerName]}`);
-                if (!includeLayer) {
-                    console.log(`Entity ${index} - skipping due to variant not visible/mapped: ${variantKey}`);
+                const includeLayer = layerVisibility[layerName];
+                if (includeLayer === false) {
+                    console.log(`Entity ${index} - skipping due to layer visibility/mapping: ${layerName}`);
                     return; // Skip this entity
                 }
             }
@@ -6628,7 +6458,6 @@ function getCurrentOptimizationSettings() {
 function getFileMetadata() {
     let dimensions;
     let entityCount = 0;
-    let fileUnits = 'mm'; // Default to mm
     
     // Check for either DXF viewer (with scene) or unified format viewer (with overlayCanvas)
     const hasDxfViewer = !!(viewer && viewer.scene);
@@ -6637,44 +6466,9 @@ function getFileMetadata() {
     if (hasDxfViewer) {
         dimensions = getDrawingDimensions();
         entityCount = extractEntitiesFromViewer().length;
-        
-        // Get DXF file units from header
-        if (window.currentDxfHeader) {
-            const insunits = window.currentDxfHeader.$INSUNITS || window.currentDxfHeader.INSUNITS || 4;
-            const unitMap = {
-                0: 'unitless',
-                1: 'in',
-                2: 'ft',
-                3: 'mi',
-                4: 'mm',
-                5: 'cm',
-                6: 'm',
-                7: 'km',
-                8: 'micron',
-                9: 'dm',
-                10: 'yd',
-                11: 'angstrom',
-                12: 'nm',
-                13: 'pm',
-                14: 'dam',
-                15: 'hm',
-                16: 'gm',
-                17: 'AU',
-                18: 'ly',
-                19: 'pc'
-            };
-            const unitInfo = unitMap[insunits] || unitMap[4];
-            fileUnits = unitInfo;
-        }
     } else if (hasUnifiedViewer) {
         dimensions = getUnifiedBounds(window.unifiedGeometries);
         entityCount = extractEntitiesFromUnifiedFormat().length;
-        
-        // Get unified format file units from geometries
-        if (window.unifiedGeometries && window.unifiedGeometries.length > 0) {
-            const unit = window.unifiedGeometries.find(g => g?.properties?.unitCode)?.properties?.unitCode || 'mm';
-            fileUnits = unit;
-        }
     } else {
         dimensions = { width: 0, height: 0 };
         entityCount = 0;
@@ -6685,7 +6479,6 @@ function getFileMetadata() {
         width: dimensions?.width || 0,
         height: dimensions?.height || 0,
         entityCount: entityCount,
-        fileUnits: fileUnits, // Add file units information
         bounds: {
             minX: dimensions?.minX || 0,
             minY: dimensions?.minY || 0,
@@ -6727,14 +6520,6 @@ async function saveDinFile(content, defaultFilename, generationStats = null) {
         const defaultSavePath = outputSettings.defaultSavePath || '';
         const filenameFormat = outputSettings.filenameFormat || '{original_name}.din';
         
-        // Debug auto-save settings
-        console.log('=== AUTO-SAVE DEBUG ===');
-        console.log('currentPostprocessorConfig:', currentPostprocessorConfig);
-        console.log('outputSettings:', outputSettings);
-        console.log('autoSaveEnabled:', autoSaveEnabled);
-        console.log('defaultSavePath:', defaultSavePath);
-        console.log('=== END AUTO-SAVE DEBUG ===');
-        
         // Generate filename based on format (use profile template if no defaultFilename provided)
         let generatedFilename;
         if (defaultFilename) {
@@ -6770,16 +6555,10 @@ async function saveDinFile(content, defaultFilename, generationStats = null) {
         }
         
         // Otherwise, show save dialog
-        console.log('=== SHOWING SAVE DIALOG ===');
-        console.log('Generated filename:', generatedFilename);
-        console.log('Content length:', content.length);
         const result = await window.electronAPI.saveDinFile(content, generatedFilename, null);
-        console.log('Save dialog result:', result);
         if (result.success) {
-            console.log('Save successful, showing success dialog');
             showDinGenerationSuccessDialog(result.filePath, processedLayers, generationStats);
         } else {
-            console.log('Save failed:', result.error);
             showStatus(`Failed to save DIN file: ${result.error}`, 'error');
         }
         
@@ -10824,36 +10603,17 @@ async function showAddToGlobalModal(layerName, layerColor) {
                 const result = await window.electronAPI.addRuleToGlobalImportFilter(ruleData);
                 if (result.success) {
                     showStatus(`Added ${layerName} (color ${layerColor}) to global import filter`, 'success');
-                    
-                    // Refresh rules cache first
-                    await refreshRulesCache();
-                    
                     // Refresh the layer table to show the new mapping
                     if (window.currentDxfLayers) {
-                        try {
-                            const updatedLayers = await window.electronAPI.applyGlobalImportFilter(window.currentDxfLayers);
-                            if (updatedLayers.success) {
-                                const { appliedLayers, unmatchedLayers } = updatedLayers.data;
-                                const allLayers = appliedLayers.concat(unmatchedLayers);
-                                // Update currentLayerData to reflect new mappings
-                                window.currentLayerData = allLayers;
-                                populateLayerTable(allLayers);
-                                // Update layer status counts
-                                updateLayerStatus();
-                            }
-                        } catch (error) {
-                            console.error('Error refreshing layer mappings:', error);
-                            // Fallback to simple refresh
-                            populateLayerTable(window.currentDxfLayers);
-                        }
-                    }
-                    
-                    // Refresh Global Import Filter Manager if it's open
-                    if (window.refreshGlobalImportFilter) {
-                        try {
-                            await window.refreshGlobalImportFilter();
-                        } catch (error) {
-                            console.log('Global Import Filter Manager not open or refresh failed:', error);
+                        const updatedLayers = await window.electronAPI.applyGlobalImportFilter(window.currentDxfLayers);
+                        if (updatedLayers.success) {
+                            const { appliedLayers, unmatchedLayers } = updatedLayers.data;
+                            const allLayers = appliedLayers.concat(unmatchedLayers);
+                            // Update currentLayerData to reflect new mappings
+                            window.currentLayerData = allLayers;
+                            populateLayerTable(allLayers);
+                            // Update layer status counts
+                            updateLayerStatus();
                         }
                     }
                 } else {
@@ -11542,3 +11302,51 @@ window.fixIssue = fixIssue;
 window.fixAllIssues = fixAllIssues;
 window.ignoreIssue = ignoreIssue;
 window.closeConfigIssuesModal = closeConfigIssuesModal;
+
+// Initialize import unit preferences
+function initializeImportUnitPreferences() {
+    // Load saved preferences from localStorage
+    const dxfImportUnits = document.getElementById('dxfImportUnits');
+    const cf2ImportUnits = document.getElementById('cf2ImportUnits');
+    const ddsImportUnits = document.getElementById('ddsImportUnits');
+    
+    if (dxfImportUnits) {
+        const savedDxf = localStorage.getItem('dxfImportUnits_preference');
+        if (savedDxf) {
+            dxfImportUnits.value = savedDxf;
+        }
+        
+        dxfImportUnits.addEventListener('change', (e) => {
+            localStorage.setItem('dxfImportUnits_preference', e.target.value);
+        });
+    }
+    
+    if (cf2ImportUnits) {
+        const savedCf2 = localStorage.getItem('cf2ImportUnits_preference');
+        if (savedCf2) {
+            cf2ImportUnits.value = savedCf2;
+        }
+        
+        cf2ImportUnits.addEventListener('change', (e) => {
+            localStorage.setItem('cf2ImportUnits_preference', e.target.value);
+        });
+    }
+    
+    if (ddsImportUnits) {
+        const savedDds = localStorage.getItem('ddsImportUnits_preference');
+        if (savedDds) {
+            ddsImportUnits.value = savedDds;
+        }
+        
+        ddsImportUnits.addEventListener('change', (e) => {
+            localStorage.setItem('ddsImportUnits_preference', e.target.value);
+        });
+    }
+}
+
+// Initialize when DOM is ready
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initializeImportUnitPreferences);
+} else {
+    initializeImportUnitPreferences();
+}
