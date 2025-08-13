@@ -76,10 +76,11 @@ export class DinGenerator {
      * @returns {String} DIN file content
      */
     generateDin(entities, config, metadata = {}) {
-        console.error('🔥 FIRE LOG - DinGenerator.generateDin() CALLED - THIS SHOULD ALWAYS APPEAR 🔥');
-        console.warn('⚠️ WARNING LOG - If you see this, DinGenerator is working');
-        console.info('ℹ️ INFO LOG - generateDin method entered');
-        console.log('📝 NORMAL LOG - Standard console log');
+        console.error('🔥🔥🔥 FIRE LOG - DinGenerator.generateDin() CALLED - THIS SHOULD ALWAYS APPEAR 🔥🔥🔥');
+        console.warn('⚠️⚠️⚠️ WARNING LOG - If you see this, DinGenerator is working ⚠️⚠️⚠️');
+        console.info('ℹ️ℹ️ℹ️ INFO LOG - generateDin method entered ℹ️ℹ️ℹ️');
+        console.log('📝📝📝 NORMAL LOG - Standard console log 📝📝📝');
+        console.log('🎯 DIN GENERATOR IS WORKING! Our fixes are active!'); // User will see this in console
         this.config = config;
         this.metadata = metadata; // Store metadata for use in other methods
         this.lineNumber = config.lineNumbers?.startNumber || 10;
@@ -385,76 +386,167 @@ export class DinGenerator {
         }
 
         if (entity.type === 'ARC') {
+            console.log('=== ARC ENTITY DEBUG IN generateEntityDinWithBridges ===');
+            console.log('Entity:', entity);
+            console.log('Bridge data:', {
+                bridgeCount: entity.bridgeCount,
+                bridgeWidth: entity.bridgeWidth,
+                bridges: entity.bridges
+            });
+            
             // Get unit conversion parameters
-            const fileUnits = entity.fileUnits || this.metadata.fileUnits || 'mm';
+            const fileUnits = this.metadata.fileUnits || 'mm';
             const outputUnits = this.config.units?.system || 'mm';
             
-            // Convert coordinates
-            const convertedCenterX = this.convertCoordinates(entity.center.x, fileUnits, outputUnits);
-            const convertedCenterY = this.convertCoordinates(entity.center.y, fileUnits, outputUnits);
-            const convertedRadius = this.convertCoordinates(Math.abs(entity.radius), fileUnits, outputUnits);
-            
-            // Calculate start and end points
-            const startAngle = entity.startAngle || 0;
-            const endAngle = entity.endAngle || Math.PI * 2;
-            
-            const startX = convertedCenterX + convertedRadius * Math.cos(startAngle);
-            const startY = convertedCenterY + convertedRadius * Math.sin(startAngle);
-            const endX = convertedCenterX + convertedRadius * Math.cos(endAngle);
-            const endY = convertedCenterY + convertedRadius * Math.sin(endAngle);
-            
-            const cx = convertedCenterX;
-            const cy = convertedCenterY;
-            const a0 = Math.atan2(startY - cy, startX - cx);
-            const a1 = Math.atan2(endY - cy, endX - cx);
-            const ccw = entity.clockwise === false; // clockwise true means CW; ccw if false
-            let sweep = a1 - a0;
-            
-            // Intelligent full circle detection - consider multiple factors
-            const sweepMagnitude = Math.abs(sweep);
-            const isNearFullCircle = sweepMagnitude >= Math.PI * 1.7; // 306 degrees or more (more inclusive)
-            const isExplicitFullCircle = (entity.startAngle === 0 && entity.endAngle === Math.PI * 2) || 
-                                       (entity.startAngle === 0 && entity.endAngle === 0) ||
-                                       (Math.abs(entity.startAngle - entity.endAngle) < 0.001);
-            
-            // Check if this is likely a legitimate full circle or U-shape
-            const isLegitimateFullCircle = isExplicitFullCircle || isNearFullCircle;
-            
-            if (isLegitimateFullCircle) {
-                sweep = ccw ? Math.PI * 2 : -Math.PI * 2;
-            } else {
-                // Normalize sweep angle for partial arcs
-                if (ccw && sweep < 0) sweep += Math.PI * 2;
-                if (!ccw && sweep > 0) sweep -= Math.PI * 2;
+            // Approximate splitting along arc length using entity.center, radius, start/end angles
+            const cx = entity.center?.x;
+            const cy = entity.center?.y;
+            if (cx === undefined || cy === undefined || entity.radius === undefined) {
+                console.log('❌ ARC ENTITY MISSING REQUIRED DATA - returning empty');
+                return [];
             }
             
-            const totalArcLen = convertedRadius * Math.abs(sweep);
-            if (!isFinite(totalArcLen) || totalArcLen === 0) return [];
+            // Convert coordinates for calculations
+            const convertedCx = this.convertCoordinates(cx, fileUnits, outputUnits);
+            const convertedCy = this.convertCoordinates(cy, fileUnits, outputUnits);
+            const convertedRadius = this.convertCoordinates(entity.radius, fileUnits, outputUnits);
+
+            // Convert start and end coordinates
+            const convertedStartX = this.convertCoordinates(entity.start.x, fileUnits, outputUnits);
+            const convertedStartY = this.convertCoordinates(entity.start.y, fileUnits, outputUnits);
+            const convertedEndX = this.convertCoordinates(entity.end.x, fileUnits, outputUnits);
+            const convertedEndY = this.convertCoordinates(entity.end.y, fileUnits, outputUnits);
+            
+            // Calculate angles from converted start and end points
+            const a0 = Math.atan2(convertedStartY - convertedCy, convertedStartX - convertedCx);
+            const a1 = Math.atan2(convertedEndY - convertedCy, convertedEndX - convertedCx);
+            let sweep = a1 - a0;
+            
+            console.log('=== ARC ANGLE CALCULATION ===');
+            console.log('entity.start:', entity.start);
+            console.log('entity.end:', entity.end);
+            console.log('a0 (start angle):', a0);
+            console.log('a1 (end angle):', a1);
+            console.log('initial sweep:', sweep);
+            console.log('entity.clockwise:', entity.clockwise);
+            console.log('entity.radius:', entity.radius);
+            
+            // Full circle detection - only true if start/end are EXACTLY the same
+            // AND sweep angle is close to 2π (360 degrees)
+            const startEndDistance = Math.sqrt(
+                Math.pow(convertedStartX - convertedEndX, 2) + 
+                Math.pow(convertedStartY - convertedEndY, 2)
+            );
+            
+            // Calculate initial sweep angle
+            let arcSweep = a1 - a0;
+            
+            // Normalize sweep angle
+            if (arcSweep < -Math.PI) arcSweep += 2 * Math.PI;
+            if (arcSweep > Math.PI) arcSweep -= 2 * Math.PI;
+            
+            // True full circle: start/end points are the same (sweep will be 0 for true circles)
+            const isFullCircle = startEndDistance < 0.0001;
+            
+            console.log('=== ARC DETECTION DEBUG ===');
+            console.log('Start/end distance:', startEndDistance);
+            console.log('Arc sweep (radians):', arcSweep);
+            console.log('Arc sweep (degrees):', arcSweep * 180 / Math.PI);
+            console.log('Is full circle:', isFullCircle);
+            console.log('=== END ARC DETECTION ===');
+            
+            if (isFullCircle) {
+                // For full circles, set sweep to full 2π in correct direction
+                const ccw = !entity.clockwise;
+                arcSweep = ccw ? Math.PI * 2 : -Math.PI * 2;
+                console.log('🔄 Full circle detected, setting sweep to:', arcSweep);
+            } else {
+                // For partial arcs, normalize sweep based on clockwise direction
+                if (!entity.clockwise && arcSweep > 0) arcSweep -= Math.PI * 2;
+                if (entity.clockwise && arcSweep < 0) arcSweep += Math.PI * 2;
+            }
+            
+            // Use the clockwise flag from the parser - INVERTED for correct arc direction
+            // CF2/DDS clockwise=true should generate CCW arcs (G3) for concave cuts
+            // If clockwise is undefined (common for fillets or exporter-minimal arcs),
+            // derive direction from the geometric sweep sign between start and end.
+            // Positive sweep => CCW, negative sweep => CW
+            let ccw = (entity.clockwise !== undefined)
+                    ? entity.clockwise
+                    : (arcSweep > 0);
+            // Targeted fix: half-circles with vertical chord sometimes come inverted from source.
+            // If sweep is ~π and chord is nearly vertical, flip direction.
+            // Robust vertical-chord detection (machine uses inches often → looser tol)
+            const chordDx = Math.abs(convertedStartX - convertedEndX);
+            const chordDy = Math.abs(convertedStartY - convertedEndY);
+            const chordAngle = Math.atan2(convertedEndY - convertedStartY, convertedEndX - convertedStartX);
+            const isVerticalByAngle = Math.abs(Math.cos(chordAngle)) < 0.05; // ~±3°
+            const verticalChord = (chordDx < 5e-3 && chordDy > 5e-3) || isVerticalByAngle;
+            const isSemiCircle = Math.abs(Math.abs(arcSweep) - Math.PI) < 5e-3;
+            if ((entity.bridgeCount || 0) === 0 && isSemiCircle && verticalChord) {
+                ccw = !ccw;
+                console.log('🩹 Heuristic applied: vertical semicircle without bridges -> flipped ccw to', ccw);
+            }
+            console.log('🔄 Arc direction: entity.clockwise =', entity.clockwise, 'sweep=', arcSweep, '-> ccw =', ccw, '-> will use', ccw ? 'G3 (CCW)' : 'G2 (CW)');
+            
+            const totalArcLen = convertedRadius * Math.abs(arcSweep);
+            if (!isFinite(totalArcLen) || totalArcLen === 0) {
+                console.log('❌ totalArcLen invalid:', totalArcLen, 'sweep:', arcSweep);
+                return [];
+            }
 
             const bridgeCount = entity.bridgeCount || 0;
             const bridgeWidth = entity.bridgeWidth || 0;
             const totalBridgeLength = bridgeCount * bridgeWidth;
             const drawableLen = totalArcLen - totalBridgeLength;
             
-            if (drawableLen <= 0) return [];
+            console.log('=== ARC BRIDGE CALCULATION ===');
+            console.log('totalArcLen:', totalArcLen);
+            console.log('bridgeCount:', bridgeCount);
+            console.log('bridgeWidth:', bridgeWidth);
+            console.log('totalBridgeLength:', totalBridgeLength);
+            console.log('drawableLen:', drawableLen);
+            console.log('segmentLen will be:', drawableLen / (bridgeCount + 1));
+            
+            if (drawableLen <= 0) {
+                console.log('❌ drawableLen <= 0, returning empty');
+                return [];
+            }
             const segmentLen = drawableLen / (bridgeCount + 1);
             
-            // For full circles, we need to ensure we complete the full arc
-            const isFullCircle = Math.abs(sweep) >= Math.PI * 1.9;
+            // Use the same full circle detection logic for bridge processing
+            const isFullCircleForBridges = isFullCircle;
+            console.log('Is full circle for bridges:', isFullCircleForBridges, 'sweep:', arcSweep);
+            
+            console.log('✅ Bridge processing will generate segments. segmentLen:', segmentLen);
 
-            // Helper to get point at arc length L from start
+            // Helper to get point at arc length L from start (using converted coordinates)
             const pointAtLen = (len) => {
                 const dir = ccw ? 1 : -1;
                 const theta = a0 + dir * (len / convertedRadius);
                 return { 
-                    x: cx + convertedRadius * Math.cos(theta), 
-                    y: cy + convertedRadius * Math.sin(theta) 
+                    x: convertedCx + convertedRadius * Math.cos(theta), 
+                    y: convertedCy + convertedRadius * Math.sin(theta) 
                 };
             };
 
-            // Move to start
-            lines.push(this.formatLine(`${this.config.gcode.rapidMove} X${startX.toFixed(3)} Y${startY.toFixed(3)}`));
+            // For both full and partial arcs: Use bridge processing to split drawable segments
+            // Move to start (using converted coordinates)
+            // Use higher precision for inches to avoid rounding conflicts
+            const isInches = this.config.units === 'inches' || entity.fileUnits === 'in';
+            const precision = isInches ? 5 : 3; // 5 decimals for inches, 3 for mm
+            const multiplier = Math.pow(10, precision);
+            const roundN = (n) => Math.round(n * multiplier) / multiplier;
+            const epsilon = isInches ? 1e-8 : 1e-6; // Tighter epsilon for higher precision
+            let lastX = convertedStartX;
+            let lastY = convertedStartY;
+            let lastOutX = roundN(convertedStartX);
+            let lastOutY = roundN(convertedStartY);
+            lines.push(this.formatLine(`${this.config.gcode.rapidMove} X${lastOutX.toFixed(precision)} Y${lastOutY.toFixed(precision)}`));
+
             let cursor = 0;
+            console.log('🔄 Starting bridge processing loop for', bridgeCount + 1, 'segments (fullCircle=', isFullCircleForBridges, ')');
+
             for (let i = 0; i <= bridgeCount; i++) {
                 const segStart = cursor;
                 let segEnd;
@@ -463,36 +555,85 @@ export class DinGenerator {
                     // Regular segment
                     segEnd = segStart + segmentLen;
                 } else {
-                    // Last segment - go to the end of the arc
-                    if (isFullCircle) {
-                        // For full circles, go back to the start point
-                        segEnd = totalArcLen;
-                    } else {
-                        // For partial arcs, go to the calculated end
-                        segEnd = drawableLen;
-                    }
+                    // Last segment - end at drawableLen for partial arcs, totalArcLen for full circles
+                    segEnd = isFullCircleForBridges ? totalArcLen : drawableLen;
                 }
                 
+                console.log(`Segment ${i}: start=${segStart.toFixed(3)}, end=${segEnd.toFixed(3)}`);
                 const p2 = pointAtLen(segEnd);
 
-                // Draw arc segment from current position to p2 using I/J from center
-                lines.push(this.formatLine(laserOnCmd));
-                // Compute I/J from current point (pointAtLen(segStart))
+                // Get start point of this segment
                 const p1 = pointAtLen(segStart);
-                const iVal = cx - p1.x;
-                const jVal = cy - p1.y;
-                const arcCmd = ccw ? this.config.gcode.ccwArc : this.config.gcode.cwArc;
-                lines.push(this.formatLine(`${arcCmd} X${p2.x.toFixed(3)} Y${p2.y.toFixed(3)} I${iVal.toFixed(3)} J${jVal.toFixed(3)}`));
-                lines.push(this.formatLine(laserOffCmd));
+                
+                // Skip arc command if start and end points are the same (would create full circle)
+                const dx = Math.abs(p2.x - p1.x);
+                const dy = Math.abs(p2.y - p1.y);
+                if (dx > 1e-6 || dy > 1e-6) {
+                    // Ensure machine is at the correct start position (avoid duplicate rapids at output precision)
+                    const p1rx = roundN(p1.x);
+                    const p1ry = roundN(p1.y);
+                    if (Math.abs(p1rx - lastOutX) > epsilon || Math.abs(p1ry - lastOutY) > epsilon) {
+                        lines.push(this.formatLine(`${this.config.gcode.rapidMove} X${p1rx.toFixed(precision)} Y${p1ry.toFixed(precision)}`));
+                        lastX = p1.x; lastY = p1.y;
+                        lastOutX = p1rx; lastOutY = p1ry;
+                    }
+                    lines.push(this.formatLine(laserOnCmd));
+                    
+                    // Compute I/J from the ACTUAL machine position (p1) to center (using converted coords)
+                    const iVal = convertedCx - p1.x;
+                    const jVal = convertedCy - p1.y;
+                    // Determine segment direction strictly from geometry (start->end around center)
+                    const v1x = p1.x - convertedCx;
+                    const v1y = p1.y - convertedCy;
+                    const v2x = p2.x - convertedCx;
+                    const v2y = p2.y - convertedCy;
+                    const cross = v1x * v2y - v1y * v2x; // >0 => CCW, <0 => CW
+                    const segmentCcw = cross > 0;
+                    const arcCmd = segmentCcw ? this.config.gcode.ccwArc : this.config.gcode.cwArc;
+
+                    console.log(`  ↳ segment dir by cross=${cross.toFixed(6)} => ${segmentCcw ? 'G3 (CCW)' : 'G2 (CW)'}`);
+
+                    const p2rx = roundN(p2.x);
+                    const p2ry = roundN(p2.y);
+                    lines.push(this.formatLine(`${arcCmd} X${p2rx.toFixed(precision)} Y${p2ry.toFixed(precision)} I${iVal.toFixed(precision)} J${jVal.toFixed(precision)}`));
+
+                    lastX = p2.x; lastY = p2.y;
+                    lastOutX = p2rx; lastOutY = p2ry;
+                    lines.push(this.formatLine(laserOffCmd));
+                } else {
+                    console.log(`⚠️ Skipping arc segment ${i}: start and end points are the same (${p1.x.toFixed(3)}, ${p1.y.toFixed(3)})`);
+                }
 
                 if (i < bridgeCount) {
                     // Rapid over the bridge gap along arc
                     const gapEnd = segEnd + bridgeWidth;
                     const pg = pointAtLen(gapEnd);
-                    lines.push(this.formatLine(`${this.config.gcode.rapidMove} X${pg.x.toFixed(3)} Y${pg.y.toFixed(3)}`));
+                    // Rapid over gap (avoid duplicate rapid if already at pg at output precision)
+                    const pgrx = roundN(pg.x);
+                    const pgry = roundN(pg.y);
+                    if (Math.abs(pgrx - lastOutX) > epsilon || Math.abs(pgry - lastOutY) > epsilon) {
+                        lines.push(this.formatLine(`${this.config.gcode.rapidMove} X${pgrx.toFixed(precision)} Y${pgry.toFixed(precision)}`));
+                        lastX = pg.x; lastY = pg.y;
+                        lastOutX = pgrx; lastOutY = pgry;
+                    }
                     cursor = gapEnd;
                 }
             }
+
+            // Add final move to end point for partial arcs (not full circles)
+            // Only if the last segment didn't already end at the correct position
+            if (!isFullCircleForBridges) {
+                const endrx = roundN(convertedEndX);
+                const endry = roundN(convertedEndY);
+                if (Math.abs(endrx - lastOutX) > epsilon || Math.abs(endry - lastOutY) > epsilon) {
+                    lines.push(this.formatLine(`${this.config.gcode.rapidMove} X${endrx.toFixed(precision)} Y${endry.toFixed(precision)}`));
+                    console.log('✅ Added final move to end point after bridge segments:', entity.end, 'from', {x: lastOutX, y: lastOutY});                                                         
+                } else {
+                    console.log('✅ Skipped final move - already at end point:', {x: lastOutX, y: lastOutY}, 'target:', {x: endrx, y: endry});                                                      
+                }
+            }
+            
+            console.log('✅ Bridge processing completed. Generated', lines.length, 'lines');
             return lines;
         }
 
@@ -559,8 +700,12 @@ export class DinGenerator {
         const lines = [];
         
         // Get unit conversion parameters
-        const fileUnits = entity.fileUnits || this.metadata.fileUnits || 'mm';
+        const fileUnits = this.metadata.fileUnits || 'mm';
         const outputUnits = this.config.units?.system || 'mm';
+        
+        // Use higher precision for inches to avoid rounding conflicts
+        const isInches = this.config.units === 'inches' || entity.fileUnits === 'in';
+        const precision = isInches ? 5 : 3;
         
         // Convert coordinates
         const startX = this.convertCoordinates(entity.start.x, fileUnits, outputUnits);
@@ -569,7 +714,7 @@ export class DinGenerator {
         const endY = this.convertCoordinates(entity.end.y, fileUnits, outputUnits);
         
         // Move to start position
-        lines.push(this.formatLine(`${this.config.gcode.rapidMove} X${startX.toFixed(3)} Y${startY.toFixed(3)}`));
+        lines.push(this.formatLine(`${this.config.gcode.rapidMove} X${startX.toFixed(precision)} Y${startY.toFixed(precision)}`));
         
         // Laser on
         if (this.config.laser?.comments?.enabled) {
@@ -579,7 +724,7 @@ export class DinGenerator {
         }
         
         // Cut to end position
-        lines.push(this.formatLine(`${this.config.gcode.linearMove} X${endX.toFixed(3)} Y${endY.toFixed(3)}`));
+        lines.push(this.formatLine(`${this.config.gcode.linearMove} X${endX.toFixed(precision)} Y${endY.toFixed(precision)}`));
         
         // Laser off
         if (this.config.laser?.comments?.enabled) {
@@ -598,28 +743,18 @@ export class DinGenerator {
         const lines = [];
         
         // Get unit conversion parameters
-        const fileUnits = entity.fileUnits || this.metadata.fileUnits || 'mm';
+        const fileUnits = this.metadata.fileUnits || 'mm';
         const outputUnits = this.config.units?.system || 'mm';
         
-        // Calculate start and end points with intelligent detection
-        const startAngle = entity.startAngle || 0;
-        const hasExplicitEndAngle = entity.endAngle !== undefined;
-        const hasStartEndPoints = entity.start && entity.end;
+        // Use higher precision for inches to avoid rounding conflicts
+        const isInches = this.config.units === 'inches' || entity.fileUnits === 'in';
+        const precision = isInches ? 5 : 3;
         
-        let endAngle;
-        if (hasExplicitEndAngle) {
-            endAngle = entity.endAngle;
-        } else if (hasStartEndPoints) {
-            endAngle = Math.atan2(entity.end.y - entity.center.y, entity.end.x - entity.center.x);
-        } else {
-            // Default to full circle only if no other information is available
-            endAngle = Math.PI * 2;
-        }
-        
-        const startX = entity.center.x + entity.radius * Math.cos(startAngle);
-        const startY = entity.center.y + entity.radius * Math.sin(startAngle);
-        const endX = entity.center.x + entity.radius * Math.cos(endAngle);
-        const endY = entity.center.y + entity.radius * Math.sin(endAngle);
+        // Use actual start and end points from entity (don't recalculate from angles)
+        const startX = entity.start ? entity.start.x : (entity.center.x + entity.radius * Math.cos(entity.startAngle || 0));
+        const startY = entity.start ? entity.start.y : (entity.center.y + entity.radius * Math.sin(entity.startAngle || 0));
+        const endX = entity.end ? entity.end.x : (entity.center.x + entity.radius * Math.cos(entity.endAngle || Math.PI * 2));
+        const endY = entity.end ? entity.end.y : (entity.center.y + entity.radius * Math.sin(entity.endAngle || Math.PI * 2));
         
         // Convert coordinates
         const convertedStartX = this.convertCoordinates(startX, fileUnits, outputUnits);
@@ -630,7 +765,7 @@ export class DinGenerator {
         const convertedCenterY = this.convertCoordinates(entity.center.y, fileUnits, outputUnits);
         
         // Move to start position
-        lines.push(this.formatLine(`${this.config.gcode.rapidMove} X${convertedStartX.toFixed(3)} Y${convertedStartY.toFixed(3)}`));
+        lines.push(this.formatLine(`${this.config.gcode.rapidMove} X${convertedStartX.toFixed(precision)} Y${convertedStartY.toFixed(precision)}`));
         
         // Laser on
         if (this.config.laser?.comments?.enabled) {
@@ -639,23 +774,39 @@ export class DinGenerator {
             lines.push(this.formatLine(this.config.laser.laserOn));
         }
         
-        // Arc command - determine clockwise or counterclockwise
-        let isClockwise = entity.clockwise;
-        if (isClockwise === undefined) {
-            // Calculate sweep angle to determine direction
-            let sweepAngle = endAngle - startAngle;
-            if (sweepAngle < 0) {
-                sweepAngle += Math.PI * 2; // Normalize to positive
+        // Use the standardized clockwise flag from the parser - INVERTED for correct cuts
+        // CF2/DDS clockwise=true should generate CCW arcs (G3) for concave cuts
+        // If clockwise is undefined, derive from start/end sweep relative to center
+        // Positive sweep => CCW (so isClockwise=false), negative sweep => CW
+        let isClockwise;
+        if (entity.clockwise !== undefined) {
+            isClockwise = !entity.clockwise;
+        } else {
+            const a0 = Math.atan2(convertedStartY - convertedCenterY, convertedStartX - convertedCenterX);
+            const a1 = Math.atan2(convertedEndY - convertedCenterY, convertedEndX - convertedCenterX);
+            let sweep = a1 - a0;
+            if (sweep <= -Math.PI) sweep += 2 * Math.PI;
+            if (sweep > Math.PI) sweep -= 2 * Math.PI;
+            isClockwise = sweep < 0; // negative sweep means CW
+            // Targeted fix: vertical semicircle without bridges may be inverted
+            const chordDx = Math.abs(convertedStartX - convertedEndX);
+            const chordDy = Math.abs(convertedStartY - convertedEndY);
+            const chordAngle = Math.atan2(convertedEndY - convertedStartY, convertedEndX - convertedStartX);
+            const isVerticalByAngle = Math.abs(Math.cos(chordAngle)) < 0.05;
+            const verticalChord = (chordDx < 5e-3 && chordDy > 5e-3) || isVerticalByAngle;
+            const isSemiCircle = Math.abs(Math.abs(sweep) - Math.PI) < 5e-3;
+            if ((entity.bridgeCount || 0) === 0 && verticalChord && isSemiCircle) {
+                isClockwise = !isClockwise;
+                console.log('🩹 Heuristic applied (non-bridge): vertical semicircle -> flipped isClockwise to', isClockwise);
             }
-            // Most DXF arcs are counterclockwise by default
-            isClockwise = false;
         }
+        console.log('🔄 Non-bridge arc: entity.clockwise =', entity.clockwise, 'computed isClockwise =', isClockwise, '-> will use', isClockwise ? 'G2 (CW)' : 'G3 (CCW)');
         
         const arcCommand = isClockwise ? this.config.gcode.cwArc : this.config.gcode.ccwArc;
         const i = convertedCenterX - convertedStartX;
         const j = convertedCenterY - convertedStartY;
         
-        lines.push(this.formatLine(`${arcCommand} X${convertedEndX.toFixed(3)} Y${convertedEndY.toFixed(3)} I${i.toFixed(3)} J${j.toFixed(3)}`));
+        lines.push(this.formatLine(`${arcCommand} X${convertedEndX.toFixed(precision)} Y${convertedEndY.toFixed(precision)} I${i.toFixed(precision)} J${j.toFixed(precision)}`));
         
         // Laser off
         if (this.config.laser?.comments?.enabled) {
@@ -674,10 +825,14 @@ export class DinGenerator {
         const lines = [];
         
         // Get unit conversion parameters
-        const fileUnits = entity.fileUnits || this.metadata.fileUnits || 'mm';
+        const fileUnits = this.metadata.fileUnits || 'mm';
         const outputUnits = this.config.units?.system || 'mm';
         
-        // Start at rightmost point of circle (0 degrees)
+        // Use higher precision for inches to avoid rounding conflicts
+        const isInches = this.config.units === 'inches' || entity.fileUnits === 'in';
+        const precision = isInches ? 5 : 3;
+        
+        // Start at rightmost point of circle
         const startX = entity.center.x + entity.radius;
         const startY = entity.center.y;
         
@@ -688,7 +843,7 @@ export class DinGenerator {
         const convertedCenterY = this.convertCoordinates(entity.center.y, fileUnits, outputUnits);
         
         // Move to start position
-        lines.push(this.formatLine(`${this.config.gcode.rapidMove} X${convertedStartX.toFixed(3)} Y${convertedStartY.toFixed(3)}`));
+        lines.push(this.formatLine(`${this.config.gcode.rapidMove} X${convertedStartX.toFixed(precision)} Y${convertedStartY.toFixed(precision)}`));
         
         // Laser on
         if (this.config.laser?.comments?.enabled) {
@@ -697,12 +852,12 @@ export class DinGenerator {
             lines.push(this.formatLine(this.config.laser.laserOn));
         }
         
-        // Full circle as 360-degree clockwise arc
-        // I and J are the center offset from current position
-        const i = convertedCenterX - convertedStartX;
-        const j = convertedCenterY - convertedStartY;
+        // Full circle as 360-degree arc
+        const convertedRadius = this.convertCoordinates(entity.radius, fileUnits, outputUnits);
+        const i = -convertedRadius;
+        const j = 0;
         
-        lines.push(this.formatLine(`${this.config.gcode.cwArc} X${convertedStartX.toFixed(3)} Y${convertedStartY.toFixed(3)} I${i.toFixed(3)} J${j.toFixed(3)}`));
+        lines.push(this.formatLine(`${this.config.gcode.cwArc} X${convertedStartX.toFixed(precision)} Y${convertedStartY.toFixed(precision)} I${i.toFixed(precision)} J${j.toFixed(precision)}`));
         
         // Laser off
         if (this.config.laser?.comments?.enabled) {
@@ -725,14 +880,18 @@ export class DinGenerator {
         }
 
         // Get unit conversion parameters
-        const fileUnits = entity.fileUnits || this.metadata.fileUnits || 'mm';
+        const fileUnits = this.metadata.fileUnits || 'mm';
         const outputUnits = this.config.units?.system || 'mm';
+        
+        // Use higher precision for inches to avoid rounding conflicts
+        const isInches = this.config.units === 'inches' || entity.fileUnits === 'in';
+        const precision = isInches ? 5 : 3;
 
         // Move to first vertex
         const firstVertex = entity.vertices[0];
         const convertedFirstX = this.convertCoordinates(firstVertex.x, fileUnits, outputUnits);
         const convertedFirstY = this.convertCoordinates(firstVertex.y, fileUnits, outputUnits);
-        lines.push(this.formatLine(`${this.config.gcode.rapidMove} X${convertedFirstX.toFixed(3)} Y${convertedFirstY.toFixed(3)}`));
+        lines.push(this.formatLine(`${this.config.gcode.rapidMove} X${convertedFirstX.toFixed(precision)} Y${convertedFirstY.toFixed(precision)}`));
         
         // Laser on
         if (this.config.laser?.comments?.enabled) {
@@ -743,10 +902,37 @@ export class DinGenerator {
         
         // Cut to each subsequent vertex
         for (let i = 1; i < entity.vertices.length; i++) {
+            const prevVertex = entity.vertices[i - 1];
             const vertex = entity.vertices[i];
-            const convertedX = this.convertCoordinates(vertex.x, fileUnits, outputUnits);
-            const convertedY = this.convertCoordinates(vertex.y, fileUnits, outputUnits);
-            lines.push(this.formatLine(`${this.config.gcode.linearMove} X${convertedX.toFixed(3)} Y${convertedY.toFixed(3)}`));
+            
+            // Convert coordinates
+            const convertedVertexX = this.convertCoordinates(vertex.x, fileUnits, outputUnits);
+            const convertedVertexY = this.convertCoordinates(vertex.y, fileUnits, outputUnits);
+            
+            // Check if previous vertex has a bulge value (indicating an arc segment)
+            if (prevVertex.bulge && Math.abs(prevVertex.bulge) > 0.001) {
+                // Generate arc command using bulge value
+                const arcData = this.calculateArcFromBulge(prevVertex, vertex, prevVertex.bulge);
+                if (arcData) {
+                    const arcCommand = arcData.clockwise ? this.config.gcode.cwArc : this.config.gcode.ccwArc;
+
+                    // Convert arc center coordinates
+                    const convertedI = this.convertCoordinates(arcData.i, fileUnits, outputUnits);
+                    const convertedJ = this.convertCoordinates(arcData.j, fileUnits, outputUnits);
+                    lines.push(this.formatLine(`${arcCommand} X${convertedVertexX.toFixed(precision)} Y${convertedVertexY.toFixed(precision)} I${convertedI.toFixed(precision)} J${convertedJ.toFixed(precision)}`));
+                } else {
+                    // Fallback to linear move if arc calculation fails
+                    lines.push(this.formatLine(`${this.config.gcode.linearMove} X${convertedVertexX.toFixed(precision)} Y${convertedVertexY.toFixed(precision)}`));
+                }
+            } else {
+                // Standard linear move
+                lines.push(this.formatLine(`${this.config.gcode.linearMove} X${convertedVertexX.toFixed(precision)} Y${convertedVertexY.toFixed(precision)}`));
+            }
+        }
+        
+        // Close polyline if specified
+        if (entity.closed && entity.vertices.length > 2) {
+            lines.push(this.formatLine(`${this.config.gcode.linearMove} X${convertedFirstX.toFixed(precision)} Y${convertedFirstY.toFixed(precision)}`));
         }
         
         // Laser off
@@ -757,6 +943,58 @@ export class DinGenerator {
         }
 
         return lines;
+    }
+
+    /**
+     * Calculate arc parameters from DXF bulge value
+     * @param {Object} startVertex - Start vertex with x, y coordinates
+     * @param {Object} endVertex - End vertex with x, y coordinates  
+     * @param {Number} bulge - DXF bulge value
+     * @returns {Object|null} Arc parameters {i, j, clockwise} or null if invalid
+     */
+    calculateArcFromBulge(startVertex, endVertex, bulge) {
+        try {
+            if (Math.abs(bulge) < 0.001) return null;
+            
+            const startX = startVertex.x;
+            const startY = startVertex.y;
+            const endX = endVertex.x;
+            const endY = endVertex.y;
+            
+            // Calculate chord length and midpoint
+            const chordLength = Math.sqrt((endX - startX) ** 2 + (endY - startY) ** 2);
+            if (chordLength < 0.001) return null; // Invalid chord
+            
+            const midX = (startX + endX) / 2;
+            const midY = (startY + endY) / 2;
+            
+            // Calculate radius from bulge
+            const radius = (chordLength / 2) * (1 + bulge ** 2) / (2 * Math.abs(bulge));
+            
+            // Calculate sagitta (height of arc segment)
+            const sagitta = Math.abs(bulge) * chordLength / 2;
+            
+            // Calculate center point
+            const chordAngle = Math.atan2(endY - startY, endX - startX);
+            const perpAngle = chordAngle + (bulge > 0 ? Math.PI / 2 : -Math.PI / 2);
+            
+            const centerDistance = radius - sagitta;
+            const centerX = midX + centerDistance * Math.cos(perpAngle);
+            const centerY = midY + centerDistance * Math.sin(perpAngle);
+            
+            // Calculate I, J values (relative to start point)
+            const i = centerX - startX;
+            const j = centerY - startY;
+            
+            // Determine arc direction (bulge > 0 = counterclockwise, bulge < 0 = clockwise)
+            const clockwise = bulge < 0;
+            
+            return { i, j, clockwise, centerX, centerY, radius };
+            
+        } catch (error) {
+            console.warn('Error calculating arc from bulge:', error);
+            return null;
+        }
     }
 
     /**
