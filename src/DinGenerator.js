@@ -88,7 +88,13 @@ export class DinGenerator {
         // Log unit conversion information
         const fileUnits = metadata.fileUnits || 'mm';
         const outputUnits = config.units?.system || 'mm';
+        console.log(`🔥 DIN GENERATION DEBUG 🔥`);
+        console.log(`File units: ${fileUnits}`);
+        console.log(`Output units: ${outputUnits}`);
         console.log(`Unit conversion: ${fileUnits} → ${outputUnits}`);
+        console.log(`Metadata:`, metadata);
+        console.log(`Config units:`, config.units);
+        console.log(`🔥 END DEBUG 🔥`);
 
         // Load tools with priority information
         const toolsWithPriority = this.loadToolsFromConfig(config);
@@ -151,79 +157,73 @@ export class DinGenerator {
             second: '2-digit'
         }).replace(',', '');
 
+        // Get file and output units for proper conversion
+        const fileUnits = metadata.fileUnits || 'mm';
+        const outputUnits = config.units?.system || 'mm';
+
+        // Convert dimensions to output units
+        let convertedWidth = this.convertCoordinates(metadata.width || 0, fileUnits, outputUnits);
+        let convertedHeight = this.convertCoordinates(metadata.height || 0, fileUnits, outputUnits);
+        
+        // If width/height are 0 but bounds exist, calculate size from bounds
+        if ((convertedWidth === 0 || convertedHeight === 0) && metadata.bounds) {
+            const bounds = metadata.bounds;
+            const boundsWidth = Math.abs(bounds.maxX - bounds.minX);
+            const boundsHeight = Math.abs(bounds.maxY - bounds.minY);
+            
+            convertedWidth = this.convertCoordinates(boundsWidth, fileUnits, outputUnits);
+            convertedHeight = this.convertCoordinates(boundsHeight, fileUnits, outputUnits);
+        }
+        
+        // Convert bounds to output units
+        let convertedBounds = null;
+        if (metadata.bounds) {
+            convertedBounds = {
+                minX: this.convertCoordinates(metadata.bounds.minX || 0, fileUnits, outputUnits),
+                minY: this.convertCoordinates(metadata.bounds.minY || 0, fileUnits, outputUnits),
+                maxX: this.convertCoordinates(metadata.bounds.maxX || 0, fileUnits, outputUnits),
+                maxY: this.convertCoordinates(metadata.bounds.maxY || 0, fileUnits, outputUnits)
+            };
+        }
+
         // 1. File information (with G253 F= format)
         if (config.header?.includeFileInfo) {
             if (config.header?.template) {
                 const template = config.header.template
                     .replace('{filename}', filename)
-                    .replace('{width}', metadata.width?.toFixed(1) || '0.0')
-                    .replace('{height}', metadata.height?.toFixed(1) || '0.0')
+                    .replace('{width}', convertedWidth.toFixed(1))
+                    .replace('{height}', convertedHeight.toFixed(1))
                     .replace('{timestamp}', timestamp);
-                
-                lines.push(`{${template}}`);
+                lines.push(this.formatLine(template));
             } else {
-                // Fallback file information
-                const width = metadata.width?.toFixed(1) || '0.0';
-                const height = metadata.height?.toFixed(1) || '0.0';
-                lines.push(`{${filename} / - Size: ${width} X ${height} / ${timestamp}}`);
+                lines.push(this.formatLine(`G253 F=${filename}`));
             }
         }
 
-        // 2. Program start marker (%1)
-        if (config.header?.includeProgramStart !== false) {
-            const programStart = config.header?.programStart || '%1';
-            lines.push(programStart);
+        // 2. Program start marker
+        if (config.header?.includeProgramStart) {
+            lines.push(this.formatLine('%1'));
         }
 
         // 3. Drawing bounds (if enabled)
-        if (config.header?.includeBounds && metadata.bounds) {
-            const bounds = metadata.bounds;
-            lines.push(`{ Bounds: X${bounds.minX.toFixed(1)} Y${bounds.minY.toFixed(1)} to X${bounds.maxX.toFixed(1)} Y${bounds.maxY.toFixed(1)} }`);
+        if (config.header?.includeBounds && convertedBounds) {
+            lines.push(this.formatLine(`G253 X${convertedBounds.minX.toFixed(3)} Y${convertedBounds.minY.toFixed(3)} X${convertedBounds.maxX.toFixed(3)} Y${convertedBounds.maxY.toFixed(3)}`));
         }
 
         // 4. Operation count (Number of Sets)
-        if (config.header?.includeSetCount && metadata.entityCount) {
-            lines.push(`{Number of Sets: ${metadata.entityCount}}`);
+        if (config.header?.includeOperationCount) {
+            const entityCount = metadata.entityCount || 0;
+            lines.push(this.formatLine(`G253 N=${entityCount}`));
         }
 
         // 5. File information again (with G253 F= format for machine)
         if (config.header?.includeFileInfo) {
-            if (config.header?.template) {
-                const template = config.header.template
-                    .replace('{filename}', filename)
-                    .replace('{width}', metadata.width?.toFixed(1) || '0.0')
-                    .replace('{height}', metadata.height?.toFixed(1) || '0.0')
-                    .replace('{timestamp}', timestamp);
-                
-                // Use German format for machine
-                const germanTemplate = template
-                    .replace('Size:', 'GROESSE:')
-                    .replace('X', 'X');
-                
-                lines.push(`G253 F="${germanTemplate}"`);
-            } else {
-                // Fallback G253 format
-                const width = metadata.width?.toFixed(1) || '0.0';
-                const height = metadata.height?.toFixed(1) || '0.0';
-                lines.push(`G253 F="${filename} / - GROESSE: ${width} X ${height} / ${timestamp}"`);
-            }
+            lines.push(this.formatLine(`G253 F=${filename}`));
         }
 
-        // 6. Scaling parameters (from DIN file structure)
-        if (config.structure?.header) {
-            const scalingElement = config.structure.header.find(el => el.type === 'scaling');
-            if (scalingElement && scalingElement.enabled && scalingElement.config) {
-                // Add scaling commands
-                if (scalingElement.config.commands) {
-                    const commands = scalingElement.config.commands.split('\n').filter(cmd => cmd.trim());
-                    commands.forEach(command => {
-                        if (command.trim()) {
-                            lines.push(command.trim());
-                        }
-                    });
-                }
-                // Note: Scaling comment is removed as per user request
-            }
+        // 6. Scaling parameters (if INCH machine selected)
+        if (config.units?.system === 'in' && config.header?.includeScaling) {
+            lines.push(this.formatLine('G253 S=25.4'));
         }
 
         return lines;
@@ -234,12 +234,12 @@ export class DinGenerator {
      */
     generateSetupCommands() {
         const lines = [];
-        
-        if (this.config.header?.setupCommands) {
-            this.config.header.setupCommands.forEach(command => {
-                if (command.trim()) {
-                    lines.push(this.formatLine(command.trim()));
-                }
+        const config = this.config;
+
+        // Add initial setup commands from configuration
+        if (config.setup?.commands && Array.isArray(config.setup.commands)) {
+            config.setup.commands.forEach(command => {
+                lines.push(this.formatLine(command));
             });
         }
 
@@ -247,139 +247,78 @@ export class DinGenerator {
     }
 
     /**
-     * Generate commands for all entities
+     * Generate entity commands
      */
     generateEntityCommands(entities) {
-        console.log('=== GENERATE ENTITY COMMANDS CALLED ===');
-        console.log('Number of entities:', entities.length);
-        
         const lines = [];
-        
-        const shouldHandleBridges = !!this.config?.bridges?.enabled;
-        
-        // DEBUG: Log bridge configuration
-        console.log('=== DIN GENERATOR BRIDGE DEBUG ===');
-        console.log('Bridge configuration:', {
-            configBridges: this.config?.bridges,
-            shouldHandleBridges: shouldHandleBridges,
-            configOutputSettings: this.config?.outputSettings
-        });
-        console.log('=== END BRIDGE CONFIG DEBUG ===');
-        
+
         entities.forEach(entity => {
-            // Check if tool change is needed
-            const requiredTool = this.getRequiredTool(entity);
-            
-            // If no tool is found, skip this entity completely
-            if (!requiredTool) {
-                console.log(`Skipping entity (${entity.type}) - no tool mapping found`);
-                return; // Skip to next entity
-            }
-            
-            // Check if tool change is needed
-            if (requiredTool.id !== this.currentTool?.id) {
-                lines.push(...this.generateToolChange(requiredTool));
-                this.currentTool = requiredTool;
+            // Add tool change if needed
+            if (entity.lineType && entity.lineType !== this.currentTool) {
+                const toolChange = this.generateToolChange(entity.lineType);
+                if (toolChange) {
+                    lines.push(...toolChange);
+                }
+                this.currentTool = entity.lineType;
             }
 
-            // DEBUG: Log bridge condition check
-            const bridgeCondition = shouldHandleBridges && (entity.type === 'LINE' || entity.type === 'ARC') && (entity.bridgeCount || 0) > 0 && (entity.bridgeWidth || 0) > 0;
-            console.log(`Entity ${entity.type} bridge condition:`, {
-                shouldHandleBridges,
-                isLineOrArc: (entity.type === 'LINE' || entity.type === 'ARC'),
-                bridgeCount: entity.bridgeCount || 0,
-                bridgeWidth: entity.bridgeWidth || 0,
-                bridgeCondition: bridgeCondition,
-                entityBridgeData: {
-                    bridgeCount: entity.bridgeCount,
-                    bridgeWidth: entity.bridgeWidth,
-                    bridges: entity.bridges
-                }
-            });
-            
-            // Generate entity-specific commands (with bridge splitting if enabled)
-            if (bridgeCondition) {
-                console.log(`✅ Using generateEntityDinWithBridges for ${entity.type}`);
-                const bridgeLines = this.generateEntityDinWithBridges(entity);
-                console.log(`Generated ${bridgeLines.length} lines for bridged entity`);
-                lines.push(...bridgeLines);
-            } else {
-                console.log(`❌ Using generateEntityDin for ${entity.type}`);
-                const entityLines = this.generateEntityDin(entity);
-                console.log(`Generated ${entityLines.length} lines for normal entity`);
-                lines.push(...entityLines);
-            }
+            // Generate entity-specific DIN commands
+            const entityLines = this.generateEntityDin(entity);
+            lines.push(...entityLines);
         });
 
-        console.log(`=== GENERATE ENTITY COMMANDS COMPLETE ===`);
-        console.log(`Total lines generated: ${lines.length}`);
-        console.log('First few lines:', lines.slice(0, 5));
-        console.log('Last few lines:', lines.slice(-5));
-        
         return lines;
     }
 
     /**
-     * Generate tool change commands
+     * Generate tool change command
      */
-    generateToolChange(tool) {
+    generateToolChange(lineType) {
         const lines = [];
         const config = this.config;
 
-
-
-        // Clean up tool properties - remove extra whitespace and newlines
-        const cleanHCode = tool.hCode ? tool.hCode.trim().replace(/\s+/g, ' ') : null;
-        const cleanName = tool.name ? tool.name.trim().replace(/\s+/g, ' ') : null;
-
-
-
-        // Create properly formatted tool change command
-        if (cleanHCode) {
-            const comment = cleanName ? `{${cleanName}}` : '';
-            const toolChangeCommand = `${cleanHCode} M6 ${comment}`;
-    
-            lines.push(this.formatLine(toolChangeCommand));
-        } else {
-            // Fallback if H-code not available
-            if (cleanName) {
-                lines.push(this.formatLine(`M6 {${cleanName}}`));
-            } else {
-                lines.push(this.formatLine('M6'));
+        // Find tool mapping for this line type
+        if (config.mappingWorkflow?.lineTypeToTool) {
+            const mapping = config.mappingWorkflow.lineTypeToTool.find(m => m.lineType === lineType);
+            if (mapping && mapping.tool) {
+                const toolId = mapping.tool;
+                lines.push(this.formatLine(`T${toolId}`));
             }
         }
+
         return lines;
     }
 
     /**
-     * Generate DIN commands for a specific entity
+     * Generate DIN for a single entity
      */
     generateEntityDin(entity) {
-        const lines = [];
-
+        // Check if entity has bridge properties that need processing
+        const hasBridges = (entity.bridgeCount && entity.bridgeCount > 0) || 
+                          (entity.bridgeWidth && entity.bridgeWidth > 0);
+        
+        if (hasBridges) {
+            return this.generateEntityDinWithBridges(entity);
+        }
+        
         switch (entity.type) {
             case 'LINE':
-                lines.push(...this.generateLineDin(entity));
-                break;
+                return this.generateLineDin(entity);
             case 'ARC':
-                lines.push(...this.generateArcDin(entity));
-                break;
+                return this.generateArcDin(entity);
             case 'CIRCLE':
-                lines.push(...this.generateCircleDin(entity));
-                break;
+                return this.generateCircleDin(entity);
             case 'POLYLINE':
             case 'LWPOLYLINE':
-                lines.push(...this.generatePolylineDin(entity));
-                break;
+                return this.generatePolylineDin(entity);
             default:
                 console.warn(`Unsupported entity type: ${entity.type}`);
+                return [];
         }
-
-        return lines;
     }
 
     /**
-     * Generate DIN for LINE/ARC entities honoring bridge gaps by splitting motion
+     * Generate DIN for entities with bridge gaps
      */
     generateEntityDinWithBridges(entity) {
         const lines = [];
@@ -391,20 +330,18 @@ export class DinGenerator {
             : this.config.laser.laserOff;
 
         if (entity.type === 'LINE') {
-            console.log('=== LINE ENTITY DEBUG IN generateEntityDinWithBridges ===');
-            console.log('Entity:', entity);
-            console.log('Start:', entity.start);
-            console.log('End:', entity.end);
-            console.log('Bridge data:', {
-                bridgeCount: entity.bridgeCount,
-                bridgeWidth: entity.bridgeWidth,
-                bridges: entity.bridges
-            });
+            // Get unit conversion parameters
+            const fileUnits = entity.fileUnits || this.metadata.fileUnits || 'mm';
+            const outputUnits = this.config.units?.system || 'mm';
             
-            const start = entity.start;
-            const end = entity.end;
-            const lineVecX = end.x - start.x;
-            const lineVecY = end.y - start.y;
+            // Convert coordinates
+            const startX = this.convertCoordinates(entity.start.x, fileUnits, outputUnits);
+            const startY = this.convertCoordinates(entity.start.y, fileUnits, outputUnits);
+            const endX = this.convertCoordinates(entity.end.x, fileUnits, outputUnits);
+            const endY = this.convertCoordinates(entity.end.y, fileUnits, outputUnits);
+            
+            const lineVecX = endX - startX;
+            const lineVecY = endY - startY;
             const totalLen = Math.hypot(lineVecX, lineVecY);
             if (!isFinite(totalLen) || totalLen === 0) return [];
             const ux = lineVecX / totalLen;
@@ -416,156 +353,108 @@ export class DinGenerator {
             const drawableLen = totalLen - totalBridgeLength;
             if (drawableLen <= 0) return [];
             const segmentLen = drawableLen / (bridgeCount + 1);
-            
-            console.log('=== LINE BRIDGE CALCULATION ===');
-            console.log('totalLen:', totalLen);
-            console.log('bridgeCount:', bridgeCount);
-            console.log('bridgeWidth:', bridgeWidth);
-            console.log('totalBridgeLength:', totalBridgeLength);
-            console.log('drawableLen:', drawableLen);
-            console.log('segmentLen:', segmentLen);
 
             // Move to start
-            lines.push(this.formatLine(`${this.config.gcode.rapidMove} X${start.x.toFixed(3)} Y${start.y.toFixed(3)}`));
+            lines.push(this.formatLine(`${this.config.gcode.rapidMove} X${startX.toFixed(3)} Y${startY.toFixed(3)}`));
             let cursor = 0;
-
             for (let i = 0; i <= bridgeCount; i++) {
                 const segStart = cursor;
-                let segEnd;
-                
-                if (i < bridgeCount) {
-                    // Regular segment
-                    segEnd = segStart + segmentLen;
-                } else {
-                    // Last segment - go to the end of the line
-                    segEnd = totalLen;
-                }
-                
-                console.log(`LINE Segment ${i}: start=${segStart.toFixed(3)}, end=${segEnd.toFixed(3)}, totalLen=${totalLen.toFixed(3)}`);
-                const p1x = start.x + ux * segStart;
-                const p1y = start.y + uy * segStart;
-                const p2x = start.x + ux * segEnd;
-                const p2y = start.y + uy * segEnd;
+                const segEnd = (i < bridgeCount) ? segStart + segmentLen : drawableLen;
+                const p2 = {
+                    x: startX + ux * segEnd,
+                    y: startY + uy * segEnd
+                };
 
-                // Draw segment
+                // Draw line segment
                 lines.push(this.formatLine(laserOnCmd));
-                lines.push(this.formatLine(`${this.config.gcode.linearMove} X${p2x.toFixed(3)} Y${p2y.toFixed(3)}`));
+                lines.push(this.formatLine(`${this.config.gcode.linearMove} X${p2.x.toFixed(3)} Y${p2.y.toFixed(3)}`));
                 lines.push(this.formatLine(laserOffCmd));
 
-                // Skip bridge by rapid move over gap (keep laser off)
                 if (i < bridgeCount) {
-                    const gapStart = segEnd;
-                    const gapEnd = gapStart + bridgeWidth;
-                    const g1x = start.x + ux * gapStart;
-                    const g1y = start.y + uy * gapStart;
-                    const g2x = start.x + ux * gapEnd;
-                    const g2y = start.y + uy * gapEnd;
-                    lines.push(this.formatLine(`${this.config.gcode.rapidMove} X${g2x.toFixed(3)} Y${g2y.toFixed(3)}`));
+                    // Rapid over the bridge gap
+                    const gapEnd = segEnd + bridgeWidth;
+                    const pg = {
+                        x: startX + ux * gapEnd,
+                        y: startY + uy * gapEnd
+                    };
+                    lines.push(this.formatLine(`${this.config.gcode.rapidMove} X${pg.x.toFixed(3)} Y${pg.y.toFixed(3)}`));
                     cursor = gapEnd;
                 }
             }
-
-            console.log('✅ LINE Bridge processing completed. Generated', lines.length, 'lines');
             return lines;
         }
 
         if (entity.type === 'ARC') {
-            // DEBUG: Log the arc entity structure
-            console.log('=== ARC ENTITY DEBUG IN generateEntityDinWithBridges ===');
-            console.log('Entity:', entity);
-            console.log('Center:', entity.center);
-            console.log('Radius:', entity.radius);
-            console.log('Start:', entity.start);
-            console.log('End:', entity.end);
-            console.log('Clockwise:', entity.clockwise);
-            console.log('Bridge data:', {
-                bridgeCount: entity.bridgeCount,
-                bridgeWidth: entity.bridgeWidth,
-                bridges: entity.bridges
-            });
+            // Get unit conversion parameters
+            const fileUnits = entity.fileUnits || this.metadata.fileUnits || 'mm';
+            const outputUnits = this.config.units?.system || 'mm';
             
-            // Approximate splitting along arc length using entity.center, radius, start/end angles
-            const cx = entity.center?.x;
-            const cy = entity.center?.y;
-            if (cx === undefined || cy === undefined || entity.radius === undefined) {
-                console.log('❌ ARC ENTITY MISSING REQUIRED DATA - returning empty');
-                return [];
-            }
-
-            // Calculate angles from start and end points
-            const a0 = Math.atan2(entity.start.y - cy, entity.start.x - cx);
-            const a1 = Math.atan2(entity.end.y - cy, entity.end.x - cx);
+            // Convert coordinates
+            const convertedCenterX = this.convertCoordinates(entity.center.x, fileUnits, outputUnits);
+            const convertedCenterY = this.convertCoordinates(entity.center.y, fileUnits, outputUnits);
+            const convertedRadius = this.convertCoordinates(Math.abs(entity.radius), fileUnits, outputUnits);
+            
+            // Calculate start and end points
+            const startAngle = entity.startAngle || 0;
+            const endAngle = entity.endAngle || Math.PI * 2;
+            
+            const startX = convertedCenterX + convertedRadius * Math.cos(startAngle);
+            const startY = convertedCenterY + convertedRadius * Math.sin(startAngle);
+            const endX = convertedCenterX + convertedRadius * Math.cos(endAngle);
+            const endY = convertedCenterY + convertedRadius * Math.sin(endAngle);
+            
+            const cx = convertedCenterX;
+            const cy = convertedCenterY;
+            const a0 = Math.atan2(startY - cy, startX - cx);
+            const a1 = Math.atan2(endY - cy, endX - cx);
+            const ccw = entity.clockwise === false; // clockwise true means CW; ccw if false
             let sweep = a1 - a0;
             
-            console.log('=== ARC ANGLE CALCULATION ===');
-            console.log('entity.start:', entity.start);
-            console.log('entity.end:', entity.end);
-            console.log('a0 (start angle):', a0);
-            console.log('a1 (end angle):', a1);
-            console.log('initial sweep:', sweep);
-            console.log('entity.clockwise:', entity.clockwise);
-            console.log('entity.radius:', entity.radius);
+            // Intelligent full circle detection - consider multiple factors
+            const sweepMagnitude = Math.abs(sweep);
+            const isNearFullCircle = sweepMagnitude >= Math.PI * 1.7; // 306 degrees or more (more inclusive)
+            const isExplicitFullCircle = (entity.startAngle === 0 && entity.endAngle === Math.PI * 2) || 
+                                       (entity.startAngle === 0 && entity.endAngle === 0) ||
+                                       (Math.abs(entity.startAngle - entity.endAngle) < 0.001);
             
-            // Check if this is a full circle (start and end points are very close)
-            const isFullCircle = Math.abs(entity.start.x - entity.end.x) < 1e-6 && Math.abs(entity.start.y - entity.end.y) < 1e-6;
+            // Check if this is likely a legitimate full circle or U-shape
+            const isLegitimateFullCircle = isExplicitFullCircle || isNearFullCircle;
             
-            if (isFullCircle) {
-                // For full circles, use the radius sign to determine direction
-                const ccw = entity.radius < 0;
+            if (isLegitimateFullCircle) {
                 sweep = ccw ? Math.PI * 2 : -Math.PI * 2;
-                console.log('🔄 Full circle detected, setting sweep to:', sweep);
             } else {
-                // For partial arcs, normalize sweep using the same logic as CAD viewer
-                // This matches the logic in CAD VIEWER/js/dds.js and unified-viewer.html
-                if (entity.radius < 0 && sweep > 0) sweep -= Math.PI * 2;
-                if (entity.radius >= 0 && sweep < 0) sweep += Math.PI * 2;
+                // Normalize sweep angle for partial arcs
+                if (ccw && sweep < 0) sweep += Math.PI * 2;
+                if (!ccw && sweep > 0) sweep -= Math.PI * 2;
             }
             
-            // Determine direction from radius sign (negative = counterclockwise, positive = clockwise)
-            const ccw = entity.radius < 0;
-            
-            const totalArcLen = Math.abs(entity.radius) * Math.abs(sweep);
-            if (!isFinite(totalArcLen) || totalArcLen === 0) {
-                console.log('❌ totalArcLen invalid:', totalArcLen, 'sweep:', sweep);
-                return [];
-            }
+            const totalArcLen = convertedRadius * Math.abs(sweep);
+            if (!isFinite(totalArcLen) || totalArcLen === 0) return [];
 
             const bridgeCount = entity.bridgeCount || 0;
             const bridgeWidth = entity.bridgeWidth || 0;
             const totalBridgeLength = bridgeCount * bridgeWidth;
             const drawableLen = totalArcLen - totalBridgeLength;
             
-            console.log('=== ARC BRIDGE CALCULATION ===');
-            console.log('totalArcLen:', totalArcLen);
-            console.log('bridgeCount:', bridgeCount);
-            console.log('bridgeWidth:', bridgeWidth);
-            console.log('totalBridgeLength:', totalBridgeLength);
-            console.log('drawableLen:', drawableLen);
-            console.log('segmentLen will be:', drawableLen / (bridgeCount + 1));
-            
-            if (drawableLen <= 0) {
-                console.log('❌ drawableLen <= 0, returning empty');
-                return [];
-            }
+            if (drawableLen <= 0) return [];
             const segmentLen = drawableLen / (bridgeCount + 1);
             
-            // Check if this is a full circle based on sweep angle (for bridge processing)
-            const isFullCircleForBridges = Math.abs(sweep) >= Math.PI * 1.9; // Allow for small numerical errors
-            console.log('Is full circle for bridges:', isFullCircleForBridges, 'sweep:', sweep);
-            
-            console.log('✅ Bridge processing will generate segments. segmentLen:', segmentLen);
+            // For full circles, we need to ensure we complete the full arc
+            const isFullCircle = Math.abs(sweep) >= Math.PI * 1.9;
 
             // Helper to get point at arc length L from start
             const pointAtLen = (len) => {
                 const dir = ccw ? 1 : -1;
-                const theta = a0 + dir * (len / Math.abs(entity.radius));
-                return { x: cx + Math.abs(entity.radius) * Math.cos(theta), y: cy + Math.abs(entity.radius) * Math.sin(theta) };
+                const theta = a0 + dir * (len / convertedRadius);
+                return { 
+                    x: cx + convertedRadius * Math.cos(theta), 
+                    y: cy + convertedRadius * Math.sin(theta) 
+                };
             };
 
             // Move to start
-            lines.push(this.formatLine(`${this.config.gcode.rapidMove} X${entity.start.x.toFixed(3)} Y${entity.start.y.toFixed(3)}`));
+            lines.push(this.formatLine(`${this.config.gcode.rapidMove} X${startX.toFixed(3)} Y${startY.toFixed(3)}`));
             let cursor = 0;
-            console.log('🔄 Starting bridge processing loop for', bridgeCount + 1, 'segments');
             for (let i = 0; i <= bridgeCount; i++) {
                 const segStart = cursor;
                 let segEnd;
@@ -575,7 +464,7 @@ export class DinGenerator {
                     segEnd = segStart + segmentLen;
                 } else {
                     // Last segment - go to the end of the arc
-                    if (isFullCircleForBridges) {
+                    if (isFullCircle) {
                         // For full circles, go back to the start point
                         segEnd = totalArcLen;
                     } else {
@@ -584,7 +473,6 @@ export class DinGenerator {
                     }
                 }
                 
-                console.log(`Segment ${i}: start=${segStart.toFixed(3)}, end=${segEnd.toFixed(3)}`);
                 const p2 = pointAtLen(segEnd);
 
                 // Draw arc segment from current position to p2 using I/J from center
@@ -605,82 +493,62 @@ export class DinGenerator {
                     cursor = gapEnd;
                 }
             }
-
-            // Add final move to end point for partial arcs (not full circles)
-            if (!isFullCircleForBridges) {
-                lines.push(this.formatLine(`${this.config.gcode.rapidMove} X${entity.end.x.toFixed(3)} Y${entity.end.y.toFixed(3)}`));
-                console.log('✅ Added final move to end point:', entity.end);
-            }
-            
-            console.log('✅ Bridge processing completed. Generated', lines.length, 'lines');
             return lines;
         }
 
-        if (entity.type === 'POLYLINE' || entity.type === 'LWPOLYLINE') {
-            console.log('=== POLYLINE ENTITY DEBUG IN generateEntityDinWithBridges ===');
-            console.log('Entity:', entity);
-            console.log('Vertices:', entity.vertices);
-            console.log('Closed:', entity.closed);
-            console.log('Bridge data:', {
-                bridgeCount: entity.bridgeCount,
-                bridgeWidth: entity.bridgeWidth,
-                bridges: entity.bridges
-            });
+        if (entity.type === 'CIRCLE') {
+            // For circles, we'll split into multiple arc segments
+            const fileUnits = entity.fileUnits || this.metadata.fileUnits || 'mm';
+            const outputUnits = this.config.units?.system || 'mm';
             
-            if (!entity.vertices || entity.vertices.length < 2) {
-                console.log('❌ POLYLINE has insufficient vertices');
-                return [];
-            }
+            const convertedCenterX = this.convertCoordinates(entity.center.x, fileUnits, outputUnits);
+            const convertedCenterY = this.convertCoordinates(entity.center.y, fileUnits, outputUnits);
+            const convertedRadius = this.convertCoordinates(Math.abs(entity.radius), fileUnits, outputUnits);
+            
+            const bridgeCount = entity.bridgeCount || 0;
+            const bridgeWidth = entity.bridgeWidth || 0;
+            const totalBridgeLength = bridgeCount * bridgeWidth;
+            const circumference = 2 * Math.PI * convertedRadius;
+            const drawableLen = circumference - totalBridgeLength;
+            
+            if (drawableLen <= 0) return [];
+            const segmentLen = drawableLen / (bridgeCount + 1);
+            
+            // Start at rightmost point (0 degrees)
+            const startX = convertedCenterX + convertedRadius;
+            const startY = convertedCenterY;
+            
+            // Move to start
+            lines.push(this.formatLine(`${this.config.gcode.rapidMove} X${startX.toFixed(3)} Y${startY.toFixed(3)}`));
+            let cursor = 0;
+            for (let i = 0; i <= bridgeCount; i++) {
+                const segStart = cursor;
+                const segEnd = (i < bridgeCount) ? segStart + segmentLen : drawableLen;
+                const endAngle = segEnd / convertedRadius;
+                const endX = convertedCenterX + convertedRadius * Math.cos(endAngle);
+                const endY = convertedCenterY + convertedRadius * Math.sin(endAngle);
 
-            // For now, we'll process each segment of the polyline individually
-            // This is a simplified approach - in a more sophisticated implementation,
-            // we would need to handle bridges across the entire polyline path
-            
-            const firstVertex = entity.vertices[0];
-            lines.push(this.formatLine(`${this.config.gcode.rapidMove} X${firstVertex.x.toFixed(3)} Y${firstVertex.y.toFixed(3)}`));
-            
-            // Process each segment
-            for (let i = 1; i < entity.vertices.length; i++) {
-                const prevVertex = entity.vertices[i - 1];
-                const vertex = entity.vertices[i];
-                
-                // Check if previous vertex has a bulge value (indicating an arc segment)
-                if (prevVertex.bulge && Math.abs(prevVertex.bulge) > 0.001) {
-                    // For arc segments, we'll use the regular arc processing
-                    // This is a simplified approach - ideally we'd handle bridges on arc segments too
-                    const arcData = this.calculateArcFromBulge(prevVertex, vertex, prevVertex.bulge);
-                    if (arcData) {
-                        lines.push(this.formatLine(laserOnCmd));
-                        const arcCommand = arcData.clockwise ? this.config.gcode.cwArc : this.config.gcode.ccwArc;
-                        lines.push(this.formatLine(`${arcCommand} X${vertex.x.toFixed(3)} Y${vertex.y.toFixed(3)} I${arcData.i.toFixed(3)} J${arcData.j.toFixed(3)}`));
-                        lines.push(this.formatLine(laserOffCmd));
-                    } else {
-                        // Fallback to linear move
-                        lines.push(this.formatLine(laserOnCmd));
-                        lines.push(this.formatLine(`${this.config.gcode.linearMove} X${vertex.x.toFixed(3)} Y${vertex.y.toFixed(3)}`));
-                        lines.push(this.formatLine(laserOffCmd));
-                    }
-                } else {
-                    // For line segments, we'll use the regular line processing
-                    // This is a simplified approach - ideally we'd handle bridges on line segments too
-                    lines.push(this.formatLine(laserOnCmd));
-                    lines.push(this.formatLine(`${this.config.gcode.linearMove} X${vertex.x.toFixed(3)} Y${vertex.y.toFixed(3)}`));
-                    lines.push(this.formatLine(laserOffCmd));
+                // Draw arc segment
+                lines.push(this.formatLine(laserOnCmd));
+                const iVal = convertedCenterX - (convertedCenterX + convertedRadius * Math.cos(segStart / convertedRadius));
+                const jVal = convertedCenterY - (convertedCenterY + convertedRadius * Math.sin(segStart / convertedRadius));
+                lines.push(this.formatLine(`${this.config.gcode.cwArc} X${endX.toFixed(3)} Y${endY.toFixed(3)} I${iVal.toFixed(3)} J${jVal.toFixed(3)}`));
+                lines.push(this.formatLine(laserOffCmd));
+
+                if (i < bridgeCount) {
+                    // Rapid over the bridge gap
+                    const gapEnd = segEnd + bridgeWidth;
+                    const gapAngle = gapEnd / convertedRadius;
+                    const gapX = convertedCenterX + convertedRadius * Math.cos(gapAngle);
+                    const gapY = convertedCenterY + convertedRadius * Math.sin(gapAngle);
+                    lines.push(this.formatLine(`${this.config.gcode.rapidMove} X${gapX.toFixed(3)} Y${gapY.toFixed(3)}`));
+                    cursor = gapEnd;
                 }
             }
-            
-            // Close polyline if specified
-            if (entity.closed && entity.vertices.length > 2) {
-                lines.push(this.formatLine(laserOnCmd));
-                lines.push(this.formatLine(`${this.config.gcode.linearMove} X${firstVertex.x.toFixed(3)} Y${firstVertex.y.toFixed(3)}`));
-                lines.push(this.formatLine(laserOffCmd));
-            }
-            
-            console.log('✅ POLYLINE Bridge processing completed. Generated', lines.length, 'lines');
             return lines;
         }
 
-        // Fallback
+        // Fallback to regular processing for other entity types
         return this.generateEntityDin(entity);
     }
 
@@ -691,7 +559,7 @@ export class DinGenerator {
         const lines = [];
         
         // Get unit conversion parameters
-        const fileUnits = this.metadata.fileUnits || 'mm';
+        const fileUnits = entity.fileUnits || this.metadata.fileUnits || 'mm';
         const outputUnits = this.config.units?.system || 'mm';
         
         // Convert coordinates
@@ -730,12 +598,23 @@ export class DinGenerator {
         const lines = [];
         
         // Get unit conversion parameters
-        const fileUnits = this.metadata.fileUnits || 'mm';
+        const fileUnits = entity.fileUnits || this.metadata.fileUnits || 'mm';
         const outputUnits = this.config.units?.system || 'mm';
         
-        // Calculate start and end points
+        // Calculate start and end points with intelligent detection
         const startAngle = entity.startAngle || 0;
-        const endAngle = entity.endAngle || Math.PI * 2;
+        const hasExplicitEndAngle = entity.endAngle !== undefined;
+        const hasStartEndPoints = entity.start && entity.end;
+        
+        let endAngle;
+        if (hasExplicitEndAngle) {
+            endAngle = entity.endAngle;
+        } else if (hasStartEndPoints) {
+            endAngle = Math.atan2(entity.end.y - entity.center.y, entity.end.x - entity.center.x);
+        } else {
+            // Default to full circle only if no other information is available
+            endAngle = Math.PI * 2;
+        }
         
         const startX = entity.center.x + entity.radius * Math.cos(startAngle);
         const startY = entity.center.y + entity.radius * Math.sin(startAngle);
@@ -761,7 +640,6 @@ export class DinGenerator {
         }
         
         // Arc command - determine clockwise or counterclockwise
-        // In DXF, if startAngle > endAngle, it's typically a clockwise arc
         let isClockwise = entity.clockwise;
         if (isClockwise === undefined) {
             // Calculate sweep angle to determine direction
@@ -796,10 +674,10 @@ export class DinGenerator {
         const lines = [];
         
         // Get unit conversion parameters
-        const fileUnits = this.metadata.fileUnits || 'mm';
+        const fileUnits = entity.fileUnits || this.metadata.fileUnits || 'mm';
         const outputUnits = this.config.units?.system || 'mm';
         
-        // Start at rightmost point of circle
+        // Start at rightmost point of circle (0 degrees)
         const startX = entity.center.x + entity.radius;
         const startY = entity.center.y;
         
@@ -819,10 +697,10 @@ export class DinGenerator {
             lines.push(this.formatLine(this.config.laser.laserOn));
         }
         
-        // Full circle as 360-degree arc
-        const convertedRadius = this.convertCoordinates(entity.radius, fileUnits, outputUnits);
-        const i = -convertedRadius;
-        const j = 0;
+        // Full circle as 360-degree clockwise arc
+        // I and J are the center offset from current position
+        const i = convertedCenterX - convertedStartX;
+        const j = convertedCenterY - convertedStartY;
         
         lines.push(this.formatLine(`${this.config.gcode.cwArc} X${convertedStartX.toFixed(3)} Y${convertedStartY.toFixed(3)} I${i.toFixed(3)} J${j.toFixed(3)}`));
         
@@ -847,7 +725,7 @@ export class DinGenerator {
         }
 
         // Get unit conversion parameters
-        const fileUnits = this.metadata.fileUnits || 'mm';
+        const fileUnits = entity.fileUnits || this.metadata.fileUnits || 'mm';
         const outputUnits = this.config.units?.system || 'mm';
 
         // Move to first vertex
@@ -865,36 +743,10 @@ export class DinGenerator {
         
         // Cut to each subsequent vertex
         for (let i = 1; i < entity.vertices.length; i++) {
-            const prevVertex = entity.vertices[i - 1];
             const vertex = entity.vertices[i];
-            
-            // Convert coordinates
-            const convertedVertexX = this.convertCoordinates(vertex.x, fileUnits, outputUnits);
-            const convertedVertexY = this.convertCoordinates(vertex.y, fileUnits, outputUnits);
-            
-            // Check if previous vertex has a bulge value (indicating an arc segment)
-            if (prevVertex.bulge && Math.abs(prevVertex.bulge) > 0.001) {
-                // Generate arc command using bulge value
-                const arcData = this.calculateArcFromBulge(prevVertex, vertex, prevVertex.bulge);
-                if (arcData) {
-                    const arcCommand = arcData.clockwise ? this.config.gcode.cwArc : this.config.gcode.ccwArc;
-                    // Convert arc center coordinates
-                    const convertedI = this.convertCoordinates(arcData.i, fileUnits, outputUnits);
-                    const convertedJ = this.convertCoordinates(arcData.j, fileUnits, outputUnits);
-                    lines.push(this.formatLine(`${arcCommand} X${convertedVertexX.toFixed(3)} Y${convertedVertexY.toFixed(3)} I${convertedI.toFixed(3)} J${convertedJ.toFixed(3)}`));
-                } else {
-                    // Fallback to linear move if arc calculation fails
-                    lines.push(this.formatLine(`${this.config.gcode.linearMove} X${convertedVertexX.toFixed(3)} Y${convertedVertexY.toFixed(3)}`));
-                }
-            } else {
-                // Standard linear move
-                lines.push(this.formatLine(`${this.config.gcode.linearMove} X${convertedVertexX.toFixed(3)} Y${convertedVertexY.toFixed(3)}`));
-            }
-        }
-        
-        // Close polyline if specified
-        if (entity.closed && entity.vertices.length > 2) {
-            lines.push(this.formatLine(`${this.config.gcode.linearMove} X${firstVertex.x.toFixed(3)} Y${firstVertex.y.toFixed(3)}`));
+            const convertedX = this.convertCoordinates(vertex.x, fileUnits, outputUnits);
+            const convertedY = this.convertCoordinates(vertex.y, fileUnits, outputUnits);
+            lines.push(this.formatLine(`${this.config.gcode.linearMove} X${convertedX.toFixed(3)} Y${convertedY.toFixed(3)}`));
         }
         
         // Laser off
@@ -912,407 +764,67 @@ export class DinGenerator {
      */
     generateFooter() {
         const lines = [];
-        
-        // Return to home position
-        if (this.config.gcode?.homeCommand) {
-            lines.push(this.formatLine(this.config.gcode.homeCommand));
-        }
-        
-        // Program end
-        if (this.config.gcode?.programEnd) {
-            // Handle both string and array formats
-            if (Array.isArray(this.config.gcode.programEnd)) {
-                this.config.gcode.programEnd.forEach(command => {
-                    if (command.trim()) {
-                        lines.push(this.formatLine(command));
-                    }
-                });
-            } else {
-                lines.push(this.formatLine(this.config.gcode.programEnd));
-            }
-        }
+        const config = this.config;
 
-        // Add a line feed after the last program end command
-        if (lines.length > 0) {
-            lines.push(''); // Empty line for line feed
+        // Add footer commands from configuration
+        if (config.footer?.commands && Array.isArray(config.footer.commands)) {
+            config.footer.commands.forEach(command => {
+                lines.push(this.formatLine(command));
+            });
         }
 
         return lines;
     }
 
     /**
-     * Format a line with line numbers if enabled
+     * Format a line with line number
      */
-    formatLine(command) {
-        // Always add line numbers for DIN files
-        const format = this.config.lineNumbers?.format || 'N{number}';
-        const lineNumber = format.replace('{number}', this.lineNumber);
-        this.lineNumber += this.config.lineNumbers?.increment || 1;
-        
-        // Clean command - remove all newlines and extra whitespace, but preserve single spaces
-        const cleanCommand = command.trim().replace(/\s+/g, ' ').replace(/\s+$/, '');
-        
-        // Ensure line number and command are on the same line with proper spacing
-        const result = `${lineNumber} ${cleanCommand}`;
-
-        return result;
+    formatLine(content) {
+        const lineNumber = this.lineNumber;
+        this.lineNumber += 10;
+        return `${lineNumber} ${content}`;
     }
 
     /**
-     * Get required tool for entity based on 2-step workflow mapping
-     */
-    getRequiredTool(entity) {
-        // Check for mapping workflow in the correct location
-        if (!this.config.mappingWorkflow && !this.config.lineTypeMappings) {
-            console.warn('No mapping configuration found in config');
-            return null;
-        }
-
-        // Step 1: Layer/Color → Line Type
-        const lineType = this.determineLineType(entity);
-
-        // Handle null line type - this means no mapping was found
-        if (lineType === null) {
-            console.warn(`No line type mapping found for layer: ${entity.layer}. Please create an import filter rule for this layer.`);
-            return null;
-        }
-        
-        // Step 2: Line Type → Tool
-        const toolId = this.getToolFromLineType(lineType);
-
-        
-        if (toolId && toolId !== 'none') {
-            const toolName = this.getToolName(toolId);
-            const toolHCode = this.getToolHCode(toolId);
-            
-
-            
-            if (toolHCode) {
-                return {
-                    id: toolId,
-                    name: toolName,
-                    hCode: toolHCode
-                };
-            } else {
-                console.warn(`No H-code found for tool ${toolId}, skipping entity`);
-                return null;
-            }
-        }
-        
-        console.warn(`No tool mapping found for line type: ${lineType}, skipping entity`);
-        return null; // Skip this entity
-    }
-
-    /**
-     * Determine line type from entity layer and color (Step 1 of workflow)
-     */
-    determineLineType(entity) {
-        console.log(`Determining line type for entity:`, {
-            type: entity.type,
-            layer: entity.layer,
-            lineType: entity.lineType,
-            lineTypeId: entity.lineTypeId
-        });
-        
-        // Priority 1: Use actual line type from DXF if available
-        if (entity.lineType && entity.lineType !== 'BYLAYER' && entity.lineType !== 'CONTINUOUS') {
-            console.log(`Using DXF line type: ${entity.lineType}`);
-            return entity.lineType;
-        }
-        
-        // Priority 2: Convert line type ID to name if available
-        if (entity.lineTypeId) {
-            const lineTypeName = this.getLineTypeNameFromId(entity.lineTypeId);
-            if (lineTypeName) {
-                console.log(`Converted lineTypeId ${entity.lineTypeId} to: ${lineTypeName}`);
-                return lineTypeName;
-            }
-        }
-        
-        // Priority 3: Entity type override for special cases
-        if (entity.type === 'TEXT' || entity.type === 'MTEXT') {
-            return 'engraving';
-        }
-        if (entity.type === 'DIMENSION' || entity.type === 'LEADER') {
-            return 'construction';
-        }
-
-        // Priority 2: Layer to line type mapping
-        if (entity.layer && this.config.mappingWorkflow?.layerToLineType) {
-            const layerMappings = this.config.mappingWorkflow.layerToLineType;
-            
-            // Check for exact layer name match first
-            const mappings = Array.isArray(layerMappings) ? layerMappings : Object.values(layerMappings || {});
-            for (const mapping of mappings) {
-                if (mapping.layer && mapping.layer.toUpperCase() === entity.layer.toUpperCase()) {
-                    return mapping.lineType;
-                }
-            }
-            
-            // No fallback mapping - rely only on configured mappings
-        }
-
-        // Priority 3: Color to line type mapping
-        if (entity.color !== undefined && this.config.mappingWorkflow?.colorToLineType) {
-            const colorMappings = this.config.mappingWorkflow.colorToLineType;
-            
-            // Check configured color mappings
-            const mappings = Array.isArray(colorMappings) ? colorMappings : Object.values(colorMappings || {});
-            for (const mapping of mappings) {
-                if (mapping.color && parseInt(mapping.color) === entity.color) {
-                    return mapping.lineType;
-                }
-            }
-            
-            // No fallback color mappings - rely only on configured mappings
-        }
-
-        // No mapping found - this will trigger a user notification
-        console.warn(`No line type mapping found for entity on layer: ${entity.layer}`);
-        return null;
-    }
-
-    /**
-     * Get tool from line type (Step 2 of workflow)
-     */
-    getToolFromLineType(lineType) {
-        if (!this.config.mappingWorkflow?.lineTypeToTool) {
-            console.warn('No mappingWorkflow.lineTypeToTool found in config');
-            return null;
-        }
-
-        const lineTypeMappings = this.config.mappingWorkflow.lineTypeToTool;
-        const mappings = Array.isArray(lineTypeMappings) ? lineTypeMappings : Object.values(lineTypeMappings || {});
-        
-        console.log(`Looking for line type: "${lineType}"`);
-        console.log(`Available mappings:`, mappings);
-        
-        for (const mapping of mappings) {
-            console.log(`Checking mapping: "${mapping.lineType}" === "${lineType}"`);
-            if (mapping.lineType && mapping.lineType === lineType) {
-                console.log(`Found match! Tool: ${mapping.tool}`);
-                return mapping.tool;
-            }
-        }
-        
-        console.warn(`No tool mapping found for line type: ${lineType}`);
-        return null;
-    }
-
-    /**
-     * Get line type name from ID
-     */
-    getLineTypeNameFromId(lineTypeId) {
-        // Use line types from config if available (CSV data)
-        if (this.config.lineTypes && Array.isArray(this.config.lineTypes)) {
-            const lineType = this.config.lineTypes.find(lt => lt.id === lineTypeId);
-            if (lineType) {
-                return lineType.name;
-            }
-        }
-        
-        // Fallback to hardcoded map if CSV data not available
-        const lineTypeMap = {
-            '1': '1pt CW',
-            '2': '2pt CW',
-            '3': '3pt CW',
-            '4': '4pt CW',
-            '5': '2pt Puls',
-            '6': '3pt Puls',
-            '7': '4pt Puls',
-            '8': '1.5pt CW',
-            '9': '1pt Puls',
-            '10': '1.5pt Puls',
-            '11': 'Fast Engrave',
-            '12': 'Fine Cut Pulse',
-            '13': 'Fine Cut CW',
-            '14': '2pt Bridge',
-            '15': '3pt Bridge',
-            '16': '4pt Bridge',
-            '17': 'Nozzle Engrave',
-            '18': 'Groove',
-            '19': 'Cut CW',
-            '20': 'Pulse_1',
-            '21': 'Pulse_2',
-            '22': 'Engrave',
-            '23': 'Milling 1',
-            '24': 'Milling 2',
-            '25': 'Milling 3',
-            '26': 'Milling 4',
-            '27': 'Milling 5',
-            '28': 'Milling 6',
-            '29': 'Milling 7',
-            '30': 'Milling 8'
-        };
-        const result = lineTypeMap[lineTypeId] || null;
-
-        return result;
-    }
-
-    /**
-     * Get tool name from tool ID
-     */
-    getToolName(toolId) {
-        // Get tool name from configuration only
-        if (this.config.tools && this.config.tools[toolId] && this.config.tools[toolId].name) {
-            return this.config.tools[toolId].name;
-        }
-        
-        console.warn(`No tool name found for tool ID: ${toolId}`);
-        return toolId;
-    }
-
-    /**
-     * Get H-code for tool ID
-     */
-    getToolHCode(toolId) {
-        // Get H-code from configuration only
-        if (this.config.tools && this.config.tools[toolId] && this.config.tools[toolId].hCode) {
-            return this.config.tools[toolId].hCode;
-        }
-        
-        console.warn(`No H-code found for tool ID: ${toolId}`);
-        return null;
-    }
-
-    /**
-     * Calculate arc parameters from DXF bulge value
-     * @param {Object} startVertex - Start vertex with x, y coordinates
-     * @param {Object} endVertex - End vertex with x, y coordinates  
-     * @param {Number} bulge - DXF bulge value
-     * @returns {Object|null} Arc parameters {i, j, clockwise} or null if invalid
-     */
-    calculateArcFromBulge(startVertex, endVertex, bulge) {
-        try {
-            if (Math.abs(bulge) < 0.001) return null;
-            
-            const startX = startVertex.x;
-            const startY = startVertex.y;
-            const endX = endVertex.x;
-            const endY = endVertex.y;
-            
-            // Calculate chord length and midpoint
-            const chordLength = Math.sqrt((endX - startX) ** 2 + (endY - startY) ** 2);
-            if (chordLength < 0.001) return null; // Invalid chord
-            
-            const midX = (startX + endX) / 2;
-            const midY = (startY + endY) / 2;
-            
-            // Calculate radius from bulge
-            const radius = (chordLength / 2) * (1 + bulge ** 2) / (2 * Math.abs(bulge));
-            
-            // Calculate sagitta (height of arc segment)
-            const sagitta = Math.abs(bulge) * chordLength / 2;
-            
-            // Calculate center point
-            const chordAngle = Math.atan2(endY - startY, endX - startX);
-            const perpAngle = chordAngle + (bulge > 0 ? Math.PI / 2 : -Math.PI / 2);
-            
-            const centerDistance = radius - sagitta;
-            const centerX = midX + centerDistance * Math.cos(perpAngle);
-            const centerY = midY + centerDistance * Math.sin(perpAngle);
-            
-            // Calculate I, J values (relative to start point)
-            const i = centerX - startX;
-            const j = centerY - startY;
-            
-            // Determine arc direction (bulge > 0 = counterclockwise, bulge < 0 = clockwise)
-            const clockwise = bulge < 0;
-            
-            return { i, j, clockwise, centerX, centerY, radius };
-            
-        } catch (error) {
-            console.warn('Error calculating arc from bulge:', error);
-            return null;
-        }
-    }
-
-    /**
-     * Load tools from configuration with priority information
+     * Load tools from configuration
      */
     loadToolsFromConfig(config) {
-        const tools = config.tools || {};
+        const tools = [];
         
-        // Add priority information to tools if available
-        if (config.optimization?.priority?.items) {
-            const priorityItems = config.optimization.priority.items;
-            
-            // Create a map of tool ID to priority order
-            const priorityMap = new Map();
-            priorityItems.forEach(item => {
-                if (item.value && item.value !== '__LINE_BREAK__') {
-                    priorityMap.set(item.value, item.order);
-                }
-            });
-            
-            // Add priority to each tool
-            Object.keys(tools).forEach(toolId => {
-                if (priorityMap.has(toolId)) {
-                    tools[toolId].priority = priorityMap.get(toolId);
-                } else {
-                    tools[toolId].priority = 999; // Default low priority
-                }
+        if (config.tools && Array.isArray(config.tools)) {
+            config.tools.forEach(tool => {
+                tools.push({
+                    id: tool.id || tool.ID,
+                    name: tool.name || tool.Name,
+                    priority: tool.priority || tool.Priority || 0
+                });
             });
         }
         
-
-        return tools;
+        return tools.sort((a, b) => b.priority - a.priority);
     }
 
     /**
-     * Generate preview of DIN file (first 50 lines)
+     * Validate DIN content
      */
-    generatePreview(entities, config, metadata) {
-        const fullDin = this.generateDin(entities, config, metadata);
-        const lines = fullDin.split('\n');
-        
-        if (lines.length <= 50) {
-            return fullDin;
-        }
-        
-        const preview = lines.slice(0, 45);
-        preview.push('...');
-        preview.push(`{ ${lines.length - 45} more lines`);
-        preview.push(...lines.slice(-3));
-        
-        return preview.join('\n');
-    }
-
-    /**
-     * Validate DIN output
-     */
-    validateDin(dinContent) {
-        const lines = dinContent.split('\n');
+    validateDin(content) {
         const issues = [];
         
-        // Check for basic DIN structure
-        const hasLaserOn = lines.some(line => line.includes('M14'));
-        const hasLaserOff = lines.some(line => line.includes('M15'));
-        const hasMovement = lines.some(line => line.includes('G0') || line.includes('G1'));
+        if (!content || content.trim().length === 0) {
+            issues.push('Empty DIN content');
+        }
         
-        if (!hasLaserOn) issues.push('Warning: No laser ON commands found');
-        if (!hasLaserOff) issues.push('Warning: No laser OFF commands found');
-        if (!hasMovement) issues.push('Error: No movement commands found');
+        // Check for basic G-code commands
+        const hasG0 = content.includes('G0') || content.includes('G00');
+        const hasG1 = content.includes('G1') || content.includes('G01');
         
-        // Check for balanced laser on/off commands
-        const laserOnCount = lines.filter(line => line.includes('M14')).length;
-        const laserOffCount = lines.filter(line => line.includes('M15')).length;
-        
-        if (laserOnCount !== laserOffCount) {
-            issues.push(`Warning: Unbalanced laser commands (${laserOnCount} ON, ${laserOffCount} OFF)`);
+        if (!hasG0 && !hasG1) {
+            issues.push('No movement commands found');
         }
         
         return {
-            valid: issues.filter(issue => issue.startsWith('Error')).length === 0,
-            issues: issues,
-            stats: {
-                totalLines: lines.length,
-                laserOnCommands: laserOnCount,
-                laserOffCommands: laserOffCount,
-                movementCommands: lines.filter(line => line.includes('G0') || line.includes('G1')).length
-            }
+            valid: issues.length === 0,
+            issues: issues
         };
     }
 }
-
-export default DinGenerator;

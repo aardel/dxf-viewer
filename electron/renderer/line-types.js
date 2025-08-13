@@ -8,6 +8,7 @@ let currentProfile = null;
 // DOM Elements
 const tableBody = document.getElementById('lineTypeMappingTableBody');
 const saveMappingsBtn = document.getElementById('saveMappingsBtn');
+const reloadLineTypesBtn = document.getElementById('reloadLineTypesBtn');
 const reloadBtn = document.getElementById('reloadBtn');
 const statusText = document.getElementById('statusText');
 
@@ -21,6 +22,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 function setupEventListeners() {
     saveMappingsBtn.addEventListener('click', saveMappings);
+    reloadLineTypesBtn.addEventListener('click', reloadLineTypes);
     reloadBtn.addEventListener('click', reloadData);
 }
 
@@ -28,22 +30,26 @@ async function loadData() {
     try {
         showStatus('Loading data...');
         
-        // Load current profile
+        // Load internal line types (global, not profile-specific)
+        await loadLineTypes();
+        console.log('✅ Loaded global internal line types');
+        
+        // Load current profile (for machine tools and mappings)
         await loadCurrentProfile();
         
-        // Load line types
-        await loadLineTypes();
-        
-        // Load machine tools
+        // Load machine tools from profile
         await loadMachineTools();
         
-        // Load existing mappings
+        // Load existing mappings from profile
         await loadLineTypeMappings();
+        
+        // Synchronize line types with profile mappings
+        await synchronizeLineTypesWithProfile();
         
         // Render the table
         renderMappingTable();
         
-        showStatus(`Loaded ${lineTypes.length} line types and ${machineTools.length} machine tools`);
+        showStatus(`Loaded ${lineTypes.length} internal line types and ${machineTools.length} machine tools`);
     } catch (error) {
         console.error('Error loading data:', error);
         showStatus('Failed to load data', 'error');
@@ -53,65 +59,179 @@ async function loadData() {
 async function loadCurrentProfile() {
     try {
         const profileResponse = await window.electronAPI.getCurrentProfile();
-        if (profileResponse.success) {
+        if (profileResponse && profileResponse.success) {
             currentProfile = profileResponse.data;
-            console.log('Current profile:', currentProfile);
+            console.log('✅ Current profile loaded:', currentProfile.name);
         } else {
-            console.error('Failed to load current profile:', profileResponse.error);
+            console.warn('Failed to load current profile, using default:', profileResponse?.error);
             // Use default profile
-            currentProfile = { filename: 'mtl.xml', name: 'Default Profile' };
+            currentProfile = { filename: 'pts.xml', name: 'PTS Profile' };
         }
     } catch (error) {
-        console.error('Error loading current profile:', error);
-        currentProfile = { filename: 'mtl.xml', name: 'Default Profile' };
+        console.warn('Error loading current profile, using default:', error);
+        currentProfile = { filename: 'pts.xml', name: 'PTS Profile' };
     }
 }
 
 async function loadLineTypes() {
     try {
         const result = await window.electronAPI.loadLineTypes();
-        if (result.success) {
+        if (result && result.success) {
             lineTypes = result.data;
-            console.log('Loaded line types:', lineTypes.length);
+            console.log('✅ Loaded internal line types from global XML config:', lineTypes.length);
         } else {
-            console.error('Failed to load line types:', result.error);
-            lineTypes = getDefaultLineTypes();
+            // Show critical error dialog for missing/damaged line-types.xml
+            if (result?.requiresDialog) {
+                showCriticalErrorDialog('Line Types Configuration Error', result.error);
+            }
+            console.error('CRITICAL: Failed to load internal line types:', result?.error);
+            lineTypes = [];
+            throw new Error(result?.error || 'Failed to load line types');
         }
     } catch (error) {
-        console.error('Error loading line types:', error);
-        lineTypes = getDefaultLineTypes();
+        console.error('CRITICAL: Error loading internal line types:', error);
+        lineTypes = [];
+        showCriticalErrorDialog('Line Types Loading Error', `Critical error loading line types configuration: ${error.message}`);
+        throw error;
     }
+}
+
+function showCriticalErrorDialog(title, message) {
+    // Create modal dialog for critical errors
+    const modalHTML = `
+        <div id="criticalErrorModal" class="modal" style="display: flex; z-index: 10000;">
+            <div class="modal-content" style="max-width: 600px;">
+                <div class="modal-header" style="background: #dc3545; color: white;">
+                    <h3>🚨 ${title}</h3>
+                </div>
+                <div class="modal-body">
+                    <div style="background: #f8d7da; border: 1px solid #f5c6cb; padding: 1rem; border-radius: 4px; margin-bottom: 1rem;">
+                        <strong>Critical Error:</strong> The application cannot continue without the line types configuration.
+                    </div>
+                    <div style="font-family: monospace; background: #f8f9fa; padding: 1rem; border-radius: 4px; word-break: break-word;">
+                        ${message}
+                    </div>
+                    <div style="margin-top: 1rem;">
+                        <strong>Required Action:</strong>
+                        <ul>
+                            <li>Ensure the <code>CONFIG/LineTypes/line-types.xml</code> file exists</li>
+                            <li>Verify the XML file is not corrupted</li>
+                            <li>Restart the application after fixing the issue</li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-primary" onclick="location.reload()">Retry</button>
+                    <button class="btn btn-secondary" onclick="window.close()">Close Application</button>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    // Remove existing modal if present
+    const existingModal = document.getElementById('criticalErrorModal');
+    if (existingModal) {
+        existingModal.remove();
+    }
+    
+    // Add modal to DOM
+    document.body.insertAdjacentHTML('beforeend', modalHTML);
 }
 
 async function loadMachineTools() {
     try {
+        if (!currentProfile) {
+            console.warn('No current profile available, cannot load machine tools');
+            machineTools = [];
+            return;
+        }
+        
         const result = await window.electronAPI.getToolsFromProfile();
-        if (result.success) {
+        if (result && result.success) {
             machineTools = result.data;
-            console.log('Loaded machine tools:', machineTools.length);
+            console.log('✅ Loaded machine tools from profile:', machineTools.length);
         } else {
-            console.error('Failed to load machine tools:', result.error);
+            console.warn('Failed to load machine tools from profile:', result?.error);
             machineTools = [];
         }
     } catch (error) {
-        console.error('Error loading machine tools:', error);
+        console.warn('Error loading machine tools from profile:', error);
         machineTools = [];
     }
 }
 
 async function loadLineTypeMappings() {
     try {
+        if (!currentProfile) {
+            console.warn('No current profile available, cannot load line type mappings');
+            lineTypeMappings = [];
+            return;
+        }
+        
         const result = await window.electronAPI.getLineTypeMappingsFromProfile();
-        if (result.success) {
+        if (result && result.success) {
             lineTypeMappings = result.data;
-            console.log('Loaded line type mappings:', lineTypeMappings.length);
+            console.log('✅ Loaded line type mappings from profile:', lineTypeMappings.length);
         } else {
-            console.error('Failed to load line type mappings:', result.error);
+            console.warn('Failed to load line type mappings from profile:', result?.error);
             lineTypeMappings = [];
         }
     } catch (error) {
-        console.error('Error loading line type mappings:', error);
+        console.warn('Error loading line type mappings from profile:', error);
         lineTypeMappings = [];
+    }
+}
+
+async function synchronizeLineTypesWithProfile() {
+    try {
+        if (!lineTypes || lineTypes.length === 0) {
+            console.warn('No line types available for synchronization');
+            return;
+        }
+        
+        console.log('🔄 Synchronizing line types with profile mappings...');
+        
+        // Get existing mapped line type names
+        const existingMappedNames = lineTypeMappings.map(m => m.lineTypeName);
+        console.log('Existing mapped line types:', existingMappedNames);
+        
+        // Find line types that are not mapped in the profile
+        const unmappedLineTypes = lineTypes.filter(lt => !existingMappedNames.includes(lt.name));
+        
+        if (unmappedLineTypes.length > 0) {
+            console.log(`Found ${unmappedLineTypes.length} unmapped line types:`, unmappedLineTypes.map(lt => lt.name));
+            
+            // Add unmapped line types to the profile mappings (with empty tool assignment)
+            const newMappings = unmappedLineTypes.map(lt => ({
+                lineTypeId: lt.id,
+                lineTypeName: lt.name,
+                toolId: '', // Empty tool assignment
+                toolName: '',
+                description: lt.description || ''
+            }));
+            
+            // Add new mappings to existing ones
+            lineTypeMappings = [...lineTypeMappings, ...newMappings];
+            
+            console.log(`Added ${newMappings.length} new mappings to profile`);
+            console.log('Updated line type mappings:', lineTypeMappings.map(m => ({ name: m.lineTypeName, tool: m.toolId })));
+            
+            // Save the updated mappings to the profile
+            const saveResult = await window.electronAPI.saveLineTypeMappingsToProfile(lineTypeMappings);
+            if (saveResult && saveResult.success) {
+                console.log('✅ Successfully saved updated mappings to profile');
+                showStatus(`Added ${newMappings.length} new line types to profile mappings`, 'success');
+            } else {
+                console.warn('Failed to save updated mappings to profile:', saveResult?.error);
+                showStatus(`Added ${newMappings.length} new line types but failed to save to profile`, 'warning');
+            }
+        } else {
+            console.log('✅ All line types are already mapped in the profile');
+        }
+        
+    } catch (error) {
+        console.error('Error synchronizing line types with profile:', error);
+        showStatus('Failed to synchronize line types with profile', 'error');
     }
 }
 
@@ -201,9 +321,13 @@ function getOperationType(lineTypeName) {
         'Engrave': 'Engraving',
         'Fine Cut CW': 'Cutting',
         'Fine Cut Pulse': 'Cutting',
+        '1pt CW': 'Cutting',
+        '1.5pt CW': 'Cutting',
         '2pt CW': 'Cutting',
         '3pt CW': 'Cutting',
         '4pt CW': 'Cutting',
+        '1pt Puls': 'Pulsing',
+        '1.5pt Puls': 'Pulsing',
         '2pt Puls': 'Pulsing',
         '3pt Puls': 'Pulsing',
         '4pt Puls': 'Pulsing',
@@ -289,7 +413,7 @@ async function saveMappings() {
             return;
         }
         
-        const result = await window.electronAPI.saveLineTypeMappings(lineTypeMappings, currentProfile.filename);
+        const result = await window.electronAPI.saveLineTypeMappingsToProfile(lineTypeMappings, currentProfile.filename);
         
         if (result.success) {
             showStatus(`✓ Saved ${lineTypeMappings.length} mappings to ${currentProfile.name}`, 'success');
@@ -306,29 +430,60 @@ async function reloadData() {
     await loadData();
 }
 
-function getDefaultLineTypes() {
-    return [
-        { name: '2pt CW', description: '2pt Continuous Wave', width: 2, type: 'cutting' },
-        { name: '3pt CW', description: '3pt Continuous Wave', width: 3, type: 'cutting' },
-        { name: '4pt CW', description: '4pt Continuous Wave', width: 4, type: 'cutting' },
-        { name: '2pt Puls', description: '2pt Pulsing', width: 2, type: 'pulsing' },
-        { name: '3pt Puls', description: '3pt Pulsing', width: 3, type: 'pulsing' },
-        { name: '4pt Puls', description: '4pt Pulsing', width: 4, type: 'pulsing' },
-        { name: 'Fast Engrave', description: 'Fast Engraving', width: 1, type: 'engraving' },
-        { name: 'Fine Cut Pulse', description: 'Fine Cut Pulsing', width: 1, type: 'cutting' },
-        { name: 'Fine Cut CW', description: 'Fine Cut Continuous Wave', width: 1, type: 'cutting' },
-        { name: 'Nozzle Engrave', description: 'Nozzle Engraving', width: 1, type: 'engraving' },
-        { name: 'Engrave', description: 'Standard Engraving', width: 1, type: 'engraving' },
-        { name: 'Milling 1', description: 'Milling Tool 1', width: 1, type: 'milling' },
-        { name: 'Milling 2', description: 'Milling Tool 2', width: 1, type: 'milling' },
-        { name: 'Milling 3', description: 'Milling Tool 3', width: 1, type: 'milling' },
-        { name: 'Milling 4', description: 'Milling Tool 4', width: 1, type: 'milling' },
-        { name: 'Milling 5', description: 'Milling Tool 5', width: 1, type: 'milling' },
-        { name: 'Milling 6', description: 'Milling Tool 6', width: 1, type: 'milling' },
-        { name: 'Milling 7', description: 'Milling Tool 7', width: 1, type: 'milling' },
-        { name: 'Milling 8', description: 'Milling Tool 8', width: 1, type: 'milling' }
-    ];
+async function reloadLineTypes() {
+    try {
+        showStatus('Reloading internal line types from global configuration...');
+        
+        // Force reload internal line types from global XML file
+        await loadLineTypes();
+        console.log('🔄 Reloaded global internal line types');
+        
+        // Re-synchronize line types with profile mappings
+        await synchronizeLineTypesWithProfile();
+        
+        // Re-render the table with all line types
+        renderMappingTable();
+        
+        showStatus(`✓ Reloaded ${lineTypes.length} internal line types and synchronized with profile`, 'success');
+    } catch (error) {
+        console.error('Error reloading internal line types:', error);
+        showStatus('Failed to reload internal line types', 'error');
+    }
 }
+
+async function addUnmappedLineTypes() {
+    try {
+        // Get all line types that should exist but might not have tool mappings
+        const allLineTypeNames = lineTypes.map(lt => lt.name);
+        const mappedLineTypeNames = lineTypeMappings.map(m => m.lineTypeName);
+        
+        // Find line types that exist but have no mappings
+        const unmappedLineTypeNames = allLineTypeNames.filter(name => 
+            !mappedLineTypeNames.includes(name)
+        );
+        
+        console.log('Found unmapped line types:', unmappedLineTypeNames);
+        
+        // Add placeholder mappings for unmapped line types so they appear in the interface
+        unmappedLineTypeNames.forEach(lineTypeName => {
+            const existingMapping = lineTypeMappings.find(m => m.lineTypeName === lineTypeName);
+            if (!existingMapping) {
+                lineTypeMappings.push({
+                    lineTypeId: getLineTypeId(lineTypeName),
+                    lineTypeName: lineTypeName,
+                    toolId: '', // Empty tool ID means "unmapped"
+                    description: `${lineTypeName} - UNMAPPED`
+                });
+            }
+        });
+        
+        return unmappedLineTypeNames;
+    } catch (error) {
+        console.error('Error checking for unmapped line types:', error);
+        return [];
+    }
+}
+
 
 function showStatus(message, type = 'info') {
     if (statusText) {

@@ -53,9 +53,9 @@ async function loadLineTypesAndTools() {
             mappings = [];
         }
 
-        // Load line types from the line-types.xml file (via CSV)
+        // Load line types from the line-types.xml file
         const lineTypesResponse = await window.electronAPI.loadLineTypes();
-        if (lineTypesResponse.success) {
+        if (lineTypesResponse && lineTypesResponse.success) {
             lineTypes = lineTypesResponse.data.map(lineType => ({
                 name: lineType.name,
                 description: lineType.description,
@@ -66,11 +66,15 @@ async function loadLineTypesAndTools() {
                 type: lineType.lineType || lineType.type,
                 color: lineType.color
             }));
-            console.log('Loaded line types from file:', lineTypes.length, 'types');
+            console.log('✅ Loaded internal line types from global XML config:', lineTypes.length);
         } else {
-            console.error('Failed to load line types from file:', lineTypesResponse.error);
-            // Fallback to default line types
-            lineTypes = getDefaultLineTypes();
+            // Show critical error for missing/damaged line-types.xml
+            console.error('CRITICAL: Failed to load internal line types:', lineTypesResponse?.error);
+            if (lineTypesResponse?.requiresDialog) {
+                showCriticalErrorDialog('Line Types Configuration Error', lineTypesResponse.error);
+            }
+            lineTypes = [];
+            throw new Error(lineTypesResponse?.error || 'Failed to load line types');
         }
 
         // Apply existing mappings to line types
@@ -82,10 +86,12 @@ async function loadLineTypesAndTools() {
         });
         
     } catch (error) {
-        console.error('Error loading data:', error);
-        tools = getDefaultTools();
-        lineTypes = getDefaultLineTypes();
+        console.error('CRITICAL: Error loading unified mapping data:', error);
+        showCriticalErrorDialog('Unified Mapping Loading Error', `Critical error loading configuration: ${error.message}`);
+        tools = [];
+        lineTypes = [];
         mappings = [];
+        throw error;
     }
 }
 
@@ -316,68 +322,47 @@ function filterConsole() {
     });
 }
 
-// Default data functions
-function getDefaultTools() {
-    return [
-        { id: 'T1', name: 'Fine Engraving', description: 'Precision engraving tool' },
-        { id: 'T2', name: '2pt Cut CW', description: 'Laser Tool' },
-        { id: 'T3', name: '3pt Cut CW', description: 'Laser Tool' },
-        { id: 'T4', name: '4pt Cut CW', description: 'Laser Tool' },
-        { id: 'T22', name: 'Fine Cut', description: 'FineCut' },
-        { id: 'T20', name: 'Engraving', description: 'Engrave' }
-    ];
+function showCriticalErrorDialog(title, message) {
+    // Create modal dialog for critical errors
+    const modalHTML = `
+        <div id="criticalErrorModal" class="modal" style="display: flex; z-index: 10000;">
+            <div class="modal-content" style="max-width: 600px;">
+                <div class="modal-header" style="background: #dc3545; color: white;">
+                    <h3>🚨 ${title}</h3>
+                </div>
+                <div class="modal-body">
+                    <div style="background: #f8d7da; border: 1px solid #f5c6cb; padding: 1rem; border-radius: 4px; margin-bottom: 1rem;">
+                        <strong>Critical Error:</strong> The Unified Mapping interface cannot function without the line types configuration.
+                    </div>
+                    <div style="font-family: monospace; background: #f8f9fa; padding: 1rem; border-radius: 4px; word-break: break-word;">
+                        ${message}
+                    </div>
+                    <div style="margin-top: 1rem;">
+                        <strong>Required Action:</strong>
+                        <ul>
+                            <li>Ensure the <code>CONFIG/LineTypes/line-types.xml</code> file exists</li>
+                            <li>Verify the XML file is not corrupted</li>
+                            <li>Use the application's backup tools to restore the configuration</li>
+                            <li>Restart the application after fixing the issue</li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-primary" onclick="location.reload()">Retry</button>
+                    <button class="btn btn-secondary" onclick="window.close()">Close Interface</button>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    // Remove existing modal if present
+    const existingModal = document.getElementById('criticalErrorModal');
+    if (existingModal) {
+        existingModal.remove();
+    }
+    
+    // Add modal to DOM
+    document.body.insertAdjacentHTML('beforeend', modalHTML);
 }
 
-function getDefaultLineTypes() {
-    return [
-        // CW operations
-        { name: '1pt CW', description: '1 point continuous wave', width: 1, mappedLayers: [], assignedTool: null },
-        { name: '2pt CW', description: '2 point continuous wave', width: 2, mappedLayers: [], assignedTool: null },
-        { name: '3pt CW', description: '3 point continuous wave', width: 3, mappedLayers: [], assignedTool: null },
-        { name: '4pt CW', description: '4 point continuous wave', width: 4, mappedLayers: [], assignedTool: null },
-        { name: '1.5pt CW', description: '1.5 point continuous wave', width: 1.5, mappedLayers: [], assignedTool: null },
-        { name: 'Fine Cut CW', description: 'Fine cutting operation', width: 0.5, mappedLayers: [], assignedTool: null },
-        { name: 'Cut CW', description: 'Cut continuous wave', width: 1, mappedLayers: [], assignedTool: null },
-        
-        // Pulse operations
-        { name: '2pt Puls', description: '2 point pulse', width: 2, mappedLayers: [], assignedTool: null },
-        { name: '3pt Puls', description: '3 point pulse', width: 3, mappedLayers: [], assignedTool: null },
-        { name: '4pt Puls', description: '4 point pulse', width: 4, mappedLayers: [], assignedTool: null },
-        { name: '1pt Puls', description: '1 point pulse', width: 1, mappedLayers: [], assignedTool: null },
-        { name: '1.5pt Puls', description: '1.5 point pulse', width: 1.5, mappedLayers: [], assignedTool: null },
-        { name: 'Fine Cut Pulse', description: 'Fine cut pulse', width: 0.1, mappedLayers: [], assignedTool: null },
-        { name: 'Pulse_1', description: 'Pulse 1', width: 1, mappedLayers: [], assignedTool: null },
-        { name: 'Pulse_2', description: 'Pulse 2', width: 2, mappedLayers: [], assignedTool: null },
-        
-        // Bridge operations
-        { name: '2pt Bridge', description: '2 point bridge', width: 2, mappedLayers: [], assignedTool: null },
-        { name: '3pt Bridge', description: '3 point bridge', width: 3, mappedLayers: [], assignedTool: null },
-        { name: '4pt Bridge', description: '4 point bridge', width: 4, mappedLayers: [], assignedTool: null },
-        
-        // Engraving operations
-        { name: 'Fast Engrave', description: 'Fast engraving', width: 0.5, mappedLayers: [], assignedTool: null },
-        { name: 'Nozzle Engrave', description: 'Nozzle engraving', width: 0.1, mappedLayers: [], assignedTool: null },
-        { name: 'Engrave', description: 'Standard engraving', width: 0.5, mappedLayers: [], assignedTool: null },
-        
-        // Specialized operations
-        { name: 'Groove', description: 'Groove operation', width: 2, mappedLayers: [], assignedTool: null },
-        
-        // Milling operations
-        { name: 'Milling 1', description: 'Milling operation 1', width: 0.5, mappedLayers: [], assignedTool: null },
-        { name: 'Milling 2', description: 'Milling operation 2', width: 1, mappedLayers: [], assignedTool: null },
-        { name: 'Milling 3', description: 'Milling operation 3', width: 1.5, mappedLayers: [], assignedTool: null },
-        { name: 'Milling 4', description: 'Milling operation 4', width: 2, mappedLayers: [], assignedTool: null },
-        { name: 'Milling 5', description: 'Milling operation 5', width: 2.5, mappedLayers: [], assignedTool: null },
-        { name: 'Milling 6', description: 'Milling operation 6', width: 3, mappedLayers: [], assignedTool: null },
-        { name: 'Milling 7', description: 'Milling operation 7', width: 4, mappedLayers: [], assignedTool: null },
-        { name: 'Milling 8', description: 'Milling operation 8', width: 5, mappedLayers: [], assignedTool: null },
-        
-        // Basic operations
-        { name: 'cutting', description: 'Standard cutting operation', width: 1, mappedLayers: [], assignedTool: null },
-        { name: 'engraving', description: 'Standard engraving operation', width: 0.5, mappedLayers: [], assignedTool: null },
-        { name: 'perforating', description: 'Perforation lines', width: 0.5, mappedLayers: [], assignedTool: null },
-        { name: 'scoring', description: 'Score lines for folding', width: 0.5, mappedLayers: [], assignedTool: null },
-        { name: 'marking', description: 'Reference marks', width: 0.5, mappedLayers: [], assignedTool: null },
-        { name: 'construction', description: 'Construction lines (skipped)', width: 0.5, mappedLayers: [], assignedTool: null }
-    ];
-} 
+ 

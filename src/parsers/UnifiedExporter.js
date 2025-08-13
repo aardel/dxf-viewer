@@ -1,5 +1,6 @@
 // UnifiedExporter: Dispatches unified geometry objects to the correct writer/exporter
 const DinWriter = require('../writers/DinWriter');
+const { RendererBasedDinGenerator } = require('../RendererBasedDinGenerator.js');
 // TODO: Implement writers for DDS, DXF, CF2
 
 class UnifiedExporter {
@@ -12,7 +13,9 @@ class UnifiedExporter {
      */
     static export(geometries, format, options = {}) {
         if (format === 'din') {
-            return DinWriter.export(geometries, options);
+            // Use the new renderer-based DIN generator
+            const generator = new RendererBasedDinGenerator();
+            return generator.generateDin(geometries, options.config || {}, options.metadata || {});
         } else if (format === 'dds') {
             // TODO: Implement DDS writer
             throw new Error('DDS writer integration pending');

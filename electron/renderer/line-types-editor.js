@@ -2,6 +2,7 @@
 
 let lineTypes = [];
 let currentProfile = null;
+let saveTimeout = null; // For debouncing save operations
 
 // DOM Elements
 const tableBody = document.getElementById('lineTypeEditorTableBody');
@@ -62,18 +63,68 @@ async function loadCurrentProfile() {
 
 async function loadLineTypes() {
     try {
-        const result = await window.electronAPI.getInternalLineTypes();
-        if (result && Array.isArray(result)) {
-            lineTypes = result;
-            console.log('Loaded line types:', lineTypes.length);
+        const result = await window.electronAPI.loadLineTypes();
+        if (result && result.success) {
+            lineTypes = result.data;
+            console.log('✅ Loaded internal line types from global XML config:', lineTypes.length);
         } else {
-            console.error('Failed to load line types:', result);
-            lineTypes = getDefaultLineTypes();
+            // Show critical error dialog for missing/damaged line-types.xml
+            if (result?.requiresDialog) {
+                showCriticalErrorDialog('Line Types Configuration Error', result.error);
+            }
+            console.error('CRITICAL: Failed to load internal line types:', result?.error);
+            lineTypes = [];
+            throw new Error(result?.error || 'Failed to load line types');
         }
     } catch (error) {
-        console.error('Error loading line types:', error);
-        lineTypes = getDefaultLineTypes();
+        console.error('CRITICAL: Error loading internal line types:', error);
+        lineTypes = [];
+        showCriticalErrorDialog('Line Types Loading Error', `Critical error loading line types configuration: ${error.message}`);
+        throw error;
     }
+}
+
+function showCriticalErrorDialog(title, message) {
+    // Create modal dialog for critical errors
+    const modalHTML = `
+        <div id="criticalErrorModal" class="modal" style="display: flex; z-index: 10000;">
+            <div class="modal-content" style="max-width: 600px;">
+                <div class="modal-header" style="background: #dc3545; color: white;">
+                    <h3>🚨 ${title}</h3>
+                </div>
+                <div class="modal-body">
+                    <div style="background: #f8d7da; border: 1px solid #f5c6cb; padding: 1rem; border-radius: 4px; margin-bottom: 1rem;">
+                        <strong>Critical Error:</strong> The Line Types Editor cannot function without the line types configuration.
+                    </div>
+                    <div style="font-family: monospace; background: #f8f9fa; padding: 1rem; border-radius: 4px; word-break: break-word;">
+                        ${message}
+                    </div>
+                    <div style="margin-top: 1rem;">
+                        <strong>Required Action:</strong>
+                        <ul>
+                            <li>Ensure the <code>CONFIG/LineTypes/line-types.xml</code> file exists</li>
+                            <li>Verify the XML file is not corrupted</li>
+                            <li>Use the application's backup tools to restore the configuration</li>
+                            <li>Restart the application after fixing the issue</li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-primary" onclick="location.reload()">Retry</button>
+                    <button class="btn btn-secondary" onclick="window.close()">Close Editor</button>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    // Remove existing modal if present
+    const existingModal = document.getElementById('criticalErrorModal');
+    if (existingModal) {
+        existingModal.remove();
+    }
+    
+    // Add modal to DOM
+    document.body.insertAdjacentHTML('beforeend', modalHTML);
 }
 
 function renderLineTypesTable() {
@@ -144,10 +195,45 @@ function createLineTypeRow(lineType, index) {
         </td>
     `;
     
+    // Add event listeners for auto-save on field changes
+    const inputs = row.querySelectorAll('input, select');
+    inputs.forEach(input => {
+        // For select and color inputs, save immediately on change
+        if (input.tagName === 'SELECT' || input.type === 'color') {
+            input.addEventListener('change', () => {
+                updateLineTypeFromRow(row);
+            });
+        } else {
+            // For text and number inputs, use debounced save
+            input.addEventListener('input', () => {
+                updateLineTypeFromRow(row);
+            });
+            
+            // Also save on blur for immediate feedback
+            input.addEventListener('blur', async () => {
+                clearTimeout(saveTimeout);
+                updateLineTypeFromRow(row);
+                
+                // Save immediately on blur
+                try {
+                    const result = await window.electronAPI.saveLineTypes(lineTypes);
+                    if (result.success) {
+                        showStatus('Changes saved', 'success');
+                    } else {
+                        showStatus(`Failed to save changes: ${result.error}`, 'error');
+                    }
+                } catch (error) {
+                    console.error('Error saving changes:', error);
+                    showStatus('Failed to save changes', 'error');
+                }
+            });
+        }
+    });
+    
     return row;
 }
 
-function addNewLineType() {
+async function addNewLineType() {
     const newId = (lineTypes.length + 1).toString();
     const newLineType = {
         id: newId,
@@ -160,19 +246,69 @@ function addNewLineType() {
     
     lineTypes.push(newLineType);
     renderLineTypesTable();
-    showStatus(`Added new line type: ${newLineType.name}`, 'success');
-}
-
-function deleteLineType(lineTypeId) {
-    if (confirm('Are you sure you want to delete this line type?')) {
-        lineTypes = lineTypes.filter(lt => lt.id !== lineTypeId);
+    
+    // Save the updated line types to XML
+    try {
+        const result = await window.electronAPI.saveLineTypes(lineTypes);
+        if (result.success) {
+            showStatus(`Added new line type: ${newLineType.name} and saved successfully`, 'success');
+        } else {
+            showStatus(`Failed to save changes: ${result.error}`, 'error');
+            // Revert the addition if save failed
+            lineTypes.pop();
+            renderLineTypesTable();
+        }
+    } catch (error) {
+        console.error('Error saving after addition:', error);
+        showStatus('Failed to save changes after addition', 'error');
+        // Revert the addition if save failed
+        lineTypes.pop();
         renderLineTypesTable();
-        showStatus('Line type deleted', 'success');
     }
 }
 
-function duplicateLineType(lineTypeId) {
-    const original = lineTypes.find(lt => lt.id === lineTypeId);
+async function deleteLineType(lineTypeId) {
+    if (confirm('Are you sure you want to delete this line type?')) {
+        // Convert lineTypeId to string for consistent comparison
+        const targetId = lineTypeId.toString();
+        console.log('Deleting line type with ID:', targetId, 'Type:', typeof targetId);
+        console.log('Before deletion, line types count:', lineTypes.length);
+        
+        lineTypes = lineTypes.filter(lt => {
+            const ltId = lt.id.toString();
+            const shouldKeep = ltId !== targetId;
+            console.log(`Line type ${ltId} (${typeof lt.id}): ${shouldKeep ? 'keeping' : 'deleting'}`);
+            return shouldKeep;
+        });
+        
+        console.log('After deletion, line types count:', lineTypes.length);
+        renderLineTypesTable();
+        
+        // Save the updated line types to XML
+        try {
+            const result = await window.electronAPI.saveLineTypes(lineTypes);
+            if (result.success) {
+                showStatus('Line type deleted and saved successfully', 'success');
+            } else {
+                showStatus(`Failed to save changes: ${result.error}`, 'error');
+                // Revert the deletion if save failed
+                await loadLineTypes();
+                renderLineTypesTable();
+            }
+        } catch (error) {
+            console.error('Error saving after deletion:', error);
+            showStatus('Failed to save changes after deletion', 'error');
+            // Revert the deletion if save failed
+            await loadLineTypes();
+            renderLineTypesTable();
+        }
+    }
+}
+
+async function duplicateLineType(lineTypeId) {
+    // Convert lineTypeId to string for consistent comparison
+    const targetId = lineTypeId.toString();
+    const original = lineTypes.find(lt => lt.id.toString() === targetId);
     if (original) {
         const newId = (Math.max(...lineTypes.map(lt => parseInt(lt.id) || 0)) + 1).toString();
         const duplicate = {
@@ -184,7 +320,25 @@ function duplicateLineType(lineTypeId) {
         
         lineTypes.push(duplicate);
         renderLineTypesTable();
-        showStatus(`Duplicated line type: ${duplicate.name}`, 'success');
+        
+        // Save the updated line types to XML
+        try {
+            const result = await window.electronAPI.saveLineTypes(lineTypes);
+            if (result.success) {
+                showStatus(`Duplicated line type: ${duplicate.name} and saved successfully`, 'success');
+            } else {
+                showStatus(`Failed to save changes: ${result.error}`, 'error');
+                // Revert the duplication if save failed
+                lineTypes.pop();
+                renderLineTypesTable();
+            }
+        } catch (error) {
+            console.error('Error saving after duplication:', error);
+            showStatus('Failed to save changes after duplication', 'error');
+            // Revert the duplication if save failed
+            lineTypes.pop();
+            renderLineTypesTable();
+        }
     }
 }
 
@@ -230,45 +384,55 @@ async function saveLineTypes() {
     }
 }
 
+function updateLineTypeFromRow(row) {
+    const lineTypeId = row.dataset.lineTypeId;
+    const idInput = row.querySelector('.line-type-id');
+    const nameInput = row.querySelector('.line-type-name');
+    const descInput = row.querySelector('.line-type-description');
+    const typeSelect = row.querySelector('.line-type-type');
+    const widthInput = row.querySelector('.line-type-width');
+    const colorInput = row.querySelector('.line-type-color');
+    
+    if (idInput && nameInput) {
+        // Find and update the line type in the array (handle type mismatch)
+        const lineTypeIndex = lineTypes.findIndex(lt => lt.id.toString() === lineTypeId.toString());
+        if (lineTypeIndex !== -1) {
+            lineTypes[lineTypeIndex] = {
+                id: idInput.value,
+                name: nameInput.value,
+                description: descInput ? descInput.value : '',
+                type: typeSelect ? typeSelect.value : 'laser',
+                width: widthInput ? parseFloat(widthInput.value) : 1.0,
+                color: colorInput ? colorInput.value : '#FF0000'
+            };
+            
+            // Update the row's dataset to reflect the new ID if it changed
+            row.dataset.lineTypeId = idInput.value;
+            
+            // Debounce save operations to prevent too many saves
+            clearTimeout(saveTimeout);
+            saveTimeout = setTimeout(async () => {
+                try {
+                    const result = await window.electronAPI.saveLineTypes(lineTypes);
+                    if (result.success) {
+                        showStatus('Changes saved automatically', 'success');
+                    } else {
+                        showStatus(`Failed to save changes: ${result.error}`, 'error');
+                    }
+                } catch (error) {
+                    console.error('Error saving changes:', error);
+                    showStatus('Failed to save changes', 'error');
+                }
+            }, 500); // Wait 500ms after last change before saving
+        }
+    }
+}
+
 async function reloadData() {
     await loadData();
     showStatus('Data reloaded', 'success');
 }
 
-function getDefaultLineTypes() {
-    return [
-        { id: '1', name: '1pt CW', description: '1 point', type: 'laser', width: 1, color: '#FF0000' },
-        { id: '2', name: '2pt CW', description: '2 points', type: 'laser', width: 2, color: '#FF0000' },
-        { id: '3', name: '3pt CW', description: '3 points', type: 'laser', width: 3, color: '#FF0000' },
-        { id: '4', name: '4pt CW', description: '4 points', type: 'laser', width: 4, color: '#FF0000' },
-        { id: '5', name: '2pt Puls', description: '2 points', type: 'laser', width: 2, color: '#FF0000' },
-        { id: '6', name: '3pt Puls', description: '3 points', type: 'laser', width: 3, color: '#FF0000' },
-        { id: '7', name: '4pt Puls', description: '4 points', type: 'laser', width: 4, color: '#FF0000' },
-        { id: '8', name: '1.5pt CW', description: '1.5 points', type: 'laser', width: 1.5, color: '#FF0000' },
-        { id: '9', name: '1pt Puls', description: '1 point', type: 'laser', width: 1, color: '#FF0000' },
-        { id: '10', name: '1.5pt Puls', description: '1.5 points', type: 'laser', width: 1.5, color: '#FF0000' },
-        { id: '11', name: 'Fast Engrave', description: 'Fast Engrave', type: 'engraving', width: 0.5, color: '#00FF00' },
-        { id: '12', name: 'Fine Cut Pulse', description: 'Fine cut pulse', type: 'laser', width: 0.1, color: '#FF4444' },
-        { id: '13', name: 'Fine Cut CW', description: 'Fine cut CW', type: 'laser', width: 0.1, color: '#FF4444' },
-        { id: '14', name: '2pt Bridge', description: '2 points bridge', type: 'laser', width: 2, color: '#FFAA00' },
-        { id: '15', name: '3pt Bridge', description: '3 points bridge', type: 'laser', width: 3, color: '#FFAA00' },
-        { id: '16', name: '4pt Bridge', description: '4 points bridge', type: 'laser', width: 4, color: '#FFAA00' },
-        { id: '17', name: 'Nozzle Engrave', description: 'Nozzle Engrave', type: 'engraving', width: 1, color: '#00AAFF' },
-        { id: '18', name: 'Groove', description: 'Groove', type: 'laser', width: 2, color: '#AA00FF' },
-        { id: '19', name: 'Cut CW', description: 'Cut CW', type: 'laser', width: 1, color: '#FF0044' },
-        { id: '20', name: 'Pulse_1', description: 'Pulse_1', type: 'laser', width: 1, color: '#FF00AA' },
-        { id: '21', name: 'Pulse_2', description: 'Pulse_2', type: 'laser', width: 2, color: '#FF00AA' },
-        { id: '22', name: 'Engrave', description: 'Engrave', type: 'engraving', width: 0.5, color: '#00FF88' },
-        { id: '23', name: 'Milling 1', description: 'Milling 1', type: 'milling', width: 0.5, color: '#666666' },
-        { id: '24', name: 'Milling 2', description: 'Milling 2', type: 'milling', width: 1, color: '#777777' },
-        { id: '25', name: 'Milling 3', description: 'Milling 3', type: 'milling', width: 1.5, color: '#888888' },
-        { id: '26', name: 'Milling 4', description: 'Milling 4', type: 'milling', width: 2, color: '#999999' },
-        { id: '27', name: 'Milling 5', description: 'Milling 5', type: 'milling', width: 2.5, color: '#AAAAAA' },
-        { id: '28', name: 'Milling 6', description: 'Milling 6', type: 'milling', width: 3, color: '#BBBBBB' },
-        { id: '29', name: 'Milling 7', description: 'Milling 7', type: 'milling', width: 4, color: '#CCCCCC' },
-        { id: '30', name: 'Milling 8', description: 'Milling 8', type: 'milling', width: 5, color: '#DDDDDD' }
-    ];
-}
 
 function showStatus(message, type = 'info') {
     if (statusText) {

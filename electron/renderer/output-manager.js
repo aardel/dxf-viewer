@@ -972,6 +972,10 @@ async function loadLineTypeMappings() {
         }
         
         console.log('Loaded mappings:', currentMappings.length, 'mappings');
+        
+        // Synchronize line types with profile mappings
+        await synchronizeLineTypesWithProfile();
+        
         displayLineTypeMappings();
         
     } catch (error) {
@@ -979,6 +983,109 @@ async function loadLineTypeMappings() {
         currentMappings = []; // Set empty array on error
         displayLineTypeMappings(); // Still try to display
         showError('Failed to load line type mappings');
+    }
+}
+
+async function synchronizeLineTypesWithProfile() {
+    try {
+        // Load global line types from the XML file
+        const lineTypesResponse = await window.electronAPI.loadLineTypes();
+        if (!lineTypesResponse || !lineTypesResponse.success || !lineTypesResponse.data) {
+            console.warn('Failed to load global line types for synchronization');
+            return;
+        }
+        
+        const globalLineTypes = lineTypesResponse.data;
+        console.log('🔄 Synchronizing line types with profile mappings...');
+        console.log('Global line types count:', globalLineTypes.length);
+        
+        // Get existing mapped line type names
+        const existingMappedNames = currentMappings.map(m => m.lineTypeName);
+        console.log('Existing mapped line types:', existingMappedNames);
+        
+        // Find line types that are not mapped in the profile
+        const unmappedLineTypes = globalLineTypes.filter(lt => !existingMappedNames.includes(lt.name));
+        
+        if (unmappedLineTypes.length > 0) {
+            console.log(`Found ${unmappedLineTypes.length} unmapped line types:`, unmappedLineTypes.map(lt => lt.name));
+            
+            // Add unmapped line types to the profile mappings (with empty tool assignment)
+            const newMappings = unmappedLineTypes.map(lt => ({
+                lineTypeId: lt.id,
+                lineTypeName: lt.name,
+                toolId: '', // Empty tool assignment
+                toolName: '',
+                description: lt.description || ''
+            }));
+            
+            // Add new mappings to existing ones
+            currentMappings = [...currentMappings, ...newMappings];
+            
+            console.log(`Added ${newMappings.length} new mappings to profile`);
+            console.log('Updated line type mappings:', currentMappings.map(m => ({ name: m.lineTypeName, tool: m.toolId })));
+            
+            // Save the updated mappings to the profile
+            const saveResult = await window.electronAPI.saveLineTypeMappingsToProfile(currentMappings, currentProfile.filename);
+            if (saveResult && saveResult.success) {
+                console.log('✅ Successfully saved updated mappings to profile');
+                showStatus(`Added ${newMappings.length} new line types to profile mappings`, 'success');
+            } else {
+                console.warn('Failed to save updated mappings to profile:', saveResult?.error);
+                showStatus(`Added ${newMappings.length} new line types but failed to save to profile`, 'warning');
+            }
+        } else {
+            console.log('✅ All line types are already mapped in the profile');
+        }
+        
+    } catch (error) {
+        console.error('Error synchronizing line types with profile:', error);
+        showStatus('Failed to synchronize line types with profile', 'error');
+    }
+}
+
+function showStatus(message, type = 'info') {
+    console.log(`[${type.toUpperCase()}] ${message}`);
+    
+    // Try to find a status display element in the Output Manager
+    const statusElement = document.querySelector('.status-message') || 
+                         document.querySelector('#toolsStatusMessage') ||
+                         document.querySelector('.status-indicator');
+    
+    if (statusElement) {
+        statusElement.textContent = message;
+        statusElement.style.display = 'block';
+        
+        // Set color based on type
+        switch (type) {
+            case 'success':
+                statusElement.style.backgroundColor = '#d4edda';
+                statusElement.style.color = '#155724';
+                statusElement.style.borderColor = '#c3e6cb';
+                break;
+            case 'warning':
+                statusElement.style.backgroundColor = '#fff3cd';
+                statusElement.style.color = '#856404';
+                statusElement.style.borderColor = '#ffeaa7';
+                break;
+            case 'error':
+                statusElement.style.backgroundColor = '#f8d7da';
+                statusElement.style.color = '#721c24';
+                statusElement.style.borderColor = '#f5c6cb';
+                break;
+            default:
+                statusElement.style.backgroundColor = '#d1ecf1';
+                statusElement.style.color = '#0c5460';
+                statusElement.style.borderColor = '#bee5eb';
+        }
+        
+        // Auto-clear success messages after 3 seconds
+        if (type === 'success') {
+            setTimeout(() => {
+                if (statusElement.textContent === message) {
+                    statusElement.style.display = 'none';
+                }
+            }, 3000);
+        }
     }
 }
 
@@ -1175,7 +1282,7 @@ async function saveLineTypeMappings() {
             return;
         }
         
-        const result = await window.electronAPI.saveLineTypeMappings(currentMappings, currentProfile.filename);
+        const result = await window.electronAPI.saveLineTypeMappingsToProfile(currentMappings, currentProfile.filename);
         
         if (result.success) {
             showSuccess(`✓ Saved ${currentMappings.length} mappings to ${currentProfile.name}`);

@@ -121,6 +121,12 @@ npm run dist
 - Affects UI display only, not geometry scaling
 - Output units defined by postprocessor profile
 
+### Import Unit Detection
+- Set default import units for each file format (DXF, CF2/CFF2, DDS)
+- Automatic fallback when file headers are unclear
+- Consistent unit handling across all file formats
+- Settings saved automatically and restored on startup
+
 ### Scaling Factor
 - Apply scaling for incorrectly exported files
 - DXF-specific scaling options
@@ -141,11 +147,13 @@ npm run dist
 - Expand tool library
 - Configure cutting parameters
 
-## Current Status (2025-08-11)
+## Current Status (2025-08-12)
 
 ### Recent Updates
 - **Multi-Format Support**: Added DDS and CFF2 file format support alongside DXF
 - **Unified Interface**: Single interface for all file formats with consistent processing
+- **Import Unit Detection**: Configurable default units for each file format with automatic fallback
+- **Display Unit Conversion**: Automatic unit conversion for consistent display across all formats
 - **Internal Line Types Editor**: Dedicated editor for creating and managing cutting operations
 - **Line Type Mapping**: Separate window for mapping internal line types to machine tools
 - **Updated UI**: Removed obsolete features and streamlined interface

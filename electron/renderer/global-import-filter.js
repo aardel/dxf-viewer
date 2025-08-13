@@ -165,7 +165,13 @@ function renderRulesTable() {
                 // Try to parse as ACI number
                 aciNum = parseInt(rule.color);
                 hasAci = Number.isInteger(aciNum) && aciNum >= 0 && aciNum <= 255;
-                colorDisplay = hasAci ? String(aciNum) : rule.color;
+                if (hasAci) {
+                    // Show ACI number and its hex equivalent
+                    const hexColor = aciToHex(aciNum);
+                    colorDisplay = `${aciNum} (${hexColor})`;
+                } else {
+                    colorDisplay = rule.color;
+                }
             }
         }
         const fmt = rule.format || 'dxf';
@@ -182,7 +188,7 @@ function renderRulesTable() {
                 <td>${cleanLayerName}</td>
                 <td>
                     <div style="display: flex; align-items: center; gap: 0.5rem;">
-                        <div class="color-swatch" style="background-color: ${rule.color || 'transparent'}"></div>
+                        <div class="color-swatch" style="background-color: ${hasAci ? aciToHex(aciNum) : (rule.color || 'transparent')}"></div>
                         <span>${colorDisplay}</span>
                     </div>
                 </td>
@@ -541,16 +547,34 @@ function showEditRuleModal(ruleId) {
 // Add new rule
 async function addRule(formData) {
     try {
+        const layerName = formData.get('layerName');
+        const color = formData.get('color');
+        const lineTypeId = formData.get('lineTypeId');
+        
+        // For DXF files, we need to handle ACI values properly
+        let aciValue = color;
+        
+        // If color is a hex value, try to find the corresponding ACI
+        if (color.startsWith('#')) {
+            // Convert hex to ACI by finding the matching ACI number
+            aciValue = hexToAci(color);
+        }
+        
+        // Create the key in the correct format for DXF: "dxf|layerName|aciValue"
+        const key = `dxf|${layerName}|${aciValue}`;
+        
         const newRule = {
             id: Date.now().toString(),
-            layerName: formData.get('layerName'),
-            color: formData.get('color'),
-            lineTypeId: formData.get('lineTypeId'),
+            key: key,
+            layerName: layerName,
+            color: aciValue, // Store the ACI value, not hex
+            lineTypeId: lineTypeId,
             description: formData.get('description') || '',
             source: formData.get('source') || 'manual',
             created: new Date().toISOString()
         };
 
+        console.log('Adding new rule:', newRule);
         const result = await window.electronAPI.addRuleToGlobalImportFilter(newRule);
         if (result.success) {
             await loadGlobalFilter();
@@ -1074,6 +1098,85 @@ function aciToHex(aci) {
     }
     
     return '#FFFFFF'; // Default to white if not found
+}
+
+// Convert hex color to ACI value
+function hexToAci(hexColor) {
+    // Normalize hex color (remove # if present)
+    const hex = hexColor.startsWith('#') ? hexColor.substring(1) : hexColor;
+    
+    // Create reverse mapping from hex to ACI
+    const hexToAciMap = {
+        '#FF0000': 1, '#FFFF00': 2, '#00FF00': 3, '#00FFFF': 4, '#0000FF': 5,
+        '#FF00FF': 6, '#FFFFFF': 7, '#808080': 8, '#C0C0C0': 9, '#800000': 10,
+        '#808000': 11, '#008000': 12, '#008080': 13, '#000080': 14, '#800080': 15,
+        '#FF7F00': 17, '#7FFF00': 19, '#00FF7F': 21, '#007FFF': 23, '#7F00FF': 25,
+        '#FF007F': 27, '#7F0000': 28, '#7F3F00': 29, '#7F7F00': 30, '#3F7F00': 31,
+        '#007F00': 32, '#007F3F': 33, '#007F7F': 34, '#003F7F': 35, '#00007F': 36,
+        '#3F007F': 37, '#7F007F': 38, '#7F003F': 39, '#590000': 40, '#590059': 41,
+        '#000059': 42, '#005959': 43, '#595900': 44, '#595959': 45, '#7F0000': 46,
+        '#7F007F': 47, '#00007F': 48, '#007F7F': 49, '#7F7F00': 50, '#7F7F7F': 51,
+        '#3F0000': 52, '#3F003F': 53, '#00003F': 54, '#003F3F': 55, '#3F3F00': 56,
+        '#3F3F3F': 57, '#1F0000': 58, '#1F001F': 59, '#00001F': 60, '#001F1F': 61,
+        '#1F1F00': 62, '#1F1F1F': 63, '#0F0000': 64, '#0F000F': 65, '#00000F': 66,
+        '#000F0F': 67, '#0F0F00': 68, '#0F0F0F': 69, '#FF4040': 70, '#FF8040': 71,
+        '#FFBF40': 72, '#FFFF40': 73, '#BFFF40': 74, '#80FF40': 75, '#40FF40': 76,
+        '#40FF80': 77, '#40FFBF': 78, '#40FFFF': 79, '#40BFFF': 80, '#4080FF': 81,
+        '#4040FF': 82, '#8040FF': 83, '#BF40FF': 84, '#FF40FF': 85, '#FF4080': 86,
+        '#FF4040': 87, '#FF6040': 88, '#FF8040': 89, '#FFA040': 90, '#FFC040': 91,
+        '#FFE040': 92, '#FFFF40': 93, '#E0FF40': 94, '#C0FF40': 95, '#A0FF40': 96,
+        '#80FF40': 97, '#60FF40': 98, '#40FF40': 99, '#40FF60': 100, '#40FF80': 101,
+        '#40FFA0': 102, '#40FFC0': 103, '#40FFE0': 104, '#40FFFF': 105, '#40E0FF': 106,
+        '#40C0FF': 107, '#40A0FF': 108, '#4080FF': 109, '#4060FF': 110, '#4040FF': 111,
+        '#6040FF': 112, '#8040FF': 113, '#A040FF': 114, '#C040FF': 115, '#E040FF': 116,
+        '#FF40FF': 117, '#FF40F0': 118, '#FF40E0': 119, '#FF40D0': 120, '#FF40C0': 121,
+        '#FF40B0': 122, '#FF40A0': 123, '#FF4090': 124, '#FF4080': 125, '#FF4070': 126,
+        '#FF4060': 127, '#FF4050': 128, '#FF4040': 129, '#FF4540': 130, '#FF4A40': 131,
+        '#FF4F40': 132, '#FF5440': 133, '#FF5940': 134, '#FF5E40': 135, '#FF6340': 136,
+        '#FF6840': 137, '#FF6D40': 138, '#FF7240': 139, '#FF7740': 140, '#FF7C40': 141,
+        '#FF8140': 142, '#FF8640': 143, '#FF8B40': 144, '#FF9040': 145, '#FF9540': 146,
+        '#FF9A40': 147, '#FF9F40': 148, '#FFA440': 149, '#FFA940': 150, '#FFAE40': 151,
+        '#FFB340': 152, '#FFB840': 153, '#FFBD40': 154, '#FFC240': 155, '#FFC740': 156,
+        '#FFCC40': 157, '#FFD140': 158, '#FFD640': 159, '#FFDB40': 160, '#FFE040': 161,
+        '#FFE540': 162, '#FFEA40': 163, '#FFEF40': 164, '#FFF440': 165, '#FFF940': 166,
+        '#FFFF40': 167, '#FAFF40': 168, '#F5FF40': 169, '#F0FF40': 170, '#EBFF40': 171,
+        '#E6FF40': 172, '#E1FF40': 173, '#DCFF40': 174, '#D7FF40': 175, '#D2FF40': 176,
+        '#CDFF40': 177, '#C8FF40': 178, '#C3FF40': 179, '#BEFF40': 180, '#B9FF40': 181,
+        '#B4FF40': 182, '#AFFF40': 183, '#AAFF40': 184, '#A5FF40': 185, '#A0FF40': 186,
+        '#9BFF40': 187, '#96FF40': 188, '#91FF40': 189, '#8CFF40': 190, '#87FF40': 191,
+        '#82FF40': 192, '#7DFF40': 193, '#78FF40': 194, '#73FF40': 195, '#6EFF40': 196,
+        '#6AFF40': 197, '#65FF40': 198, '#60FF40': 199, '#5BFF40': 200, '#56FF40': 201,
+        '#51FF40': 202, '#4CFF40': 203, '#47FF40': 204, '#42FF40': 205, '#3DFF40': 206,
+        '#38FF40': 207, '#33FF40': 208, '#2EFF40': 209, '#29FF40': 210, '#24FF40': 211,
+        '#1FFF40': 212, '#1AFF40': 213, '#15FF40': 214, '#10FF40': 215, '#0BFF40': 216,
+        '#06FF40': 217, '#01FF40': 218, '#00FF45': 219, '#00FF4A': 220, '#00FF4F': 221,
+        '#00FF54': 222, '#00FF59': 223, '#00FF5E': 224, '#00FF63': 225, '#00FF68': 226,
+        '#00FF6D': 227, '#00FF72': 228, '#00FF77': 229, '#00FF7C': 230, '#00FF81': 231,
+        '#00FF86': 232, '#00FF8B': 233, '#00FF90': 234, '#00FF95': 235, '#00FF9A': 236,
+        '#00FF9F': 237, '#00FFA4': 238, '#00FFAA': 239, '#00FFAF': 240, '#00FFB4': 241,
+        '#00FFB9': 242, '#00FFBE': 243, '#00FFC3': 244, '#00FFC8': 245, '#00FFCD': 246,
+        '#00FFD2': 247, '#00FFD7': 248, '#00FFDC': 249, '#00FFE1': 250, '#00FFE6': 251,
+        '#00FFEB': 252, '#00FFF0': 253, '#00FFF5': 254, '#0000FF': 255,
+        // Special colors for your specific DXF files
+        '#009800': 38912, // Green (specific to your DXF)
+        '#00FF7F': 65407, // Light Green (specific to your DXF)
+        '#FFFF00': 16776960, // Yellow (specific to your DXF)
+        '#00CC00': 52224, // Dark Green (specific to your DXF)
+        '#BE1E2D': 12459565, // Red variant (specific to your DXF)
+        '#F7941D': 16225309, // Orange variant (specific to your DXF)
+        '#2E3192': 3027346, // Blue variant (specific to your DXF)
+        '#1C75BC': 1865148, // Blue variant (specific to your DXF)
+        '#231F20': 2301728 // Dark variant (specific to your DXF)
+    };
+    
+    // Try to find the ACI value for this hex color
+    const aciValue = hexToAciMap[`#${hex.toUpperCase()}`];
+    if (aciValue !== undefined) {
+        return aciValue;
+    }
+    
+    // If not found, return the hex value as a fallback
+    return hex;
 }
 
 function getLineTypeName(lineTypeId) {

@@ -55,6 +55,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
     parseUnified: (content, filename) => ipcRenderer.invoke('parse-unified', content, filename),
     clearCache: () => ipcRenderer.invoke('clear-cache'),
     
+    // Renderer-based DIN generation API
+    generateDinFromUnifiedGeometries: (geometries, config, metadata) => ipcRenderer.invoke('generateDinFromUnifiedGeometries', geometries, config, metadata),
+    
     // Unified File Processing API
     processUnifiedFile: (inputPath, outputFolder) => ipcRenderer.invoke('process-unified-file', { inputPath, outputFolder }),
     processDxfFile: (inputPath, outputFolder) => ipcRenderer.invoke('process-dxf-file', { inputPath, outputFolder }),

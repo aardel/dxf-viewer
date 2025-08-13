@@ -656,6 +656,37 @@ ipcMain.handle('save-din-file', async (event, content, filename, savePath) => {
     }
 });
 
+// Renderer-based DIN generation from unified geometries
+ipcMain.handle('generateDinFromUnifiedGeometries', async (event, geometries, config, metadata) => {
+    try {
+        console.log('🔥 Main process: generateDinFromUnifiedGeometries called');
+        console.log(`Processing ${geometries.length} unified geometries`);
+        
+        // Import the UnifiedExporter
+        const UnifiedExporter = require('../../src/parsers/UnifiedExporter.js');
+        
+        // Generate DIN content using the renderer-based approach
+        const dinContent = UnifiedExporter.export(geometries, 'din', {
+            config: config,
+            metadata: metadata
+        });
+        
+        console.log('Renderer-based DIN generation completed, content length:', dinContent.length);
+        
+        return {
+            success: true,
+            dinContent: dinContent
+        };
+        
+    } catch (error) {
+        console.error('Error in renderer-based DIN generation:', error);
+        return {
+            success: false,
+            error: error.message
+        };
+    }
+});
+
 // Line Types Management
 ipcMain.handle('load-line-types', async () => {
     try {

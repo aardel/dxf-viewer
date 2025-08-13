@@ -9,13 +9,13 @@
             </Version>
             <Created>2025-08-10
             </Created>
-            <LastModified>2025-08-13
+            <LastModified>2025-08-12
             </LastModified>
             <Author>Aaron Delia
             </Author>
         </ProfileInfo>
         <MachineSettings>
-            <Units>mm
+            <Units>in
             </Units>
         </MachineSettings>
         <Tools>
@@ -148,7 +148,29 @@
             <AutoSaveEnabled>false
             </AutoSaveEnabled>
         </OutputSettings>
-        
+        <MappingWorkflow>
+            <LineTypeToTool>
+                <LineTypeMapping LineType="2pt CW" Tool="T2"/>
+                <LineTypeMapping LineType="3pt CW" Tool="T3"/>
+                <LineTypeMapping LineType="4pt CW" Tool="T4"/>
+                <LineTypeMapping LineType="2pt Puls" Tool="T12"/>
+                <LineTypeMapping LineType="3pt Puls" Tool="T13"/>
+                <LineTypeMapping LineType="4pt Puls" Tool="T14"/>
+                <LineTypeMapping LineType="Fast Engrave" Tool="T20"/>
+                <LineTypeMapping LineType="Fine Cut Pulse" Tool="T22"/>
+                <LineTypeMapping LineType="Fine Cut CW" Tool="T22"/>
+                <LineTypeMapping LineType="Nozzle Engrave" Tool="T33"/>
+                <LineTypeMapping LineType="Engrave" Tool="T22"/>
+                <LineTypeMapping LineType="Milling 1" Tool="T100"/>
+                <LineTypeMapping LineType="Milling 2" Tool="T101"/>
+                <LineTypeMapping LineType="Milling 3" Tool="T102"/>
+                <LineTypeMapping LineType="Milling 4" Tool="T103"/>
+                <LineTypeMapping LineType="Milling 5" Tool="T104"/>
+                <LineTypeMapping LineType="Milling 6" Tool="T105"/>
+                <LineTypeMapping LineType="Milling 7" Tool="T106"/>
+                <LineTypeMapping LineType="Milling 8" Tool="T107"/>
+            </LineTypeToTool>
+        </MappingWorkflow>
         <DinFileStructure>
             <Header>
                 <Element type="file-info" enabled="true">
@@ -169,6 +191,18 @@
                     <Config>
                         <Marker>%1
                         </Marker>
+                    </Config>
+                </Element>
+                <Element type="scaling" enabled="true">
+                    <Title>Scaling Commands
+                    </Title>
+                    <Icon>⚖️
+                    </Icon>
+                    <Config>
+                        <Commands>:P2027=25.4/P674 
+G75 X=P2027 Y=P2027
+                        </Commands>
+                        <Comment/>
                     </Config>
                 </Element>
                 <Element type="bounds" enabled="true">
@@ -239,37 +273,4 @@ G60 X0
             <LaserOffAcrossGaps>true
             </LaserOffAcrossGaps>
         </Bridges>
-    
-    
-    
-    <MappingWorkflow>
-        <LineTypeToTool>
-            <LineTypeMapping LineType="2pt CW" Tool="T2"/>
-            <LineTypeMapping LineType="3pt CW" Tool="T3"/>
-            <LineTypeMapping LineType="4pt CW" Tool="T4"/>
-            <LineTypeMapping LineType="2pt Puls" Tool="T12"/>
-            <LineTypeMapping LineType="3pt Puls" Tool="T13"/>
-            <LineTypeMapping LineType="4pt Puls" Tool="T14"/>
-            <LineTypeMapping LineType="Fast Engrave" Tool="T20"/>
-            <LineTypeMapping LineType="Fine Cut Pulse" Tool="T22"/>
-            <LineTypeMapping LineType="Fine Cut CW" Tool="T22"/>
-            <LineTypeMapping LineType="Nozzle Engrave" Tool="T33"/>
-            <LineTypeMapping LineType="Engrave" Tool="T22"/>
-            <LineTypeMapping LineType="Milling 1" Tool="T100"/>
-            <LineTypeMapping LineType="Milling 2" Tool="T101"/>
-            <LineTypeMapping LineType="Milling 3" Tool="T102"/>
-            <LineTypeMapping LineType="Milling 4" Tool="T103"/>
-            <LineTypeMapping LineType="Milling 5" Tool="T104"/>
-            <LineTypeMapping LineType="Milling 6" Tool="T105"/>
-            <LineTypeMapping LineType="Milling 7" Tool="T106"/>
-            <LineTypeMapping LineType="Milling 8" Tool="T107"/>
-            <LineTypeMapping LineType="1pt CW" Tool="T22"/>
-            <LineTypeMapping LineType="1.5pt CW" Tool=""/>
-            <LineTypeMapping LineType="1pt Puls" Tool=""/>
-            <LineTypeMapping LineType="1.5pt Puls" Tool=""/>
-            <LineTypeMapping LineType="2pt Bridge" Tool=""/>
-            <LineTypeMapping LineType="3pt Bridge" Tool=""/>
-            <LineTypeMapping LineType="4pt Bridge" Tool=""/>
-        </LineTypeToTool>
-    </MappingWorkflow>
     </PostprocessorProfile>

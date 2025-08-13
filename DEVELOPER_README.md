@@ -13,10 +13,11 @@
 9. [Import Filter System](#import-filter-system)
 10. [Tool Management](#tool-management)
 11. [Line Type Management](#line-type-management)
-12. [Batch Monitor System](#batch-monitor-system)
-13. [Build & Deployment](#build--deployment)
-14. [Debugging](#debugging)
-15. [Contributing](#contributing)
+12. [Import Unit Detection System](#import-unit-detection-system)
+13. [Batch Monitor System](#batch-monitor-system)
+14. [Build & Deployment](#build--deployment)
+15. [Debugging](#debugging)
+16. [Contributing](#contributing)
 
 ## 🎯 Overview
 
@@ -29,6 +30,8 @@
 - **Tool Configuration**: Comprehensive tool library management
 - **DIN File Generation**: G-code output with customizable postprocessors
 - **Import Filter System**: Global and file-specific import rules
+- **Import Unit Detection**: Configurable default units for each file format
+- **Display Unit Conversion**: Automatic unit conversion for consistent display
 - **Lascomb Studio Line Types**: Internal line type editor and management
 - **Line Type Mapping**: Map internal line types to machine tools
 - **Priority Management**: Cutting priority configuration
@@ -353,6 +356,81 @@ XML-based line type definitions:
 - Map internal line types to machine tools
 - Configure cutting parameters
 - Priority-based assignments
+
+## 🔧 Import Unit Detection System
+
+### Overview
+The Import Unit Detection System provides configurable default units for each file format when unit detection is inconclusive. This ensures consistent unit handling across DXF, DDS, and CF2/CFF2 files.
+
+### Features
+- **Format-Specific Settings**: Separate unit preferences for DXF, CF2/CFF2, and DDS files
+- **Auto-Detection Fallback**: Uses file headers when available, falls back to user preferences
+- **Display Unit Conversion**: Automatically converts dimensions to user's display preference
+- **Persistent Settings**: Settings are saved to localStorage and restored on startup
+
+### Configuration
+Settings are available in **Application Settings** → **Import Unit Detection**:
+
+```
+DXF files are in: [Auto-detect | Millimeters | Inches | Centimeters | Meters]
+CF2/CFF2 files are in: [Auto-detect | Millimeters | Inches | Centimeters | Meters]  
+DDS files are in: [Auto-detect | Millimeters | Inches | Centimeters | Meters]
+```
+
+### Implementation Details
+
+#### Unit Detection Logic
+```javascript
+// DXF files: Check INSUNITS header, fallback to user preference
+function getDXFUnits() {
+    const insunits = header.$INSUNITS || header.INSUNITS;
+    const isUnclear = insunits === null || insunits === undefined || insunits === 0;
+    
+    if (isUnclear && userPreference !== 'auto') {
+        return userPreference; // Use user's import setting
+    }
+    return fileHeader; // Use file header
+}
+
+// CF2/CFF2 files: Geometry analysis, fallback to user preference
+// DDS files: File header, fallback to user preference
+```
+
+#### Display Unit Conversion
+```javascript
+// Convert dimensions to user's display preference
+if (userUnit !== 'auto' && userUnit !== detectedUnit) {
+    if (detectedUnit === 'in' && userUnit === 'mm') {
+        displayWidth = width * 25.4;
+        displayHeight = height * 25.4;
+    } else if (detectedUnit === 'mm' && userUnit === 'in') {
+        displayWidth = width / 25.4;
+        displayHeight = height / 25.4;
+    }
+}
+```
+
+### File Format Support
+
+#### DXF Files
+- **Primary**: Uses `$INSUNITS` header variable
+- **Fallback**: User's DXF import preference
+- **Default**: Millimeters (if no preference set)
+
+#### CF2/CFF2 Files  
+- **Primary**: Geometry analysis and inference
+- **Fallback**: User's CF2 import preference
+- **Default**: Millimeters (if no preference set)
+
+#### DDS Files
+- **Primary**: File header unit information
+- **Fallback**: User's DDS import preference  
+- **Default**: Millimeters (if no preference set)
+
+### User Interface
+- **Settings Location**: Application Settings → Import Unit Detection
+- **Auto-Save**: Changes are saved immediately to localStorage
+- **Visual Feedback**: Format indicator shows detected units and confidence
 
 ## 📊 Batch Monitor System
 

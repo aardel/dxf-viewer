@@ -9,6 +9,14 @@ class Geometry {
         this.bridgeCount = options.bridgeCount || 0;
         this.bridgeWidth = options.bridgeWidth || 0;
         this.properties = options.properties || {}; // For proprietary fields (CF2, etc.)
+        
+        // Assign any additional options directly to the object
+        // This allows parsers to add custom properties like fileUnits
+        Object.keys(options).forEach(key => {
+            if (!this.hasOwnProperty(key) && key !== 'properties') {
+                this[key] = options[key];
+            }
+        });
     }
 }
 

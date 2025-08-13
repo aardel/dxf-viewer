@@ -240,8 +240,6 @@ G60 X0
             </LaserOffAcrossGaps>
         </Bridges>
     
-    
-    
     <MappingWorkflow>
         <LineTypeToTool>
             <LineTypeMapping LineType="2pt CW" Tool="T2"/>
